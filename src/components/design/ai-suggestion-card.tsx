@@ -23,6 +23,8 @@ const typeStyles: Record<AiRecommendation["type"], string> = {
   carryon: "border-primary/20 bg-primary/5",
   duplicate: "border-golf-green/20 bg-golf-green/5",
   pet: "border-warm-sand bg-warm-sand/50 dark:bg-warm-sand/10",
+  insight: "border-golf-green/20 bg-golf-green/5",
+  warning: "border-weather-orange/20 bg-weather-orange/5",
 };
 
 interface AiSuggestionCardProps {

@@ -177,6 +177,9 @@ export interface WeatherDay {
 
 export interface TripOnboardingData {
   destination: string;
+  is_multi_destination?: boolean;
+  additional_destinations?: string;
+  destination_context?: string;
   start_date: string;
   end_date: string;
   travelers: OnboardingTraveler[];

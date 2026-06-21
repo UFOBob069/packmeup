@@ -10,6 +10,7 @@ import {
   getDemoUser,
   saveDemoTemplate,
 } from "@/lib/demo/store";
+import { buildTripSpecialNotes } from "@/lib/trip-notes";
 import { createClient } from "@/lib/supabase/server";
 import { generateTripContent } from "@/lib/ai/packing-generator";
 import { fetchWeather } from "@/lib/weather/weather-service";
@@ -124,7 +125,7 @@ export async function createTrip(data: TripOnboardingData): Promise<TripWithDeta
         ? data.style_preferences
         : [data.style_preference],
       packing_mode: data.packing_mode,
-      special_notes: data.special_notes || null,
+      special_notes: buildTripSpecialNotes(data) || null,
       weather_data: weather,
     })
     .select()

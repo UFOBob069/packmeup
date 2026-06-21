@@ -15,6 +15,7 @@ import type {
 } from "@/lib/types";
 import { DEMO_USER } from "@/lib/constants";
 import { generateTripContent } from "@/lib/ai/packing-generator";
+import { buildTripSpecialNotes } from "@/lib/trip-notes";
 import { fetchWeather } from "@/lib/weather/weather-service";
 
 function uuid(): string {
@@ -229,7 +230,7 @@ export async function createDemoTrip(
       ? data.style_preferences
       : [data.style_preference],
     packing_mode: data.packing_mode,
-    special_notes: data.special_notes || null,
+    special_notes: buildTripSpecialNotes(data) || null,
     weather_data: weather,
     share_token: uuid().replace(/-/g, "").slice(0, 32),
     created_at: now,

@@ -19,18 +19,14 @@ import { InviteDialog } from "./invite-dialog";
 import { AddPackingItemForm } from "./add-packing-item-form";
 import { TripSettingsMenu } from "./trip-settings-menu";
 import { RealtimePacking } from "./realtime-packing";
-import { PackingTimeline } from "./packing-timeline";
-import {
-  PackingProgressHeader,
-  TravelerPackingFilters,
-} from "./packing-traveler-filters";
+import { PackingSidebar } from "./packing-sidebar";
+import { TravelerPackingFilters } from "./packing-traveler-filters";
 import { CountdownWidget } from "@/components/design/countdown-widget";
 import { WeatherPreview } from "@/components/design/weather-card";
-import { AiSuggestionList } from "@/components/design/ai-suggestion-card";
 import { ActivityTag } from "@/components/design/activity-tag";
 import type { ChatMessage, TripWithDetails, WeatherData } from "@/lib/types";
 import { calculateProgress } from "@/lib/demo/store";
-import { generateAiRecommendations, generatePackingTimeline } from "@/lib/design-system";
+import { generatePackingTimeline } from "@/lib/design-system";
 
 interface TripDetailClientProps {
   trip: TripWithDetails;
@@ -46,12 +42,12 @@ const tabItems = [
 
 export function TripDetailClient({ trip, chatMessages }: TripDetailClientProps) {
   const router = useRouter();
+  const [activeTab, setActiveTab] = useState("pack");
   const [travelerFilter, setTravelerFilter] = useState("all");
   const progress = calculateProgress(trip.packing_items, trip.travelers);
   const weather = trip.weather_data as WeatherData | null;
   const daysUntil = differenceInDays(parseISO(trip.start_date), new Date());
   const activities = [...new Set(trip.activities.map((a) => a.activity_name))];
-  const packingTips = generateAiRecommendations(trip.packing_items, trip.travelers, weather);
   const timeline = generatePackingTimeline(daysUntil);
 
   const checklistFilter =
@@ -61,11 +57,18 @@ export function TripDetailClient({ trip, chatMessages }: TripDetailClientProps) 
         ? "shared"
         : travelerFilter;
 
+  const sidebarProps = {
+    trip,
+    progress,
+    daysUntil,
+    timeline,
+    onOptimize: () => setActiveTab("concierge"),
+  };
+
   return (
     <div className="space-y-5">
       <RealtimePacking tripId={trip.id} onUpdate={() => router.refresh()} />
 
-      {/* Compact trip header */}
       <div className="flex flex-col gap-4 rounded-2xl border bg-card p-5 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0">
           <div className="mb-1.5 flex flex-wrap gap-1.5">
@@ -95,7 +98,7 @@ export function TripDetailClient({ trip, chatMessages }: TripDetailClientProps) 
         </div>
       </div>
 
-      <Tabs defaultValue="pack" className="space-y-5">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-5">
         <TabsList className="flex h-auto w-full flex-wrap justify-start gap-1 rounded-2xl bg-muted/50 p-1.5">
           {tabItems.map(({ value, label, icon: Icon }) => (
             <TabsTrigger
@@ -109,35 +112,36 @@ export function TripDetailClient({ trip, chatMessages }: TripDetailClientProps) 
           ))}
         </TabsList>
 
-        <TabsContent value="pack" className="space-y-4">
-          <PackingProgressHeader progress={progress} daysUntil={daysUntil} />
+        <TabsContent value="pack">
+          <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px] xl:grid-cols-[minmax(0,1fr)_360px]">
+            <div className="min-w-0 space-y-4">
+              <TravelerPackingFilters
+                travelers={trip.travelers}
+                progress={progress}
+                value={travelerFilter}
+                onChange={setTravelerFilter}
+              />
 
-          <TravelerPackingFilters
-            travelers={trip.travelers}
-            progress={progress}
-            value={travelerFilter}
-            onChange={setTravelerFilter}
-          />
+              <PackingChecklist
+                items={trip.packing_items}
+                travelers={trip.travelers}
+                tripId={trip.id}
+                filterTraveler={checklistFilter ?? null}
+              />
 
-          <PackingChecklist
-            items={trip.packing_items}
-            travelers={trip.travelers}
-            tripId={trip.id}
-            filterTraveler={checklistFilter ?? null}
-          />
+              <AddPackingItemForm tripId={trip.id} travelers={trip.travelers} />
 
-          <AddPackingItemForm tripId={trip.id} travelers={trip.travelers} />
-
-          {(packingTips.length > 0 || timeline.length > 0) && (
-            <div className="grid gap-4 border-t pt-5 lg:grid-cols-2">
-              {packingTips.length > 0 && (
-                <div className="rounded-2xl border bg-card p-5">
-                  <AiSuggestionList recommendations={packingTips} />
-                </div>
-              )}
-              {timeline.length > 0 && <PackingTimeline milestones={timeline} />}
+              <div className="lg:hidden">
+                <PackingSidebar {...sidebarProps} />
+              </div>
             </div>
-          )}
+
+            <div className="hidden lg:block">
+              <div className="sticky top-20 max-h-[calc(100vh-6rem)] space-y-4 overflow-y-auto pb-4">
+                <PackingSidebar {...sidebarProps} />
+              </div>
+            </div>
+          </div>
         </TabsContent>
 
         <TabsContent value="outfits">

@@ -164,7 +164,10 @@ Laundry Access: ${data.laundry_access}
 Style (pick all that apply): ${styles.map((s) => STYLE_LABELS[s]).join(", ")}
 Packing Mode: ${data.packing_mode}
 Activities: ${data.activities.join(", ") || "General sightseeing"}
-Special Notes: ${data.special_notes || "None"}
+Destination: ${data.destination}
+${data.is_multi_destination ? `Multi-destination: Yes${data.additional_destinations ? ` — also visiting ${data.additional_destinations}` : ""}` : "Multi-destination: No"}
+Destination-specific details: ${data.destination_context || "None"}
+Other notes: ${data.special_notes || "None"}
 Weather: ${weather ? JSON.stringify(weather.daily) : "Unknown"}
 
 Return JSON with this exact structure:

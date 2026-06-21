@@ -20,6 +20,7 @@ import { Badge } from "@/components/ui/badge";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { createTrip } from "@/actions/trips";
+import { getDestinationQuestion } from "@/actions/onboarding";
 import { ACTIVITY_OPTIONS } from "@/lib/types";
 import type {
   LaundryAccess,
@@ -39,9 +40,13 @@ import {
   TRAVEL_TYPE_LABELS,
 } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import { fireCelebrationConfetti } from "@/lib/confetti";
+
+type GenerationState = "idle" | "generating" | "complete";
 
 type Step =
   | "destination"
+  | "destination_details"
   | "dates"
   | "travelers"
   | "travel_type"
@@ -54,6 +59,7 @@ type Step =
 
 const STEP_PROMPTS: Record<Step, string> = {
   destination: "Where are you headed?",
+  destination_details: "Tell us a bit more about the trip",
   dates: "When do you leave and come back?",
   travelers: "Who's coming along?",
   travel_type: "How are you traveling?",
@@ -67,6 +73,7 @@ const STEP_PROMPTS: Record<Step, string> = {
 
 const STEP_HINTS: Record<Step, string> = {
   destination: "I'll use this for weather and local packing tips.",
+  destination_details: "This helps us tailor your list to where you're going.",
   dates: "Trip length changes how much clothing you need.",
   travelers: "Start with yourself — add partners, kids, or pets.",
   travel_type: "Carry-on vs checked bags changes what we suggest.",
@@ -80,6 +87,7 @@ const STEP_HINTS: Record<Step, string> = {
 
 const STEP_ORDER: Step[] = [
   "destination",
+  "destination_details",
   "dates",
   "travelers",
   "travel_type",
@@ -93,6 +101,7 @@ const STEP_ORDER: Step[] = [
 
 const STEP_SHORT_LABELS: Record<Step, string> = {
   destination: "Destination",
+  destination_details: "Trip details",
   dates: "Dates",
   travelers: "Travelers",
   travel_type: "Travel",
@@ -173,10 +182,31 @@ function GenerationProgress() {
   );
 }
 
+function GenerationComplete() {
+  useEffect(() => {
+    void fireCelebrationConfetti();
+  }, []);
+
+  return (
+    <div className="space-y-4 py-6 text-center">
+      <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-primary/15 ring-4 ring-primary/10">
+        <Check className="h-8 w-8 text-primary" />
+      </div>
+      <div>
+        <p className="text-display text-xl font-semibold">Your list is ready!</p>
+        <p className="mt-2 text-sm text-muted-foreground">
+          Opening your packing command center...
+        </p>
+      </div>
+    </div>
+  );
+}
+
 export function TripOnboardingChat({ templateData, userName }: TripOnboardingChatProps) {
   const router = useRouter();
   const [step, setStep] = useState<Step>("destination");
-  const [isPending, startTransition] = useTransition();
+  const [generationState, setGenerationState] = useState<GenerationState>("idle");
+  const [, startTransition] = useTransition();
 
   const [data, setData] = useState<Partial<TripOnboardingData>>({
     travelers:
@@ -206,6 +236,19 @@ export function TripOnboardingChat({ templateData, userName }: TripOnboardingCha
   });
   const [travelerError, setTravelerError] = useState<string | null>(null);
   const [notes, setNotes] = useState(data.special_notes ?? "");
+  const [destinationQuestion, setDestinationQuestion] = useState<string | null>(null);
+  const [questionHints, setQuestionHints] = useState<string[]>([]);
+  const [loadingQuestion, setLoadingQuestion] = useState(false);
+  const [isMultiDestination, setIsMultiDestination] = useState<boolean | null>(
+    data.is_multi_destination ?? null
+  );
+  const [additionalDestinations, setAdditionalDestinations] = useState(
+    data.additional_destinations ?? ""
+  );
+  const [destinationContext, setDestinationContext] = useState(
+    data.destination_context ?? ""
+  );
+  const [destinationDetailsError, setDestinationDetailsError] = useState<string | null>(null);
 
   const stepIndex = STEP_ORDER.indexOf(step);
   const progress = Math.round(((stepIndex + 1) / STEP_ORDER.length) * 100);
@@ -220,6 +263,22 @@ export function TripOnboardingChat({ templateData, userName }: TripOnboardingCha
     switch (s) {
       case "destination":
         return data.destination || destination || null;
+      case "destination_details": {
+        const parts: string[] = [];
+        if (data.is_multi_destination) {
+          parts.push(
+            data.additional_destinations?.trim()
+              ? `Multi-stop: ${data.additional_destinations}`
+              : "Multi-destination"
+          );
+        } else if (data.is_multi_destination === false) {
+          parts.push("Single destination");
+        }
+        if (data.destination_context?.trim()) {
+          parts.push(data.destination_context.trim());
+        }
+        return parts.length ? parts.join(" · ") : null;
+      }
       case "dates":
         return startDate && endDate
           ? `${format(startDate, "MMM d")} – ${format(endDate, "MMM d, yyyy")}`
@@ -247,12 +306,49 @@ export function TripOnboardingChat({ templateData, userName }: TripOnboardingCha
     }
   };
 
-  const handleDestination = (selected?: string) => {
+  const handleDestination = async (selected?: string) => {
     const value = (selected ?? destination).trim();
     if (!value) return;
     setDestination(value);
     setData((d) => ({ ...d, destination: value }));
+    setDestinationDetailsError(null);
+    setLoadingQuestion(true);
+    goToStep("destination_details");
+    try {
+      const result = await getDestinationQuestion(value);
+      setDestinationQuestion(result.question);
+      setQuestionHints(result.hints);
+    } finally {
+      setLoadingQuestion(false);
+    }
+  };
+
+  const handleDestinationDetails = () => {
+    if (isMultiDestination === null) {
+      setDestinationDetailsError("Let us know if you're visiting more than one place.");
+      return;
+    }
+    if (isMultiDestination && !additionalDestinations.trim()) {
+      setDestinationDetailsError("Add your other stops so we can plan for each leg.");
+      return;
+    }
+    setDestinationDetailsError(null);
+    setData((d) => ({
+      ...d,
+      is_multi_destination: isMultiDestination,
+      additional_destinations: isMultiDestination ? additionalDestinations.trim() : undefined,
+      destination_context: destinationContext.trim() || undefined,
+    }));
     goToStep("dates");
+  };
+
+  const appendHint = (hint: string) => {
+    setDestinationContext((prev) => {
+      const trimmed = prev.trim();
+      if (!trimmed) return hint;
+      if (trimmed.toLowerCase().includes(hint.toLowerCase())) return prev;
+      return `${trimmed}, ${hint.toLowerCase()}`;
+    });
   };
 
   const handleStartDateSelect = (date?: Date) => {
@@ -400,12 +496,24 @@ export function TripOnboardingChat({ templateData, userName }: TripOnboardingCha
   };
 
   const handleGenerate = () => {
+    setGenerationState("generating");
     startTransition(async () => {
-      const tripData = { ...data, special_notes: notes } as TripOnboardingData;
-      const trip = await createTrip(tripData);
-      if (trip) router.push(`/trips/${trip.id}`);
+      try {
+        const tripData = { ...data, special_notes: notes } as TripOnboardingData;
+        const trip = await createTrip(tripData);
+        if (trip) {
+          setGenerationState("complete");
+          window.setTimeout(() => router.push(`/trips/${trip.id}`), 2200);
+        } else {
+          setGenerationState("idle");
+        }
+      } catch {
+        setGenerationState("idle");
+      }
     });
   };
+
+  const isGenerating = generationState !== "idle";
 
   return (
     <div className="mx-auto max-w-2xl space-y-6 pb-12">
@@ -462,7 +570,7 @@ export function TripOnboardingChat({ templateData, userName }: TripOnboardingCha
         )}
       >
         <div className="mb-5 flex items-start gap-3">
-          {stepIndex > 0 && !isPending && (
+          {stepIndex > 0 && !isGenerating && (
             <Button
               type="button"
               variant="ghost"
@@ -480,8 +588,10 @@ export function TripOnboardingChat({ templateData, userName }: TripOnboardingCha
           </div>
         </div>
 
-        {isPending ? (
+        {generationState === "generating" ? (
           <GenerationProgress />
+        ) : generationState === "complete" ? (
+          <GenerationComplete />
         ) : (
           <>
             {step === "destination" && (
@@ -489,12 +599,109 @@ export function TripOnboardingChat({ templateData, userName }: TripOnboardingCha
                 <DestinationAutocomplete
                   value={destination}
                   onChange={setDestination}
-                  onSelect={(place) => handleDestination(place.shortLabel)}
-                  onSubmit={() => handleDestination()}
+                  onSelect={(place) => void handleDestination(place.shortLabel)}
+                  onSubmit={() => void handleDestination()}
                   placeholder="Scottsdale, Arizona"
                 />
-                <Button onClick={() => handleDestination()} disabled={!destination.trim()}>
-                  <ArrowRight className="h-4 w-4" />
+                <Button
+                  onClick={() => void handleDestination()}
+                  disabled={!destination.trim() || loadingQuestion}
+                >
+                  {loadingQuestion ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <ArrowRight className="h-4 w-4" />
+                  )}
+                </Button>
+              </div>
+            )}
+
+            {step === "destination_details" && (
+              <div className="space-y-5">
+                <div className="flex items-center gap-2 rounded-lg border bg-muted/30 px-3 py-2 text-sm">
+                  <MapPin className="h-4 w-4 shrink-0 text-primary" />
+                  <span className="font-medium">{data.destination || destination}</span>
+                </div>
+
+                <div className="space-y-2">
+                  <p className="text-sm font-medium">Is this a multi-destination trip?</p>
+                  <div className="flex gap-2">
+                    <Button
+                      type="button"
+                      variant={isMultiDestination === true ? "default" : "outline"}
+                      onClick={() => setIsMultiDestination(true)}
+                      className="flex-1"
+                    >
+                      Yes, multiple stops
+                    </Button>
+                    <Button
+                      type="button"
+                      variant={isMultiDestination === false ? "default" : "outline"}
+                      onClick={() => setIsMultiDestination(false)}
+                      className="flex-1"
+                    >
+                      No, just one place
+                    </Button>
+                  </div>
+                </div>
+
+                {isMultiDestination && (
+                  <div className="space-y-2">
+                    <p className="text-sm font-medium">Where else are you going?</p>
+                    <Input
+                      placeholder="Paris, then Rome, then Florence"
+                      value={additionalDestinations}
+                      onChange={(e) => setAdditionalDestinations(e.target.value)}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      List other cities or regions — we&apos;ll factor in each leg of the trip.
+                    </p>
+                  </div>
+                )}
+
+                <div className="space-y-2">
+                  {loadingQuestion ? (
+                    <div className="flex items-center gap-2 rounded-lg border bg-muted/20 px-4 py-6 text-sm text-muted-foreground">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Tailoring a question for {data.destination || destination}...
+                    </div>
+                  ) : (
+                    <>
+                      <p className="text-sm font-medium">{destinationQuestion}</p>
+                      <Textarea
+                        placeholder="Optional — share anything that might affect what you pack"
+                        value={destinationContext}
+                        onChange={(e) => setDestinationContext(e.target.value)}
+                        rows={3}
+                      />
+                      {questionHints.length > 0 && (
+                        <div className="flex flex-wrap gap-2">
+                          {questionHints.map((hint) => (
+                            <button
+                              key={hint}
+                              type="button"
+                              onClick={() => appendHint(hint)}
+                              className="rounded-full border bg-background px-3 py-1 text-xs text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground"
+                            >
+                              {hint}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+
+                {destinationDetailsError && (
+                  <p className="text-sm text-destructive">{destinationDetailsError}</p>
+                )}
+
+                <Button
+                  onClick={handleDestinationDetails}
+                  className="w-full"
+                  disabled={loadingQuestion}
+                >
+                  Continue
                 </Button>
               </div>
             )}
@@ -776,6 +983,16 @@ export function TripOnboardingChat({ templateData, userName }: TripOnboardingCha
                     <div>
                       <p className="text-xs text-muted-foreground">Destination</p>
                       <p className="font-medium">{data.destination}</p>
+                      {data.is_multi_destination && data.additional_destinations && (
+                        <p className="mt-0.5 text-xs text-muted-foreground">
+                          Also: {data.additional_destinations}
+                        </p>
+                      )}
+                      {data.destination_context?.trim() && (
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          {data.destination_context}
+                        </p>
+                      )}
                     </div>
                   </div>
                   <div className="grid grid-cols-2 gap-3">
