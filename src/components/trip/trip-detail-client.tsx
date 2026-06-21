@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { differenceInDays, format, parseISO } from "date-fns";
 import {
@@ -11,23 +12,22 @@ import {
 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PackingChecklist } from "./packing-checklist";
-import { SharedItemsSection } from "./shared-items-section";
-import { PetTravelCard } from "./pet-travel-card";
 import { OutfitPlanner } from "./outfit-planner";
 import { CalendarView } from "./calendar-view";
-import { ProgressStats } from "./progress-stats";
 import { AiChat } from "./ai-chat";
 import { InviteDialog } from "./invite-dialog";
 import { AddPackingItemForm } from "./add-packing-item-form";
 import { TripSettingsMenu } from "./trip-settings-menu";
 import { RealtimePacking } from "./realtime-packing";
-import { CollaborationFeed } from "./collaboration-feed";
 import { PackingTimeline } from "./packing-timeline";
+import {
+  PackingProgressHeader,
+  TravelerPackingFilters,
+} from "./packing-traveler-filters";
 import { CountdownWidget } from "@/components/design/countdown-widget";
 import { WeatherPreview } from "@/components/design/weather-card";
 import { AiSuggestionList } from "@/components/design/ai-suggestion-card";
 import { ActivityTag } from "@/components/design/activity-tag";
-import { TravelerAvatarGroup } from "@/components/design/traveler-avatar";
 import type { ChatMessage, TripWithDetails, WeatherData } from "@/lib/types";
 import { calculateProgress } from "@/lib/demo/store";
 import { generateAiRecommendations, generatePackingTimeline } from "@/lib/design-system";
@@ -46,59 +46,56 @@ const tabItems = [
 
 export function TripDetailClient({ trip, chatMessages }: TripDetailClientProps) {
   const router = useRouter();
+  const [travelerFilter, setTravelerFilter] = useState("all");
   const progress = calculateProgress(trip.packing_items, trip.travelers);
   const weather = trip.weather_data as WeatherData | null;
   const daysUntil = differenceInDays(parseISO(trip.start_date), new Date());
   const activities = [...new Set(trip.activities.map((a) => a.activity_name))];
-  const pets = trip.travelers.filter((t) => t.traveler_type === "pet");
-  const aiRecs = generateAiRecommendations(trip.packing_items, trip.travelers, weather);
+  const packingTips = generateAiRecommendations(trip.packing_items, trip.travelers, weather);
   const timeline = generatePackingTimeline(daysUntil);
 
+  const checklistFilter =
+    travelerFilter === "all"
+      ? undefined
+      : travelerFilter === "shared"
+        ? "shared"
+        : travelerFilter;
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       <RealtimePacking tripId={trip.id} onUpdate={() => router.refresh()} />
 
-      {/* Trip hero */}
-      <div className="relative overflow-hidden rounded-3xl border bg-gradient-to-br from-primary/8 via-background to-warm-sand/20 p-6 sm:p-8">
-        <div className="absolute -right-8 -top-8 h-40 w-40 rounded-full bg-sky-blue/20 blur-3xl" />
-        <div className="relative flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
-          <div className="min-w-0 flex-1">
-            <div className="mb-2 flex flex-wrap items-center gap-2">
-              {activities.map((a) => (
-                <ActivityTag key={a} name={a} />
-              ))}
-            </div>
-            <h1 className="text-display text-3xl font-semibold tracking-tight sm:text-4xl">
-              {trip.destination}
-            </h1>
-            <p className="mt-2 text-muted-foreground">
-              {format(parseISO(trip.start_date), "MMMM d")} –{" "}
-              {format(parseISO(trip.end_date), "MMMM d, yyyy")}
-            </p>
-            <div className="mt-4 flex items-center gap-4">
-              <TravelerAvatarGroup
-                travelers={trip.travelers.map((t) => ({
-                  name: t.name,
-                  traveler_type: t.traveler_type,
-                }))}
-                size="md"
-              />
-              <InviteDialog tripId={trip.id} />
-              <div className="ml-auto">
-                <TripSettingsMenu tripId={trip.id} destination={trip.destination} />
-              </div>
-            </div>
+      {/* Compact trip header */}
+      <div className="flex flex-col gap-4 rounded-2xl border bg-card p-5 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0">
+          <div className="mb-1.5 flex flex-wrap gap-1.5">
+            {activities.map((a) => (
+              <ActivityTag key={a} name={a} />
+            ))}
           </div>
+          <h1 className="text-display truncate text-2xl font-semibold tracking-tight sm:text-3xl">
+            {trip.destination}
+          </h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {format(parseISO(trip.start_date), "MMM d")} –{" "}
+            {format(parseISO(trip.end_date), "MMM d, yyyy")}
+          </p>
+        </div>
+        <div className="flex shrink-0 items-center gap-2">
           {daysUntil >= 0 && (
-            <CountdownWidget days={daysUntil} destination={trip.destination.split(",")[0]} className="lg:min-w-[200px]" />
+            <CountdownWidget
+              days={daysUntil}
+              destination={trip.destination.split(",")[0]}
+              compact
+              className="border-0 bg-muted/40 px-3 py-2"
+            />
           )}
+          <InviteDialog tripId={trip.id} />
+          <TripSettingsMenu tripId={trip.id} destination={trip.destination} />
         </div>
       </div>
 
-      <ProgressStats progress={progress} />
-
-      {/* Tabs */}
-      <Tabs defaultValue="pack" className="space-y-6">
+      <Tabs defaultValue="pack" className="space-y-5">
         <TabsList className="flex h-auto w-full flex-wrap justify-start gap-1 rounded-2xl bg-muted/50 p-1.5">
           {tabItems.map(({ value, label, icon: Icon }) => (
             <TabsTrigger
@@ -112,60 +109,35 @@ export function TripDetailClient({ trip, chatMessages }: TripDetailClientProps) 
           ))}
         </TabsList>
 
-        <TabsContent value="pack" className="space-y-6">
-          <div className="grid gap-6 lg:grid-cols-3">
-            <div className="space-y-6 lg:col-span-2">
-              <SharedItemsSection items={trip.packing_items} />
-              {pets.map((pet) => (
-                <PetTravelCard
-                  key={pet.id}
-                  pet={pet}
-                  items={trip.packing_items}
-                  tripId={trip.id}
-                />
-              ))}
+        <TabsContent value="pack" className="space-y-4">
+          <PackingProgressHeader progress={progress} daysUntil={daysUntil} />
 
-              <AddPackingItemForm tripId={trip.id} travelers={trip.travelers} />
+          <TravelerPackingFilters
+            travelers={trip.travelers}
+            progress={progress}
+            value={travelerFilter}
+            onChange={setTravelerFilter}
+          />
 
-              <Tabs defaultValue="all">
-                <TabsList className="mb-4 flex h-auto flex-wrap gap-1 rounded-xl bg-muted/40 p-1">
-                  <TabsTrigger value="all" className="rounded-lg">All</TabsTrigger>
-                  {trip.travelers.map((t) => (
-                    <TabsTrigger key={t.id} value={t.id} className="rounded-lg">
-                      {t.traveler_type === "pet" ? `🐾 ${t.name}` : t.name}
-                    </TabsTrigger>
-                  ))}
-                </TabsList>
-                <TabsContent value="all">
-                  <PackingChecklist
-                    items={trip.packing_items}
-                    travelers={trip.travelers}
-                    tripId={trip.id}
-                  />
-                </TabsContent>
-                {trip.travelers.map((t) => (
-                  <TabsContent key={t.id} value={t.id}>
-                    <PackingChecklist
-                      items={trip.packing_items}
-                      travelers={trip.travelers}
-                      tripId={trip.id}
-                      filterTraveler={t.id}
-                    />
-                  </TabsContent>
-                ))}
-              </Tabs>
-            </div>
+          <PackingChecklist
+            items={trip.packing_items}
+            travelers={trip.travelers}
+            tripId={trip.id}
+            filterTraveler={checklistFilter ?? null}
+          />
 
-            <div className="space-y-6">
-              <CollaborationFeed items={trip.packing_items} travelers={trip.travelers} />
-              {aiRecs.length > 0 && (
+          <AddPackingItemForm tripId={trip.id} travelers={trip.travelers} />
+
+          {(packingTips.length > 0 || timeline.length > 0) && (
+            <div className="grid gap-4 border-t pt-5 lg:grid-cols-2">
+              {packingTips.length > 0 && (
                 <div className="rounded-2xl border bg-card p-5">
-                  <AiSuggestionList recommendations={aiRecs} />
+                  <AiSuggestionList recommendations={packingTips} />
                 </div>
               )}
-              <PackingTimeline milestones={timeline} />
+              {timeline.length > 0 && <PackingTimeline milestones={timeline} />}
             </div>
-          </div>
+          )}
         </TabsContent>
 
         <TabsContent value="outfits">
@@ -194,10 +166,9 @@ export function TripDetailClient({ trip, chatMessages }: TripDetailClientProps) 
                 </div>
                 <p className="text-sm leading-relaxed text-muted-foreground">
                   Ask me to optimize for carry-on, add gear for an activity, adjust for weather,
-                  or trim what you don&apos;t need. I&apos;ll update your list instantly.
+                  or trim what you don&apos;t need.
                 </p>
               </div>
-              {aiRecs.length > 0 && <AiSuggestionList recommendations={aiRecs} />}
             </div>
           </div>
         </TabsContent>

@@ -40,31 +40,21 @@ export function generateAiRecommendations(
   const recs: AiRecommendation[] = [];
   const unpacked = items.filter((i) => !i.packed);
 
-  const golfBalls = items.find(
-    (i) => i.item_name.toLowerCase().includes("golf ball") && !i.packed
-  );
-  if (golfBalls || items.some((i) => i.activity_name === "Golf" && !i.packed && i.item_name.includes("Golf"))) {
-    const missingGolf = items.filter(
-      (i) => i.activity_name === "Golf" && !i.packed
-    );
-    if (missingGolf.length > 0) {
-      recs.push({
-        id: "golf",
-        type: "missing",
-        message: `You haven't packed ${missingGolf[0].item_name.toLowerCase()} yet.`,
-        icon: "alert",
-      });
-    }
-  }
-
   const rainyDay = weather?.daily.find((d) => d.rain_chance > 40);
   if (rainyDay) {
-    recs.push({
-      id: "rain",
-      type: "weather",
-      message: `${rainyDay.date.slice(5).replace("-", "/")} may have rain — pack a light jacket.`,
-      icon: "cloud",
-    });
+    const hasRainGear = items.some(
+      (i) =>
+        i.item_name.toLowerCase().includes("rain") ||
+        i.item_name.toLowerCase().includes("jacket")
+    );
+    if (!hasRainGear) {
+      recs.push({
+        id: "rain",
+        type: "weather",
+        message: `${rainyDay.date.slice(5).replace("-", "/")} may have rain — consider a light rain jacket.`,
+        icon: "cloud",
+      });
+    }
   }
 
   const hotDay = weather?.daily.find((d) => d.temp_high > 95);
@@ -72,31 +62,8 @@ export function generateAiRecommendations(
     recs.push({
       id: "hot",
       type: "weather",
-      message: `Looks like ${hotDay.temp_high}°F during your stay. Sunscreen and light layers added.`,
+      message: `Expect highs around ${hotDay.temp_high}°F — prioritize sunscreen and breathable layers.`,
       icon: "cloud",
-    });
-  }
-
-  const pets = travelers.filter((t) => t.traveler_type === "pet");
-  pets.forEach((pet) => {
-    const petItems = items.filter((i) => i.traveler_id === pet.id && !i.packed);
-    if (petItems.length > 0) {
-      recs.push({
-        id: `pet-${pet.id}`,
-        type: "pet",
-        message: `${pet.name}'s ${petItems[0].item_name.toLowerCase()} hasn't been packed yet.`,
-        icon: "paw",
-      });
-    }
-  });
-
-  const sharedCount = items.filter((i) => i.shared).length;
-  if (sharedCount >= 3) {
-    recs.push({
-      id: "shared",
-      type: "duplicate",
-      message: `Saved ${sharedCount} duplicate items by sharing essentials.`,
-      icon: "sparkles",
     });
   }
 
@@ -104,12 +71,12 @@ export function generateAiRecommendations(
     recs.push({
       id: "carryon",
       type: "carryon",
-      message: "Your carry-on may be tight. Ask AI to optimize your list.",
+      message: "List is getting long — use Packing Help to trim for carry-on.",
       icon: "luggage",
     });
   }
 
-  return recs.slice(0, 4);
+  return recs.slice(0, 3);
 }
 
 export interface TimelineMilestone {
