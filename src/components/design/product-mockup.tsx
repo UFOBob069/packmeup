@@ -60,7 +60,7 @@ export function ProductMockup() {
           <div className="mb-4 grid grid-cols-3 gap-2">
             {[
               { icon: Share2, label: "Shared", value: "4 items" },
-              { icon: Shirt, label: "Outfits", value: "6 planned" },
+              { icon: Shirt, label: "Outfits", value: "6 outfits" },
               { icon: Sun, label: "Weather", value: "95°F avg" },
             ].map(({ icon: Icon, label, value }) => (
               <div key={label} className="rounded-xl border bg-background p-2.5 text-center">

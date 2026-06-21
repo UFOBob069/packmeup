@@ -53,29 +53,26 @@ export default async function DashboardPage() {
 
   return (
     <AppShell>
-      {/* Greeting */}
       <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <p className="text-sm font-medium text-muted-foreground">
-            {daysUntil !== null && daysUntil >= 0
-              ? featured
-                ? `Your next trip is ${featured.trip.destination.split(",")[0]}`
-                : "Your trips"
-              : "Your trips"}
+            {featured && daysUntil !== null && daysUntil >= 0
+              ? `Packing for ${featured.trip.destination.split(",")[0]}`
+              : "Your packing lists"}
           </p>
           <h1 className="text-display text-3xl font-semibold tracking-tight sm:text-4xl">
             Hey, {firstName} 👋
           </h1>
           <p className="mt-1 text-muted-foreground">
             {upcoming.length > 0
-              ? "You're getting ready for something great."
-              : "Where are we going next?"}
+              ? "Ready to get packed?"
+              : "What are you packing for next?"}
           </p>
         </div>
         <Button asChild className="rounded-full px-6 shadow-travel-sm">
           <Link href="/trips/new">
             <Plus className="mr-2 h-4 w-4" />
-            Plan a trip
+            Start packing
           </Link>
         </Button>
       </div>
@@ -84,7 +81,6 @@ export default async function DashboardPage() {
         <EmptyTrips />
       ) : (
         <div className="grid gap-6 lg:grid-cols-3">
-          {/* Main column */}
           <div className="space-y-6 lg:col-span-2">
             {featured && daysUntil !== null && daysUntil >= 0 && (
               <CountdownWidget
@@ -95,7 +91,7 @@ export default async function DashboardPage() {
 
             {upcoming.length > 0 && (
               <section>
-                <h2 className="text-display mb-4 text-lg font-semibold">Upcoming trips</h2>
+                <h2 className="text-display mb-4 text-lg font-semibold">Upcoming packing lists</h2>
                 <div className="grid gap-4 sm:grid-cols-2">
                   {tripDetails
                     .filter(({ trip }) => trip.end_date >= now)
@@ -116,7 +112,7 @@ export default async function DashboardPage() {
             {tripDetails.filter(({ trip }) => trip.end_date < now).length > 0 && (
               <section>
                 <h2 className="text-display mb-4 text-lg font-semibold text-muted-foreground">
-                  Past adventures
+                  Past packing lists
                 </h2>
                 <div className="grid gap-4 sm:grid-cols-2">
                   {tripDetails
@@ -135,7 +131,6 @@ export default async function DashboardPage() {
             )}
           </div>
 
-          {/* Sidebar */}
           <div className="space-y-6">
             {featured?.weather && featured.weather.daily?.length > 0 && (
               <WeatherPreview
@@ -147,7 +142,7 @@ export default async function DashboardPage() {
             {featured && featured.travelers.length > 0 && (
               <div className="rounded-2xl border bg-card p-5 shadow-travel-sm">
                 <p className="mb-4 text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                  Travel party
+                  Who&apos;s packing
                 </p>
                 <div className="flex flex-wrap justify-center gap-4">
                   {featured.travelers.map((t, i) => {
@@ -180,7 +175,7 @@ export default async function DashboardPage() {
               <div className="rounded-2xl border bg-card p-5 shadow-travel-sm">
                 <div className="mb-4 flex items-center justify-between">
                   <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                    Quick start templates
+                    Packing templates
                   </p>
                   <Link href="/templates" className="text-xs font-medium text-primary hover:underline">
                     View all

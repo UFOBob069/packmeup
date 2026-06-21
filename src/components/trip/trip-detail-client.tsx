@@ -36,10 +36,10 @@ interface TripDetailClientProps {
 }
 
 const tabItems = [
-  { value: "pack", label: "Pack", icon: ListChecks },
+  { value: "pack", label: "Checklist", icon: ListChecks },
   { value: "outfits", label: "Outfits", icon: Shirt },
-  { value: "timeline", label: "Timeline", icon: CalendarDays },
-  { value: "concierge", label: "Concierge", icon: MessageCircle },
+  { value: "timeline", label: "By Day", icon: CalendarDays },
+  { value: "concierge", label: "Packing Help", icon: MessageCircle },
 ];
 
 export function TripDetailClient({ trip, chatMessages }: TripDetailClientProps) {
@@ -182,11 +182,11 @@ export function TripDetailClient({ trip, chatMessages }: TripDetailClientProps) 
               <div className="rounded-2xl border bg-warm-sand/20 p-5 dark:bg-warm-sand/5">
                 <div className="mb-3 flex items-center gap-2">
                   <Luggage className="h-4 w-4 text-primary" />
-                  <p className="text-display font-semibold">Your travel concierge</p>
+                  <p className="text-display font-semibold">Your packing expert</p>
                 </div>
                 <p className="text-sm leading-relaxed text-muted-foreground">
-                  Ask me to optimize for carry-on, add activity gear, adjust for weather, or
-                  reduce overpacking. I&apos;ll update your list without rebuilding the trip.
+                  Ask me to optimize for carry-on, add gear for an activity, adjust for weather,
+                  or trim what you don&apos;t need. I&apos;ll update your list instantly.
                 </p>
               </div>
               {aiRecs.length > 0 && <AiSuggestionList recommendations={aiRecs} />}

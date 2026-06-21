@@ -90,7 +90,7 @@ supabase/
 
 ## User Flow
 
-1. **Sign in** (Google, email, or demo mode)
+1. **Sign in** (Google or demo mode)
 2. **Create trip** via conversational onboarding
 3. **AI generates** packing list, outfits, and calendar
 4. **Collaborate** — invite partners, check off items in realtime

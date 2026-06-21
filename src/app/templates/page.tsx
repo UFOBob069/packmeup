@@ -22,9 +22,9 @@ export default async function TemplatesPage() {
   return (
     <AppShell>
       <div className="mb-8">
-        <h1 className="text-display text-3xl font-semibold tracking-tight">Templates</h1>
+        <h1 className="text-display text-3xl font-semibold tracking-tight">Packing templates</h1>
         <p className="mt-2 text-muted-foreground">
-          Jump-start your next trip with a preset — customize as you go.
+          Reusable packing presets — start with a list, customize as you go.
         </p>
       </div>
 
@@ -62,12 +62,12 @@ export default async function TemplatesPage() {
 
         <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed bg-muted/20 p-8 text-center">
           <p className="text-sm text-muted-foreground">
-            Save any trip as a template for next time.
+            Save any packing list as a template for next time.
           </p>
           <Button asChild variant="outline" className="mt-4 rounded-full">
             <Link href="/trips/new">
               <Plus className="mr-2 h-4 w-4" />
-              Plan a new trip
+              Start packing
             </Link>
           </Button>
         </div>

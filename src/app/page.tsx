@@ -21,7 +21,7 @@ const features = [
   {
     icon: Shirt,
     title: "Daily outfits",
-    description: "Outfit plans for golf mornings, pool afternoons, and nice dinners.",
+    description: "Outfit suggestions for golf mornings, pool afternoons, and nice dinners.",
     color: "bg-warm-sand text-amber-800 dark:text-warm-sand",
   },
   {
@@ -66,12 +66,12 @@ export default function HomePage() {
                 AI-powered travel packing
               </div>
               <h1 className="text-display text-4xl font-semibold leading-[1.1] tracking-tight sm:text-5xl lg:text-[3.25rem]">
-                Pack smarter
-                <span className="block text-primary">together.</span>
+                Know exactly
+                <span className="block text-primary">what to pack.</span>
               </h1>
               <p className="mt-6 text-lg leading-relaxed text-muted-foreground sm:text-xl">
-                AI-powered packing lists, outfit plans, and shared travel checklists for couples,
-                families, friend groups, and pets.
+                AI packing lists, daily outfits, and shared checklists — so you forget less,
+                overpack less, and leave with confidence.
               </p>
               <div className="mt-8 flex flex-col items-center gap-3 sm:flex-row lg:justify-start">
                 <Button asChild size="lg" className="h-12 w-full rounded-full px-8 text-base sm:w-auto">
@@ -107,7 +107,7 @@ export default function HomePage() {
           <span className="hidden h-4 w-px bg-border sm:block" />
           <span>Real-time collaboration</span>
           <span className="hidden h-4 w-px bg-border sm:block" />
-          <span>Outfit planning</span>
+          <span>Outfit suggestions</span>
           <span className="hidden h-4 w-px bg-border sm:block" />
           <span>Pet-friendly</span>
         </div>
@@ -118,10 +118,10 @@ export default function HomePage() {
         <div className="mx-auto max-w-6xl px-4 sm:px-6">
           <div className="mx-auto mb-14 max-w-2xl text-center">
             <h2 className="text-display text-3xl font-semibold tracking-tight sm:text-4xl">
-              Everything you need before you go
+              Everything you need to pack
             </h2>
             <p className="mt-4 text-lg text-muted-foreground">
-              One calm place to prepare — from first outfit to last charger.
+              From outfits to essentials — one checklist, zero guesswork.
             </p>
           </div>
           <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
@@ -162,10 +162,10 @@ export default function HomePage() {
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(255,255,255,0.15),transparent_50%)]" />
             <div className="relative">
               <h2 className="text-display text-3xl font-semibold sm:text-4xl">
-                Ready for your next adventure?
+                Ready to pack with confidence?
               </h2>
               <p className="mx-auto mt-4 max-w-md text-primary-foreground/80">
-                Create your first trip in under 60 seconds. Less stress, more excitement.
+                Build your personalized packing list in under 60 seconds.
               </p>
               <Button
                 asChild
@@ -173,7 +173,7 @@ export default function HomePage() {
                 variant="secondary"
                 className="mt-8 h-12 rounded-full px-8 text-base text-foreground"
               >
-                <Link href="/trips/new">Plan a trip</Link>
+                <Link href="/trips/new">Start packing</Link>
               </Button>
             </div>
           </div>

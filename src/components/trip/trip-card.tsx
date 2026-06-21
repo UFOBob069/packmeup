@@ -45,7 +45,7 @@ export function TripCard({
           <div className="flex items-start justify-between gap-4">
             <div className="min-w-0 flex-1">
               <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                {isPast ? "Past trip" : daysUntil <= 7 ? "Coming up soon" : "Upcoming"}
+                {isPast ? "Past list" : daysUntil <= 7 ? "Pack soon" : "Upcoming"}
               </p>
               <h3 className="text-display mt-1 truncate text-xl font-semibold tracking-tight group-hover:text-primary">
                 {trip.destination}
@@ -90,7 +90,7 @@ export function TripCard({
           )}
 
           <div className="mt-4 flex items-center justify-end text-sm font-medium text-primary opacity-0 transition-opacity group-hover:opacity-100">
-            Open trip
+            View packing list
             <ChevronRight className="ml-0.5 h-4 w-4" />
           </div>
         </div>

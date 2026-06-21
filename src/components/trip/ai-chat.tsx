@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition, useRef, useEffect } from "react";
-import { Send, Sparkles, Plane } from "lucide-react";
+import { Send, Sparkles, Luggage } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { sendChatMessage } from "@/actions/packing";
 import type { ChatMessage } from "@/lib/types";
@@ -63,11 +63,11 @@ export function AiChat({ tripId, initialMessages }: AiChatProps) {
     <div className="flex h-full flex-col overflow-hidden rounded-2xl border bg-card shadow-travel-sm">
       <div className="flex items-center gap-3 border-b bg-gradient-to-r from-primary/5 to-sky-blue/5 px-5 py-4">
         <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary text-primary-foreground">
-          <Plane className="h-5 w-5" />
+          <Luggage className="h-5 w-5" />
         </div>
         <div>
-          <h3 className="text-display font-semibold">Travel Concierge</h3>
-          <p className="text-xs text-muted-foreground">Refine your packing plan</p>
+          <h3 className="text-display font-semibold">Packing expert</h3>
+          <p className="text-xs text-muted-foreground">Refine what to bring</p>
         </div>
       </div>
 
@@ -78,11 +78,11 @@ export function AiChat({ tripId, initialMessages }: AiChatProps) {
               <div className="rounded-2xl bg-muted/50 p-4">
                 <div className="mb-2 flex items-center gap-2">
                   <Sparkles className="h-4 w-4 text-primary" />
-                  <span className="text-sm font-medium">Hi! I&apos;m your packing concierge.</span>
+                  <span className="text-sm font-medium">Hi! I&apos;m your packing expert.</span>
                 </div>
                 <p className="text-sm leading-relaxed text-muted-foreground">
-                  Tell me what to adjust — I&apos;ll update your list, outfits, and quantities
-                  without starting over.
+                  Ask me to optimize for carry-on, add gear for an activity, adjust for weather,
+                  or trim what you don&apos;t need.
                 </p>
               </div>
               <div className="flex flex-wrap gap-2">
@@ -118,7 +118,7 @@ export function AiChat({ tripId, initialMessages }: AiChatProps) {
                 <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-primary [animation-delay:150ms]" />
                 <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-primary [animation-delay:300ms]" />
               </span>
-              Planning your updates...
+              Updating your packing list...
             </div>
           )}
         </div>
@@ -135,7 +135,7 @@ export function AiChat({ tripId, initialMessages }: AiChatProps) {
           <input
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            placeholder="Ask your concierge anything..."
+            placeholder="Ask about what to pack..."
             disabled={isPending}
             className="flex-1 rounded-full border bg-muted/30 px-4 py-2.5 text-sm outline-none transition-colors focus:border-primary/40 focus:bg-background"
           />

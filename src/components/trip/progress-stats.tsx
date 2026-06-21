@@ -18,7 +18,7 @@ export function ProgressStats({ progress }: ProgressStatsProps) {
         />
         <div className="flex-1 text-center sm:text-left">
           <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-            Trip progress
+            Packing progress
           </p>
           <p className="text-display mt-1 text-2xl font-semibold">
             {progress.packed} of {progress.total} items

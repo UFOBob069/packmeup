@@ -60,10 +60,10 @@ export function EmptyState({
 export function EmptyTrips() {
   return (
     <EmptyState
-      emoji="✈️"
-      title="No trips yet?"
-      description="Let's plan your next adventure. Tell us where you're going and we'll build your perfect packing list."
-      actionLabel="Plan your first trip"
+      emoji="🧳"
+      title="Nothing to pack yet"
+      description="Tell us where you're going and we'll build your personalized packing list in under a minute."
+      actionLabel="Create packing list"
       actionHref="/trips/new"
     />
   );
@@ -73,8 +73,8 @@ export function EmptyOutfits() {
   return (
     <EmptyState
       emoji="👔"
-      title="No outfit plan yet"
-      description="We'll build daily outfits from your activities and weather — so you always know what to wear."
+      title="No outfits yet"
+      description="We'll suggest what to wear each day based on your activities and weather — so you pack the right clothes."
     />
   );
 }

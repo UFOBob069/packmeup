@@ -12,7 +12,7 @@ export function CalendarView({ days, outfits }: CalendarViewProps) {
   if (days.length === 0) {
     return (
       <p className="py-12 text-center text-sm text-muted-foreground">
-        Your travel timeline will appear here once your trip is planned.
+        Daily outfits and weather will show here once your packing list is built.
       </p>
     );
   }

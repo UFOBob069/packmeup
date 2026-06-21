@@ -46,16 +46,16 @@ interface Message {
 }
 
 const STEP_PROMPTS: Record<Step, string> = {
-  destination: "Let's plan something great. Where are you headed?",
-  dates: "When does the adventure begin — and when do you come home?",
-  travelers: "Who's joining you? Add everyone, pets included 🐾",
-  travel_type: "How are you traveling — carry-on warrior or checked bags?",
+  destination: "First things first — where are you headed? I'll figure out what to pack.",
+  dates: "When do you leave and come back? Trip length changes what you need to bring.",
+  travelers: "Who's packing with you? Add everyone — pets included 🐾",
+  travel_type: "How are you traveling — carry-on only or checking bags?",
   laundry: "Will you have laundry access? This helps me pack the right amount.",
-  style: "What's your vibe? I'll match outfits to your style.",
-  activities: "What are you doing on this trip? Select all that apply.",
+  style: "What's your style? I'll match outfits to what you actually wear.",
+  activities: "What will you be doing? I'll add the right gear to your list.",
   packing_mode: "How should I optimize your packing?",
   notes: "Anything I should know? Cold sensitivity, souvenirs, special needs...",
-  review: "Looking good! Ready for me to build your packing list?",
+  review: "Ready to build your packing list?",
 };
 
 const STEP_ORDER: Step[] = [
@@ -208,7 +208,7 @@ export function TripOnboardingChat({ templateData }: TripOnboardingChatProps) {
       {/* Progress */}
       <div className="mb-6">
         <div className="mb-2 flex items-center justify-between text-xs text-muted-foreground">
-          <span>Trip planning</span>
+          <span>Building your packing list</span>
           <span>{Math.round(((STEP_ORDER.indexOf(step) + 1) / STEP_ORDER.length) * 100)}%</span>
         </div>
         <div className="h-1.5 overflow-hidden rounded-full bg-muted">

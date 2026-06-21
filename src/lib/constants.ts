@@ -2,7 +2,7 @@ import type { PackingCategory } from "./types";
 
 export const APP_NAME = "Pack Me Up";
 export const APP_DESCRIPTION =
-  "AI-powered travel packing assistant for smarter trips with friends, family, and pets.";
+  "The easiest way to know exactly what to pack — AI lists, outfits, and shared checklists.";
 
 export const ONBOARDING_STEPS = [
   "destination",

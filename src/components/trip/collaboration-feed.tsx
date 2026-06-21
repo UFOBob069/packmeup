@@ -51,7 +51,7 @@ export function CollaborationFeed({ items, travelers, className }: ActivityFeedP
   return (
     <section className={cn("rounded-2xl border bg-card p-5 shadow-travel-sm", className)}>
       <p className="mb-4 text-xs font-medium uppercase tracking-wider text-muted-foreground">
-        Recent activity
+        Packing activity
       </p>
       <div className="space-y-3">
         {activities.map((activity) => (

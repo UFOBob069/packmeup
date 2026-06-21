@@ -238,35 +238,6 @@ export async function signInWithGoogle() {
   return { url: data.url };
 }
 
-export async function signInWithEmail(email: string, password: string) {
-  if (isDemoMode()) {
-    return { url: "/dashboard" };
-  }
-
-  const supabase = await createClient();
-  const { error } = await supabase.auth.signInWithPassword({ email, password });
-  if (error) throw new Error(error.message);
-  return { url: "/dashboard" };
-}
-
-export async function signUpWithEmail(email: string, password: string, name: string) {
-  if (isDemoMode()) {
-    return { url: "/dashboard" };
-  }
-
-  const supabase = await createClient();
-  const { error } = await supabase.auth.signUp({
-    email,
-    password,
-    options: {
-      data: { full_name: name },
-      emailRedirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/auth/callback`,
-    },
-  });
-  if (error) throw new Error(error.message);
-  return { url: "/dashboard" };
-}
-
 export async function signOut() {
   if (isDemoMode()) {
     return;

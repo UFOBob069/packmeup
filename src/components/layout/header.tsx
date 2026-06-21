@@ -9,8 +9,8 @@ import { ThemeToggle } from "./theme-toggle";
 import { Button } from "@/components/ui/button";
 
 const navItems = [
-  { href: "/dashboard", label: "Trips", icon: LayoutGrid },
-  { href: "/trips/new", label: "Plan", icon: Plus, highlight: true },
+  { href: "/dashboard", label: "Packing Lists", icon: LayoutGrid },
+  { href: "/trips/new", label: "Start Packing", icon: Plus, highlight: true },
   { href: "/templates", label: "Templates", icon: Layers },
 ];
 

@@ -60,7 +60,7 @@ export function AiSuggestionList({ recommendations, className }: AiSuggestionLis
   return (
     <div className={cn("space-y-3", className)}>
       <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-        AI recommendations
+        What to pack
       </p>
       <div className="space-y-2">
         {recommendations.map((rec) => (
