@@ -4,9 +4,12 @@ import type {
   Outfit,
   PackingCategory,
   PackingItem,
+  PetSize,
+  PetSpecies,
   TripOnboardingData,
   WeatherData,
 } from "@/lib/types";
+import { STYLE_LABELS } from "@/lib/types";
 import { eachDayOfInterval, format, parseISO } from "date-fns";
 
 export interface GeneratedTripContent {
@@ -15,43 +18,150 @@ export interface GeneratedTripContent {
   calendar_days: Omit<CalendarDay, "id" | "trip_id" | "created_at">[];
 }
 
+function getStylePreferences(data: TripOnboardingData) {
+  return data.style_preferences?.length ? data.style_preferences : [data.style_preference];
+}
+
+function formatTravelerForPrompt(t: TripOnboardingData["travelers"][number]) {
+  if (t.traveler_type === "pet") {
+    const species = t.pet_species ?? "dog";
+    const size = t.pet_size ?? "medium";
+    return `${t.name} (pet: ${species}, ${size})`;
+  }
+  return `${t.name} (${t.traveler_type})`;
+}
+
+function sanitizePackingAssignments(
+  items: GeneratedTripContent["packing_items"],
+  data: TripOnboardingData,
+  travelerIds: { name: string; id: string }[]
+): GeneratedTripContent["packing_items"] {
+  const nameToId = Object.fromEntries(travelerIds.map((t) => [t.name, t.id]));
+  const petIds = new Set(
+    data.travelers
+      .filter((t) => t.traveler_type === "pet")
+      .map((t) => nameToId[t.name])
+      .filter(Boolean)
+  );
+  const humanIds = data.travelers
+    .filter((t) => t.traveler_type !== "pet")
+    .map((t) => nameToId[t.name])
+    .filter(Boolean);
+  const defaultHumanId = humanIds[0] ?? null;
+
+  return items.map((item) => {
+    if (!item.traveler_id || !petIds.has(item.traveler_id)) return item;
+    if (item.category === "pet_supplies") return item;
+    return {
+      ...item,
+      traveler_id: defaultHumanId,
+      shared: defaultHumanId ? false : item.shared,
+    };
+  });
+}
+
+function ensurePetSupplies(
+  items: GeneratedTripContent["packing_items"],
+  data: TripOnboardingData,
+  travelerIds: { name: string; id: string }[],
+  days: number
+): GeneratedTripContent["packing_items"] {
+  const nameToId = Object.fromEntries(travelerIds.map((t) => [t.name, t.id]));
+  const pets = data.travelers.filter((t) => t.traveler_type === "pet");
+  if (!pets.length) return items;
+
+  const result = [...items];
+  let sort = items.length;
+
+  const hasPetItem = (petName: string, keyword: string) =>
+    result.some(
+      (i) =>
+        i.traveler_id === nameToId[petName] &&
+        i.category === "pet_supplies" &&
+        i.item_name.toLowerCase().includes(keyword)
+    );
+
+  const addPetItem = (petName: string, item_name: string, quantity: number) => {
+    result.push({
+      item_name,
+      quantity,
+      category: "pet_supplies",
+      traveler_id: nameToId[petName] ?? null,
+      packed: false,
+      shared: false,
+      activity_name: null,
+      notes: null,
+      sort_order: sort++,
+    });
+  };
+
+  pets.forEach((pet) => {
+    const species = pet.pet_species ?? "dog";
+    const size = pet.pet_size ?? "medium";
+    const foodQty = Math.ceil(days * (size === "large" ? 1.25 : size === "small" ? 0.75 : 1));
+
+    if (species === "cat") {
+      if (!hasPetItem(pet.name, "carrier")) addPetItem(pet.name, "Cat Carrier", 1);
+      if (!hasPetItem(pet.name, "food")) addPetItem(pet.name, "Cat Food", foodQty);
+      if (!hasPetItem(pet.name, "litter")) addPetItem(pet.name, "Litter & Bags", 1);
+    } else {
+      if (!hasPetItem(pet.name, "leash")) addPetItem(pet.name, "Leash", 1);
+      if (!hasPetItem(pet.name, "food")) addPetItem(pet.name, "Pet Food", foodQty);
+      if (!hasPetItem(pet.name, "bowl")) addPetItem(pet.name, "Water Bowl", 1);
+      if (!hasPetItem(pet.name, "waste")) addPetItem(pet.name, "Waste Bags", 1);
+    }
+    if (!hasPetItem(pet.name, "bed")) addPetItem(pet.name, "Pet Bed/Blanket", 1);
+    if (!hasPetItem(pet.name, "health")) addPetItem(pet.name, "Pet Health Records", 1);
+  });
+
+  return result;
+}
+
 export async function generateTripContent(
   data: TripOnboardingData,
   weather: WeatherData | null,
   travelerIds: { name: string; id: string }[]
 ): Promise<GeneratedTripContent> {
   const openai = getOpenAI();
-
-  if (openai) {
-    try {
-      return await generateWithOpenAI(data, weather, travelerIds);
-    } catch (error) {
-      console.error("OpenAI generation failed, using fallback:", error);
-    }
-  }
-
-  return generateFallbackContent(data, weather, travelerIds);
-}
-
-async function generateWithOpenAI(
-  data: TripOnboardingData,
-  weather: WeatherData | null,
-  travelerIds: { name: string; id: string }[]
-): Promise<GeneratedTripContent> {
-  const openai = getOpenAI()!;
   const days = eachDayOfInterval({
     start: parseISO(data.start_date),
     end: parseISO(data.end_date),
   }).length;
 
+  let content: GeneratedTripContent;
+  if (openai) {
+    try {
+      content = await generateWithOpenAI(data, weather, travelerIds, days);
+    } catch (error) {
+      console.error("OpenAI generation failed, using fallback:", error);
+      content = generateFallbackContent(data, weather, travelerIds);
+    }
+  } else {
+    content = generateFallbackContent(data, weather, travelerIds);
+  }
+
+  content.packing_items = sanitizePackingAssignments(content.packing_items, data, travelerIds);
+  content.packing_items = ensurePetSupplies(content.packing_items, data, travelerIds, days);
+  return content;
+}
+
+async function generateWithOpenAI(
+  data: TripOnboardingData,
+  weather: WeatherData | null,
+  travelerIds: { name: string; id: string }[],
+  days: number
+): Promise<GeneratedTripContent> {
+  const openai = getOpenAI()!;
+  const styles = getStylePreferences(data);
+
   const prompt = `Generate a complete travel packing plan as JSON for this trip:
 
 Destination: ${data.destination}
 Dates: ${data.start_date} to ${data.end_date} (${days} days)
-Travelers: ${data.travelers.map((t) => `${t.name} (${t.traveler_type})`).join(", ")}
+Travelers: ${data.travelers.map(formatTravelerForPrompt).join(", ")}
 Travel Type: ${data.travel_type}
 Laundry Access: ${data.laundry_access}
-Style: ${data.style_preference}
+Style (pick all that apply): ${styles.map((s) => STYLE_LABELS[s]).join(", ")}
 Packing Mode: ${data.packing_mode}
 Activities: ${data.activities.join(", ") || "General sightseeing"}
 Special Notes: ${data.special_notes || "None"}
@@ -66,11 +176,14 @@ Return JSON with this exact structure:
 
 Rules:
 - Consolidate shared items (sunscreen, first aid) as shared:true
-- Assign pet items to pet travelers
+- Pet travelers ONLY receive pet_supplies items (food, leash, carrier, bowls, etc.)
+- NEVER assign clothing, shoes, electronics, toiletries, or activity gear to pet travelers
+- Assign human packing items only to adult, child, or infant travelers
 - Match quantities to trip length and laundry access
 - Respect packing mode (${data.packing_mode})
-- Include activity-specific gear
-- Weather-aware clothing suggestions`;
+- Include activity-specific gear for human travelers
+- Weather-aware clothing suggestions
+- Blend all selected style preferences into the packing list`;
 
   const response = await openai.chat.completions.create({
     model: "gpt-4o-mini",
@@ -149,6 +262,36 @@ Rules:
   };
 }
 
+function addPetItemsForTraveler(
+  addItem: (
+    item_name: string,
+    quantity: number,
+    category: PackingCategory,
+    traveler_name: string | null,
+    shared: boolean,
+    activity_name?: string | null
+  ) => void,
+  pet: TripOnboardingData["travelers"][number],
+  days: number
+) {
+  const species: PetSpecies = pet.pet_species ?? "dog";
+  const size: PetSize = pet.pet_size ?? "medium";
+  const foodQty = Math.ceil(days * (size === "large" ? 1.25 : size === "small" ? 0.75 : 1));
+
+  if (species === "cat") {
+    addItem("Cat Carrier", 1, "pet_supplies", pet.name, false);
+    addItem("Cat Food", foodQty, "pet_supplies", pet.name, false);
+    addItem("Litter & Bags", 1, "pet_supplies", pet.name, false);
+  } else {
+    addItem("Leash", 1, "pet_supplies", pet.name, false);
+    addItem("Pet Food", foodQty, "pet_supplies", pet.name, false);
+    addItem("Water Bowl", 1, "pet_supplies", pet.name, false);
+    addItem("Waste Bags", 1, "pet_supplies", pet.name, false);
+  }
+  addItem("Pet Bed/Blanket", 1, "pet_supplies", pet.name, false);
+  addItem("Pet Health Records", 1, "pet_supplies", pet.name, false);
+}
+
 function generateFallbackContent(
   data: TripOnboardingData,
   weather: WeatherData | null,
@@ -161,6 +304,7 @@ function generateFallbackContent(
   const nameToId = Object.fromEntries(travelerIds.map((t) => [t.name, t.id]));
   const adults = data.travelers.filter((t) => t.traveler_type !== "pet");
   const pets = data.travelers.filter((t) => t.traveler_type === "pet");
+  const styles = getStylePreferences(data);
   const avgHigh = weather?.daily.length
     ? weather.daily.reduce((s, d) => s + d.temp_high, 0) / weather.daily.length
     : 72;
@@ -219,10 +363,21 @@ function generateFallbackContent(
     addItem("Phone Charger", 1, "electronics", traveler.name, false);
     addItem("Passport/ID", 1, "travel_documents", traveler.name, false);
 
-    if (data.style_preference === "smart_casual" || data.style_preference === "business") {
+    if (styles.includes("smart_casual") || styles.includes("business")) {
       addItem("Chinos", 2, "clothing", traveler.name, false);
       addItem("Polo Shirts", 2, "clothing", traveler.name, false);
       addItem("Dress Shoes", 1, "shoes", traveler.name, false);
+    }
+    if (styles.includes("formal")) {
+      addItem("Formal Outfit", 1, "clothing", traveler.name, false);
+      addItem("Dress Shoes", 1, "shoes", traveler.name, false);
+    }
+    if (styles.includes("athletic")) {
+      addItem("Athletic Shorts", 2, "clothing", traveler.name, false);
+      addItem("Running Shoes", 1, "shoes", traveler.name, false);
+    }
+    if (styles.includes("minimalist")) {
+      addItem("Neutral Layer", 1, "clothing", traveler.name, false);
     }
   });
 
@@ -281,13 +436,7 @@ function generateFallbackContent(
     }
   });
 
-  pets.forEach((pet) => {
-    addItem("Dog Leash", 1, "pet_supplies", pet.name, false);
-    addItem("Dog Food", days.length, "pet_supplies", pet.name, false);
-    addItem("Water Bowl", 1, "pet_supplies", pet.name, false);
-    addItem("Waste Bags", 1, "pet_supplies", pet.name, false);
-    addItem("Pet Bed/Blanket", 1, "pet_supplies", pet.name, false);
-  });
+  pets.forEach((pet) => addPetItemsForTraveler(addItem, pet, days.length));
 
   const outfits: GeneratedTripContent["outfits"] = [];
   const calendar_days: GeneratedTripContent["calendar_days"] = [];

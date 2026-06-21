@@ -83,6 +83,7 @@ function seedDemoData(store: DemoStore) {
     travel_type: "checked_bag",
     laundry_access: "limited",
     style_preference: "smart_casual",
+    style_preferences: ["smart_casual", "athletic"],
     packing_mode: "standard",
     special_notes: "Golf weekend with Jen. Andre (dog) is coming too.",
     weather_data: null,
@@ -104,6 +105,8 @@ function seedDemoData(store: DemoStore) {
       trip_id: tripId,
       name: t.name,
       traveler_type: t.type,
+      pet_species: t.type === "pet" ? "dog" : null,
+      pet_size: t.type === "pet" ? "medium" : null,
       sort_order: i,
       created_at: now,
     });
@@ -222,6 +225,9 @@ export async function createDemoTrip(
     travel_type: data.travel_type,
     laundry_access: data.laundry_access,
     style_preference: data.style_preference,
+    style_preferences: data.style_preferences?.length
+      ? data.style_preferences
+      : [data.style_preference],
     packing_mode: data.packing_mode,
     special_notes: data.special_notes || null,
     weather_data: weather,
@@ -240,6 +246,8 @@ export async function createDemoTrip(
       trip_id: tripId,
       name: t.name,
       traveler_type: t.traveler_type,
+      pet_species: t.traveler_type === "pet" ? (t.pet_species ?? "dog") : null,
+      pet_size: t.traveler_type === "pet" ? (t.pet_size ?? "medium") : null,
       sort_order: i,
       created_at: now,
     });
@@ -292,6 +300,40 @@ export function updateDemoItemNotes(itemId: string, notes: string): PackingItem 
   const updated = { ...item, notes, updated_at: new Date().toISOString() };
   store.packing_items.set(itemId, updated);
   return updated;
+}
+
+export function addDemoPackingItem(
+  tripId: string,
+  itemName: string,
+  travelerId: string | null
+): PackingItem {
+  const store = getStore();
+  const now = new Date().toISOString();
+  const id = uuid();
+  const sortOrder = Array.from(store.packing_items.values()).filter(
+    (i) => i.trip_id === tripId
+  ).length;
+  const item: PackingItem = {
+    id,
+    trip_id: tripId,
+    item_name: itemName,
+    quantity: 1,
+    category: "miscellaneous",
+    traveler_id: travelerId,
+    packed: false,
+    shared: travelerId === null,
+    activity_name: null,
+    notes: null,
+    sort_order: sortOrder,
+    created_at: now,
+    updated_at: now,
+  };
+  store.packing_items.set(id, item);
+  return item;
+}
+
+export function removeDemoPackingItem(itemId: string): void {
+  getStore().packing_items.delete(itemId);
 }
 
 export function getDemoTemplates(userId: string): Template[] {

@@ -37,7 +37,10 @@ export default async function NewTripPage({ searchParams }: NewTripPageProps) {
             Tell us about your trip and we&apos;ll figure out exactly what to pack.
           </p>
         </div>
-        <TripOnboardingChat templateData={templateData} />
+        <TripOnboardingChat
+          templateData={templateData}
+          userName={user?.name?.split(" ")[0] ?? undefined}
+        />
       </div>
     </AppShell>
   );

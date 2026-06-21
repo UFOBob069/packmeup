@@ -56,6 +56,7 @@ export interface Trip {
   travel_type: TravelType;
   laundry_access: LaundryAccess;
   style_preference: StylePreference;
+  style_preferences?: StylePreference[];
   packing_mode: PackingMode;
   special_notes: string | null;
   weather_data: WeatherData | null;
@@ -73,13 +74,25 @@ export interface TripMember {
   profile?: Profile;
 }
 
+export type PetSpecies = "dog" | "cat" | "other";
+export type PetSize = "small" | "medium" | "large";
+
 export interface Traveler {
   id: string;
   trip_id: string;
   name: string;
   traveler_type: TravelerType;
+  pet_species: PetSpecies | null;
+  pet_size: PetSize | null;
   sort_order: number;
   created_at: string;
+}
+
+export interface OnboardingTraveler {
+  name: string;
+  traveler_type: TravelerType;
+  pet_species?: PetSpecies;
+  pet_size?: PetSize;
 }
 
 export interface Activity {
@@ -166,10 +179,11 @@ export interface TripOnboardingData {
   destination: string;
   start_date: string;
   end_date: string;
-  travelers: { name: string; traveler_type: TravelerType }[];
+  travelers: OnboardingTraveler[];
   travel_type: TravelType;
   laundry_access: LaundryAccess;
   style_preference: StylePreference;
+  style_preferences: StylePreference[];
   packing_mode: PackingMode;
   activities: string[];
   special_notes: string;

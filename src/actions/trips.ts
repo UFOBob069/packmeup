@@ -120,6 +120,9 @@ export async function createTrip(data: TripOnboardingData): Promise<TripWithDeta
       travel_type: data.travel_type,
       laundry_access: data.laundry_access,
       style_preference: data.style_preference,
+      style_preferences: data.style_preferences?.length
+        ? data.style_preferences
+        : [data.style_preference],
       packing_mode: data.packing_mode,
       special_notes: data.special_notes || null,
       weather_data: weather,
@@ -139,6 +142,8 @@ export async function createTrip(data: TripOnboardingData): Promise<TripWithDeta
     trip_id: trip.id,
     name: t.name,
     traveler_type: t.traveler_type,
+    pet_species: t.traveler_type === "pet" ? (t.pet_species ?? "dog") : null,
+    pet_size: t.traveler_type === "pet" ? (t.pet_size ?? "medium") : null,
     sort_order: i,
   }));
 
@@ -191,7 +196,12 @@ export async function deleteTrip(tripId: string) {
   }
 
   const supabase = await createClient();
-  await supabase.from("trips").delete().eq("id", tripId).eq("owner_id", user.id);
+  const { error } = await supabase
+    .from("trips")
+    .delete()
+    .eq("id", tripId)
+    .eq("owner_id", user.id);
+  if (error) throw new Error(error.message);
   revalidatePath("/dashboard");
 }
 

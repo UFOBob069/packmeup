@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { format } from "date-fns";
 import { ArrowRight, Loader2, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { DestinationAutocomplete } from "./destination-autocomplete";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
@@ -14,7 +15,10 @@ import { createTrip } from "@/actions/trips";
 import { ACTIVITY_OPTIONS } from "@/lib/types";
 import type {
   LaundryAccess,
+  OnboardingTraveler,
   PackingMode,
+  PetSize,
+  PetSpecies,
   StylePreference,
   TravelType,
   TravelerType,
@@ -48,10 +52,10 @@ interface Message {
 const STEP_PROMPTS: Record<Step, string> = {
   destination: "First things first — where are you headed? I'll figure out what to pack.",
   dates: "When do you leave and come back? Trip length changes what you need to bring.",
-  travelers: "Who's packing with you? Add everyone — pets included 🐾",
+  travelers: "Who's coming? Start with yourself, then add anyone else — pets included 🐾",
   travel_type: "How are you traveling — carry-on only or checking bags?",
   laundry: "Will you have laundry access? This helps me pack the right amount.",
-  style: "What's your style? I'll match outfits to what you actually wear.",
+  style: "What's your vibe? Pick everything that applies — casual, business, athletic, and more.",
   activities: "What will you be doing? I'll add the right gear to your list.",
   packing_mode: "How should I optimize your packing?",
   notes: "Anything I should know? Cold sensitivity, souvenirs, special needs...",
@@ -81,11 +85,23 @@ const TRAVELER_TYPES: { value: TravelerType; label: string }[] = [
   { value: "pet", label: "Pet" },
 ];
 
+const PET_SPECIES: { value: PetSpecies; label: string }[] = [
+  { value: "dog", label: "Dog" },
+  { value: "cat", label: "Cat" },
+  { value: "other", label: "Other" },
+];
+const PET_SIZES: { value: PetSize; label: string }[] = [
+  { value: "small", label: "Small" },
+  { value: "medium", label: "Medium" },
+  { value: "large", label: "Large" },
+];
+
 interface TripOnboardingChatProps {
   templateData?: TripTemplateData;
+  userName?: string;
 }
 
-export function TripOnboardingChat({ templateData }: TripOnboardingChatProps) {
+export function TripOnboardingChat({ templateData, userName }: TripOnboardingChatProps) {
   const router = useRouter();
   const [step, setStep] = useState<Step>("destination");
   const [messages, setMessages] = useState<Message[]>([
@@ -94,11 +110,16 @@ export function TripOnboardingChat({ templateData }: TripOnboardingChatProps) {
   const [isPending, startTransition] = useTransition();
 
   const [data, setData] = useState<Partial<TripOnboardingData>>({
-    travelers: templateData?.travelers ?? [{ name: "", traveler_type: "adult" }],
+    travelers:
+      templateData?.travelers ??
+      (userName ? [{ name: userName, traveler_type: "adult" as TravelerType }] : []),
     activities: templateData?.activities ?? [],
     travel_type: templateData?.travel_type ?? "checked_bag",
     laundry_access: templateData?.laundry_access ?? "limited",
     style_preference: templateData?.style_preference ?? "casual",
+    style_preferences: templateData?.style_preference
+      ? [templateData.style_preference]
+      : ["casual"],
     packing_mode: templateData?.packing_mode ?? "standard",
     special_notes: templateData?.special_notes ?? "",
   });
@@ -106,7 +127,13 @@ export function TripOnboardingChat({ templateData }: TripOnboardingChatProps) {
   const [destination, setDestination] = useState("");
   const [startDate, setStartDate] = useState<Date>();
   const [endDate, setEndDate] = useState<Date>();
-  const [travelerInput, setTravelerInput] = useState({ name: "", type: "adult" as TravelerType });
+  const [travelerInput, setTravelerInput] = useState<OnboardingTraveler>({
+    name: "",
+    traveler_type: "adult",
+    pet_species: "dog",
+    pet_size: "medium",
+  });
+  const [travelerError, setTravelerError] = useState<string | null>(null);
 
   const addMessage = (role: "assistant" | "user", content: string) => {
     setMessages((prev) => [...prev, { role, content }]);
@@ -120,10 +147,12 @@ export function TripOnboardingChat({ templateData }: TripOnboardingChatProps) {
     }, 300);
   };
 
-  const handleDestination = () => {
-    if (!destination.trim()) return;
-    setData((d) => ({ ...d, destination: destination.trim() }));
-    goToStep("dates", destination.trim());
+  const handleDestination = (selected?: string) => {
+    const value = (selected ?? destination).trim();
+    if (!value) return;
+    setDestination(value);
+    setData((d) => ({ ...d, destination: value }));
+    goToStep("dates", value);
   };
 
   const handleDates = () => {
@@ -141,17 +170,45 @@ export function TripOnboardingChat({ templateData }: TripOnboardingChatProps) {
 
   const addTraveler = () => {
     if (!travelerInput.name.trim()) return;
-    const travelers = [
-      ...(data.travelers ?? []),
-      { name: travelerInput.name.trim(), traveler_type: travelerInput.type },
-    ];
-    setData((d) => ({ ...d, travelers }));
-    setTravelerInput({ name: "", type: "adult" });
+    const entry: OnboardingTraveler = {
+      name: travelerInput.name.trim(),
+      traveler_type: travelerInput.traveler_type,
+      ...(travelerInput.traveler_type === "pet"
+        ? {
+            pet_species: travelerInput.pet_species ?? "dog",
+            pet_size: travelerInput.pet_size ?? "medium",
+          }
+        : {}),
+    };
+    setData((d) => ({ ...d, travelers: [...(d.travelers ?? []), entry] }));
+    setTravelerInput({
+      name: "",
+      traveler_type: "adult",
+      pet_species: "dog",
+      pet_size: "medium",
+    });
+    setTravelerError(null);
+  };
+
+  const removeTraveler = (index: number) => {
+    setData((d) => ({
+      ...d,
+      travelers: (d.travelers ?? []).filter((_, i) => i !== index),
+    }));
   };
 
   const handleTravelers = () => {
     const valid = (data.travelers ?? []).filter((t) => t.name.trim());
-    if (valid.length === 0) return;
+    const hasHuman = valid.some((t) => t.traveler_type !== "pet");
+    if (valid.length === 0) {
+      setTravelerError("Add at least one traveler to continue.");
+      return;
+    }
+    if (!hasHuman) {
+      setTravelerError("Don't forget to add yourself — pets can't pack their own bags!");
+      return;
+    }
+    setTravelerError(null);
     setData((d) => ({ ...d, travelers: valid }));
     goToStep("travel_type", valid.map((t) => t.name).join(", "));
   };
@@ -166,9 +223,30 @@ export function TripOnboardingChat({ templateData }: TripOnboardingChatProps) {
     goToStep("style", access.charAt(0).toUpperCase() + access.slice(1) + " access");
   };
 
-  const handleStyle = (style: StylePreference) => {
-    setData((d) => ({ ...d, style_preference: style }));
-    goToStep("activities", STYLE_LABELS[style]);
+  const toggleStyle = (style: StylePreference) => {
+    setData((d) => {
+      const current = d.style_preferences ?? [d.style_preference ?? "casual"];
+      const next = current.includes(style)
+        ? current.filter((s) => s !== style)
+        : [...current, style];
+      return {
+        ...d,
+        style_preferences: next.length ? next : [style],
+        style_preference: (next.length ? next : [style])[0],
+      };
+    });
+  };
+
+  const handleStyles = () => {
+    const styles = data.style_preferences?.length
+      ? data.style_preferences
+      : [data.style_preference ?? "casual"];
+    setData((d) => ({
+      ...d,
+      style_preferences: styles,
+      style_preference: styles[0],
+    }));
+    goToStep("activities", styles.map((s) => STYLE_LABELS[s]).join(", "));
   };
 
   const toggleActivity = (activity: string) => {
@@ -240,13 +318,14 @@ export function TripOnboardingChat({ templateData }: TripOnboardingChatProps) {
         <div className="rounded-2xl border bg-card p-5 shadow-travel-sm">
           {step === "destination" && (
             <div className="flex gap-2">
-              <Input
+              <DestinationAutocomplete
                 value={destination}
-                onChange={(e) => setDestination(e.target.value)}
+                onChange={setDestination}
+                onSelect={(place) => handleDestination(place.shortLabel)}
+                onSubmit={() => handleDestination()}
                 placeholder="Scottsdale, Arizona"
-                onKeyDown={(e) => e.key === "Enter" && handleDestination()}
               />
-              <Button onClick={handleDestination}>
+              <Button onClick={() => handleDestination()} disabled={!destination.trim()}>
                 <ArrowRight className="h-4 w-4" />
               </Button>
             </div>
@@ -291,39 +370,110 @@ export function TripOnboardingChat({ templateData }: TripOnboardingChatProps) {
 
           {step === "travelers" && (
             <div className="space-y-3">
-              <div className="flex flex-wrap gap-2">
-                {(data.travelers ?? [])
-                  .filter((t) => t.name.trim())
-                  .map((t, i) => (
-                    <Badge key={i} variant="secondary">
-                      {t.name} ({t.traveler_type})
-                    </Badge>
-                  ))}
+              <p className="rounded-xl bg-primary/5 px-3 py-2 text-sm text-muted-foreground">
+                {userName
+                  ? `We added you (${userName}) to get started. Add partners, kids, or pets below.`
+                  : "Add yourself first, then anyone else joining the trip."}
+              </p>
+              <div className="space-y-2">
+                {(data.travelers ?? []).map((t, i) => (
+                  <div
+                    key={`${t.name}-${i}`}
+                    className="flex items-center justify-between rounded-xl border bg-muted/30 px-3 py-2"
+                  >
+                    <div className="flex items-center gap-2">
+                      <Badge variant="secondary">
+                        {t.traveler_type === "pet" ? "🐾" : "👤"}
+                      </Badge>
+                      <span className="text-sm font-medium">
+                        {t.name}
+                        {i === 0 && userName && t.name === userName ? " (you)" : ""}
+                      </span>
+                      <span className="text-xs text-muted-foreground">
+                        {t.traveler_type}
+                        {t.traveler_type === "pet" && t.pet_species
+                          ? ` · ${t.pet_species}${t.pet_size ? `, ${t.pet_size}` : ""}`
+                          : ""}
+                      </span>
+                    </div>
+                    <Button variant="ghost" size="sm" onClick={() => removeTraveler(i)}>
+                      Remove
+                    </Button>
+                  </div>
+                ))}
               </div>
-              <div className="flex gap-2">
-                <Input
-                  value={travelerInput.name}
-                  onChange={(e) => setTravelerInput((t) => ({ ...t, name: e.target.value }))}
-                  placeholder="Name"
-                  onKeyDown={(e) => e.key === "Enter" && addTraveler()}
-                />
-                <select
-                  value={travelerInput.type}
-                  onChange={(e) =>
-                    setTravelerInput((t) => ({ ...t, type: e.target.value as TravelerType }))
-                  }
-                  className="rounded-md border bg-background px-2 text-sm"
-                >
-                  {TRAVELER_TYPES.map((t) => (
-                    <option key={t.value} value={t.value}>
-                      {t.label}
-                    </option>
-                  ))}
-                </select>
-                <Button variant="outline" onClick={addTraveler}>
-                  Add
-                </Button>
+              <div className="space-y-2 rounded-xl border p-3">
+                <p className="text-xs font-medium text-muted-foreground">Add another traveler</p>
+                <div className="flex flex-wrap gap-2">
+                  <Input
+                    value={travelerInput.name}
+                    onChange={(e) =>
+                      setTravelerInput((t) => ({ ...t, name: e.target.value }))
+                    }
+                    placeholder="Name"
+                    className="min-w-[120px] flex-1"
+                    onKeyDown={(e) => e.key === "Enter" && addTraveler()}
+                  />
+                  <select
+                    value={travelerInput.traveler_type}
+                    onChange={(e) =>
+                      setTravelerInput((t) => ({
+                        ...t,
+                        traveler_type: e.target.value as TravelerType,
+                      }))
+                    }
+                    className="rounded-md border bg-background px-2 text-sm"
+                  >
+                    {TRAVELER_TYPES.map((t) => (
+                      <option key={t.value} value={t.value}>
+                        {t.label}
+                      </option>
+                    ))}
+                  </select>
+                  {travelerInput.traveler_type === "pet" && (
+                    <>
+                      <select
+                        value={travelerInput.pet_species ?? "dog"}
+                        onChange={(e) =>
+                          setTravelerInput((t) => ({
+                            ...t,
+                            pet_species: e.target.value as PetSpecies,
+                          }))
+                        }
+                        className="rounded-md border bg-background px-2 text-sm"
+                      >
+                        {PET_SPECIES.map((s) => (
+                          <option key={s.value} value={s.value}>
+                            {s.label}
+                          </option>
+                        ))}
+                      </select>
+                      <select
+                        value={travelerInput.pet_size ?? "medium"}
+                        onChange={(e) =>
+                          setTravelerInput((t) => ({
+                            ...t,
+                            pet_size: e.target.value as PetSize,
+                          }))
+                        }
+                        className="rounded-md border bg-background px-2 text-sm"
+                      >
+                        {PET_SIZES.map((s) => (
+                          <option key={s.value} value={s.value}>
+                            {s.label}
+                          </option>
+                        ))}
+                      </select>
+                    </>
+                  )}
+                  <Button variant="outline" onClick={addTraveler}>
+                    Add
+                  </Button>
+                </div>
               </div>
+              {travelerError && (
+                <p className="text-sm text-destructive">{travelerError}</p>
+              )}
               <Button onClick={handleTravelers} className="w-full">
                 Continue
               </Button>
@@ -351,12 +501,27 @@ export function TripOnboardingChat({ templateData }: TripOnboardingChatProps) {
           )}
 
           {step === "style" && (
-            <div className="grid grid-cols-2 gap-2">
-              {STYLE_OPTIONS.map((style) => (
-                <Button key={style} variant="outline" onClick={() => handleStyle(style)}>
-                  {STYLE_LABELS[style]}
-                </Button>
-              ))}
+            <div className="space-y-3">
+              <div className="flex flex-wrap gap-2">
+                {STYLE_OPTIONS.map((style) => (
+                  <button
+                    key={style}
+                    type="button"
+                    onClick={() => toggleStyle(style)}
+                    className={cn(
+                      "rounded-full border px-3 py-1.5 text-sm transition-colors",
+                      (data.style_preferences ?? []).includes(style)
+                        ? "border-primary bg-primary text-primary-foreground"
+                        : "hover:bg-muted"
+                    )}
+                  >
+                    {STYLE_LABELS[style]}
+                  </button>
+                ))}
+              </div>
+              <Button onClick={handleStyles} className="w-full">
+                Continue
+              </Button>
             </div>
           )}
 
@@ -421,7 +586,10 @@ export function TripOnboardingChat({ templateData }: TripOnboardingChatProps) {
                   {(data.travelers ?? []).map((t) => t.name).join(", ")}
                 </p>
                 <p>
-                  <strong>Style:</strong> {STYLE_LABELS[data.style_preference!]}
+                  <strong>Style:</strong>{" "}
+                  {(data.style_preferences ?? [data.style_preference!])
+                    .map((s) => STYLE_LABELS[s])
+                    .join(", ")}
                 </p>
                 <p>
                   <strong>Activities:</strong>{" "}

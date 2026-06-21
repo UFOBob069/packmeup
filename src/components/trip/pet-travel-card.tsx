@@ -1,20 +1,48 @@
-import { PawPrint } from "lucide-react";
+"use client";
+
+import { useEffect, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
+import { Check, PawPrint } from "lucide-react";
 import type { PackingItem, Traveler } from "@/lib/types";
 import { ProgressRing } from "@/components/design/progress-ring";
+import { toggleItemPacked } from "@/actions/packing";
 import { cn } from "@/lib/utils";
 
 interface PetTravelCardProps {
   pet: Traveler;
   items: PackingItem[];
+  tripId: string;
   className?: string;
 }
 
-export function PetTravelCard({ pet, items, className }: PetTravelCardProps) {
-  const petItems = items.filter((i) => i.traveler_id === pet.id);
+export function PetTravelCard({ pet, items, tripId, className }: PetTravelCardProps) {
+  const router = useRouter();
+  const [localItems, setLocalItems] = useState(items);
+  const [, startTransition] = useTransition();
+
+  useEffect(() => {
+    setLocalItems(items);
+  }, [items]);
+
+  const petItems = localItems.filter(
+    (i) => i.traveler_id === pet.id && i.category === "pet_supplies"
+  );
   const packed = petItems.filter((i) => i.packed).length;
   const progress = petItems.length ? Math.round((packed / petItems.length) * 100) : 0;
 
+  const handleToggle = (itemId: string, packed: boolean) => {
+    setLocalItems((prev) =>
+      prev.map((i) => (i.id === itemId ? { ...i, packed } : i))
+    );
+    startTransition(async () => {
+      await toggleItemPacked(tripId, itemId, packed);
+      router.refresh();
+    });
+  };
+
   if (petItems.length === 0) return null;
+
+  const petLabel = [pet.pet_species, pet.pet_size].filter(Boolean).join(" · ");
 
   return (
     <section
@@ -33,6 +61,7 @@ export function PetTravelCard({ pet, items, className }: PetTravelCardProps) {
           </p>
           <h3 className="text-display text-xl font-semibold">{pet.name}</h3>
           <p className="text-sm text-muted-foreground">
+            {petLabel && <span className="capitalize">{petLabel} · </span>}
             {packed} of {petItems.length} essentials packed
           </p>
         </div>
@@ -47,16 +76,28 @@ export function PetTravelCard({ pet, items, className }: PetTravelCardProps) {
               item.packed && "opacity-75"
             )}
           >
+            <button
+              type="button"
+              onClick={() => handleToggle(item.id, !item.packed)}
+              className={cn(
+                "flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 transition-colors",
+                item.packed
+                  ? "border-golf-green bg-golf-green text-white"
+                  : "border-muted-foreground/30 hover:border-golf-green/50"
+              )}
+              aria-label={item.packed ? "Mark unpacked" : "Mark packed"}
+            >
+              {item.packed && <Check className="h-3 w-3 stroke-[3]" />}
+            </button>
             <PawPrint className="h-4 w-4 shrink-0 text-amber-600 dark:text-warm-sand" />
-            <span className={cn("text-sm font-medium", item.packed && "line-through text-muted-foreground")}>
+            <span
+              className={cn(
+                "text-sm font-medium",
+                item.packed && "line-through text-muted-foreground"
+              )}
+            >
               {item.item_name}
             </span>
-            <div
-              className={cn(
-                "ml-auto h-2 w-2 rounded-full",
-                item.packed ? "bg-golf-green" : "bg-muted-foreground/30"
-              )}
-            />
           </div>
         ))}
       </div>

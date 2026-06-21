@@ -1,12 +1,13 @@
 "use client";
 
-import { useTransition } from "react";
-import { Check } from "lucide-react";
+import { useEffect, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
+import { Check, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { PackingItem, Traveler } from "@/lib/types";
 import { CATEGORY_LABELS } from "@/lib/types";
 import { CATEGORY_ICONS } from "@/lib/constants";
-import { toggleItemPacked, updateItemNotes } from "@/actions/packing";
+import { toggleItemPacked, updateItemNotes, removePackingItem } from "@/actions/packing";
 import { TravelerAvatar } from "@/components/design/traveler-avatar";
 
 interface PackingChecklistProps {
@@ -26,13 +27,19 @@ export function PackingChecklist({
   filterActivity,
   readOnly,
 }: PackingChecklistProps) {
+  const router = useRouter();
+  const [localItems, setLocalItems] = useState(items);
   const [isPending, startTransition] = useTransition();
 
-  let filtered = items;
+  useEffect(() => {
+    setLocalItems(items);
+  }, [items]);
+
+  let filtered = localItems;
   if (filterTraveler === "shared") {
-    filtered = items.filter((i) => i.shared);
+    filtered = localItems.filter((i) => i.shared);
   } else if (filterTraveler) {
-    filtered = items.filter((i) => i.traveler_id === filterTraveler);
+    filtered = localItems.filter((i) => i.traveler_id === filterTraveler);
   }
   if (filterActivity) {
     filtered = filtered.filter(
@@ -53,8 +60,20 @@ export function PackingChecklist({
   const travelerIndex = Object.fromEntries(travelers.map((t, i) => [t.id, i]));
 
   const handleToggle = (itemId: string, packed: boolean) => {
+    setLocalItems((prev) =>
+      prev.map((i) => (i.id === itemId ? { ...i, packed } : i))
+    );
     startTransition(async () => {
       await toggleItemPacked(tripId, itemId, packed);
+      router.refresh();
+    });
+  };
+
+  const handleRemove = (itemId: string) => {
+    setLocalItems((prev) => prev.filter((i) => i.id !== itemId));
+    startTransition(async () => {
+      await removePackingItem(tripId, itemId);
+      router.refresh();
     });
   };
 
@@ -135,6 +154,7 @@ export function PackingChecklist({
                           if (e.target.value !== (item.notes ?? "")) {
                             startTransition(async () => {
                               await updateItemNotes(tripId, item.id, e.target.value);
+                              router.refresh();
                             });
                           }
                         }}
@@ -150,6 +170,17 @@ export function PackingChecklist({
                       index={travelerIndex[traveler.id] ?? 0}
                       size="sm"
                     />
+                  )}
+
+                  {!readOnly && (
+                    <button
+                      type="button"
+                      onClick={() => handleRemove(item.id)}
+                      className="shrink-0 rounded-lg p-1.5 text-muted-foreground opacity-0 transition-opacity hover:bg-destructive/10 hover:text-destructive group-hover:opacity-100"
+                      aria-label={`Remove ${item.item_name}`}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
                   )}
                 </div>
               );

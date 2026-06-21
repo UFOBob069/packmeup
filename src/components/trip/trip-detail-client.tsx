@@ -18,6 +18,8 @@ import { CalendarView } from "./calendar-view";
 import { ProgressStats } from "./progress-stats";
 import { AiChat } from "./ai-chat";
 import { InviteDialog } from "./invite-dialog";
+import { AddPackingItemForm } from "./add-packing-item-form";
+import { TripSettingsMenu } from "./trip-settings-menu";
 import { RealtimePacking } from "./realtime-packing";
 import { CollaborationFeed } from "./collaboration-feed";
 import { PackingTimeline } from "./packing-timeline";
@@ -82,6 +84,9 @@ export function TripDetailClient({ trip, chatMessages }: TripDetailClientProps) 
                 size="md"
               />
               <InviteDialog tripId={trip.id} />
+              <div className="ml-auto">
+                <TripSettingsMenu tripId={trip.id} destination={trip.destination} />
+              </div>
             </div>
           </div>
           {daysUntil >= 0 && (
@@ -112,8 +117,15 @@ export function TripDetailClient({ trip, chatMessages }: TripDetailClientProps) 
             <div className="space-y-6 lg:col-span-2">
               <SharedItemsSection items={trip.packing_items} />
               {pets.map((pet) => (
-                <PetTravelCard key={pet.id} pet={pet} items={trip.packing_items} />
+                <PetTravelCard
+                  key={pet.id}
+                  pet={pet}
+                  items={trip.packing_items}
+                  tripId={trip.id}
+                />
               ))}
+
+              <AddPackingItemForm tripId={trip.id} travelers={trip.travelers} />
 
               <Tabs defaultValue="all">
                 <TabsList className="mb-4 flex h-auto flex-wrap gap-1 rounded-xl bg-muted/40 p-1">

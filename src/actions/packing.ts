@@ -4,8 +4,10 @@ import { revalidatePath } from "next/cache";
 import { isDemoMode } from "@/lib/supabase/client";
 import {
   addDemoChatMessage,
+  addDemoPackingItem,
   applyDemoItemUpdates,
   getDemoChatMessages,
+  removeDemoPackingItem,
   toggleDemoItemPacked,
   updateDemoItemNotes,
 } from "@/lib/demo/store";
@@ -21,11 +23,13 @@ export async function toggleItemPacked(tripId: string, itemId: string, packed: b
   }
 
   const supabase = await createClient();
-  await supabase
+  const { error } = await supabase
     .from("packing_items")
     .update({ packed, updated_at: new Date().toISOString() })
     .eq("id", itemId)
     .eq("trip_id", tripId);
+  if (error) throw new Error(error.message);
+  revalidatePath(`/trips/${tripId}`);
 }
 
 export async function updateItemNotes(tripId: string, itemId: string, notes: string) {
@@ -36,11 +40,64 @@ export async function updateItemNotes(tripId: string, itemId: string, notes: str
   }
 
   const supabase = await createClient();
-  await supabase
+  const { error } = await supabase
     .from("packing_items")
     .update({ notes, updated_at: new Date().toISOString() })
     .eq("id", itemId)
     .eq("trip_id", tripId);
+  if (error) throw new Error(error.message);
+  revalidatePath(`/trips/${tripId}`);
+}
+
+export async function addPackingItem(
+  tripId: string,
+  itemName: string,
+  travelerId: string | null
+) {
+  const name = itemName.trim();
+  if (!name) throw new Error("Item name is required");
+
+  if (isDemoMode()) {
+    addDemoPackingItem(tripId, name, travelerId);
+    revalidatePath(`/trips/${tripId}`);
+    return;
+  }
+
+  const supabase = await createClient();
+  const { count } = await supabase
+    .from("packing_items")
+    .select("*", { count: "exact", head: true })
+    .eq("trip_id", tripId);
+
+  const { error } = await supabase.from("packing_items").insert({
+    trip_id: tripId,
+    item_name: name,
+    quantity: 1,
+    category: "miscellaneous",
+    shared: travelerId === null,
+    traveler_id: travelerId,
+    packed: false,
+    sort_order: count ?? 0,
+  });
+  if (error) throw new Error(error.message);
+  revalidatePath(`/trips/${tripId}`);
+}
+
+export async function removePackingItem(tripId: string, itemId: string) {
+  if (isDemoMode()) {
+    removeDemoPackingItem(itemId);
+    revalidatePath(`/trips/${tripId}`);
+    return;
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("packing_items")
+    .delete()
+    .eq("id", itemId)
+    .eq("trip_id", tripId);
+  if (error) throw new Error(error.message);
+  revalidatePath(`/trips/${tripId}`);
 }
 
 export async function sendChatMessage(tripId: string, message: string) {
