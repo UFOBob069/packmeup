@@ -1,0 +1,80 @@
+import { CloudRain, Sun, Wind, Cloud } from "lucide-react";
+import { cn } from "@/lib/utils";
+import type { WeatherDay } from "@/lib/types";
+
+interface WeatherCardProps {
+  day: WeatherDay;
+  className?: string;
+  compact?: boolean;
+}
+
+function WeatherIcon({ conditions, className }: { conditions: string; className?: string }) {
+  const lower = conditions.toLowerCase();
+  if (lower.includes("rain") || lower.includes("drizzle") || lower.includes("shower")) {
+    return <CloudRain className={className} />;
+  }
+  if (lower.includes("clear") || lower.includes("sun")) {
+    return <Sun className={className} />;
+  }
+  if (lower.includes("wind") || lower.includes("breeze")) {
+    return <Wind className={className} />;
+  }
+  return <Cloud className={className} />;
+}
+
+export function WeatherCard({ day, className, compact }: WeatherCardProps) {
+  const date = new Date(day.date + "T12:00:00");
+  const dayName = date.toLocaleDateString("en-US", { weekday: "short" });
+
+  return (
+    <div
+      className={cn(
+        "flex flex-col items-center rounded-xl border bg-card p-3 text-center transition-shadow hover:shadow-travel-sm",
+        compact ? "min-w-[72px]" : "min-w-[88px]",
+        className
+      )}
+    >
+      <span className="text-xs font-medium text-muted-foreground">{dayName}</span>
+      <WeatherIcon
+        conditions={day.conditions}
+        className={cn("my-2 text-weather-orange", compact ? "h-5 w-5" : "h-6 w-6")}
+      />
+      <span className="text-sm font-semibold">{day.temp_high}°</span>
+      <span className="text-xs text-muted-foreground">{day.temp_low}° low</span>
+      {day.rain_chance > 30 && (
+        <span className="mt-1 text-[10px] font-medium text-sky-blue dark:text-sky-blue">
+          {day.rain_chance}% rain
+        </span>
+      )}
+    </div>
+  );
+}
+
+interface WeatherPreviewProps {
+  location: string;
+  days: WeatherDay[];
+  className?: string;
+}
+
+export function WeatherPreview({ location, days, className }: WeatherPreviewProps) {
+  if (!days.length) return null;
+
+  return (
+    <div className={cn("rounded-2xl border bg-card p-5 shadow-travel-sm", className)}>
+      <div className="mb-4 flex items-center justify-between">
+        <div>
+          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+            Weather preview
+          </p>
+          <p className="text-display text-lg font-semibold">{location}</p>
+        </div>
+        <Sun className="h-5 w-5 text-sun-yellow" />
+      </div>
+      <div className="flex gap-2 overflow-x-auto pb-1">
+        {days.slice(0, 5).map((day) => (
+          <WeatherCard key={day.date} day={day} compact />
+        ))}
+      </div>
+    </div>
+  );
+}

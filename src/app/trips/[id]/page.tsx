@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { Header } from "@/components/layout/header";
+import { AppShell } from "@/components/layout/header";
 import { TripDetailClient } from "@/components/trip/trip-detail-client";
 import { getChatHistory } from "@/actions/packing";
 import { getTripDetails } from "@/actions/trips";
@@ -16,11 +16,8 @@ export default async function TripPage({ params }: TripPageProps) {
   const chatMessages = await getChatHistory(id);
 
   return (
-    <>
-      <Header />
-      <main className="mx-auto max-w-6xl flex-1 px-4 py-8">
-        <TripDetailClient trip={trip} chatMessages={chatMessages} />
-      </main>
-    </>
+    <AppShell>
+      <TripDetailClient trip={trip} chatMessages={chatMessages} />
+    </AppShell>
   );
 }

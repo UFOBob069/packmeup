@@ -1,12 +1,20 @@
 import Link from "next/link";
-import { Plus } from "lucide-react";
-import { Header } from "@/components/layout/header";
+import { Plus, Sparkles } from "lucide-react";
+import { AppShell } from "@/components/layout/header";
 import { TripCard } from "@/components/trip/trip-card";
+import { CountdownWidget } from "@/components/design/countdown-widget";
+import { WeatherPreview } from "@/components/design/weather-card";
+import { AiSuggestionList } from "@/components/design/ai-suggestion-card";
+import { TravelerAvatar } from "@/components/design/traveler-avatar";
+import { EmptyTrips } from "@/components/design/empty-state";
 import { Button } from "@/components/ui/button";
 import { getCurrentUser, getUserTrips, getTripDetails } from "@/actions/trips";
-import { getDemoTemplates } from "@/lib/demo/store";
+import { getDemoTemplates, calculateProgress } from "@/lib/demo/store";
+import { generateAiRecommendations } from "@/lib/design-system";
 import { isDemoMode } from "@/lib/supabase/client";
+import { differenceInDays, parseISO } from "date-fns";
 import { redirect } from "next/navigation";
+import type { WeatherData } from "@/lib/types";
 
 export default async function DashboardPage() {
   const user = await getCurrentUser();
@@ -17,7 +25,6 @@ export default async function DashboardPage() {
 
   const now = new Date().toISOString().split("T")[0];
   const upcoming = trips.filter((t) => t.end_date >= now);
-  const past = trips.filter((t) => t.end_date < now);
 
   const tripDetails = await Promise.all(
     trips.map(async (t) => {
@@ -26,97 +33,181 @@ export default async function DashboardPage() {
         trip: t,
         travelers: details?.travelers ?? [],
         items: details?.packing_items ?? [],
+        activities: details?.activities ?? [],
+        weather: details?.weather_data as WeatherData | null,
       };
     })
   );
 
+  const featured = tripDetails.find(({ trip }) => trip.end_date >= now);
+  const daysUntil = featured
+    ? differenceInDays(parseISO(featured.trip.start_date), new Date())
+    : null;
+
+  const aiRecs =
+    featured && featured.items.length
+      ? generateAiRecommendations(featured.items, featured.travelers, featured.weather)
+      : [];
+
+  const firstName = user?.name?.split(" ")[0] ?? "there";
+
   return (
-    <>
-      <Header />
-      <main className="mx-auto max-w-6xl flex-1 px-4 py-8">
-        <div className="mb-8 flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight">
-              {user?.name ? `Hey, ${user.name.split(" ")[0]}!` : "Your Trips"}
-            </h1>
-            <p className="text-muted-foreground">Plan, pack, and travel together.</p>
-          </div>
-          <Button asChild>
-            <Link href="/trips/new">
-              <Plus className="mr-2 h-4 w-4" />
-              New Trip
-            </Link>
-          </Button>
+    <AppShell>
+      {/* Greeting */}
+      <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <p className="text-sm font-medium text-muted-foreground">
+            {daysUntil !== null && daysUntil >= 0
+              ? featured
+                ? `Your next trip is ${featured.trip.destination.split(",")[0]}`
+                : "Your trips"
+              : "Your trips"}
+          </p>
+          <h1 className="text-display text-3xl font-semibold tracking-tight sm:text-4xl">
+            Hey, {firstName} 👋
+          </h1>
+          <p className="mt-1 text-muted-foreground">
+            {upcoming.length > 0
+              ? "You're getting ready for something great."
+              : "Where are we going next?"}
+          </p>
         </div>
+        <Button asChild className="rounded-full px-6 shadow-travel-sm">
+          <Link href="/trips/new">
+            <Plus className="mr-2 h-4 w-4" />
+            Plan a trip
+          </Link>
+        </Button>
+      </div>
 
-        {upcoming.length > 0 && (
-          <section className="mb-10">
-            <h2 className="mb-4 text-lg font-semibold">Upcoming Trips</h2>
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {tripDetails
-                .filter(({ trip }) => trip.end_date >= now)
-                .map(({ trip, travelers, items }) => (
-                  <TripCard
-                    key={trip.id}
-                    trip={trip}
-                    travelers={travelers}
-                    packingItems={items}
-                  />
-                ))}
-            </div>
-          </section>
-        )}
+      {trips.length === 0 ? (
+        <EmptyTrips />
+      ) : (
+        <div className="grid gap-6 lg:grid-cols-3">
+          {/* Main column */}
+          <div className="space-y-6 lg:col-span-2">
+            {featured && daysUntil !== null && daysUntil >= 0 && (
+              <CountdownWidget
+                days={daysUntil}
+                destination={featured.trip.destination}
+              />
+            )}
 
-        {past.length > 0 && (
-          <section className="mb-10">
-            <h2 className="mb-4 text-lg font-semibold">Past Trips</h2>
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {tripDetails
-                .filter(({ trip }) => trip.end_date < now)
-                .map(({ trip, travelers, items }) => (
-                  <TripCard
-                    key={trip.id}
-                    trip={trip}
-                    travelers={travelers}
-                    packingItems={items}
-                  />
-                ))}
-            </div>
-          </section>
-        )}
+            {upcoming.length > 0 && (
+              <section>
+                <h2 className="text-display mb-4 text-lg font-semibold">Upcoming trips</h2>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  {tripDetails
+                    .filter(({ trip }) => trip.end_date >= now)
+                    .map(({ trip, travelers, items, activities }, i) => (
+                      <TripCard
+                        key={trip.id}
+                        trip={trip}
+                        travelers={travelers}
+                        packingItems={items}
+                        activities={activities}
+                        featured={i === 0}
+                      />
+                    ))}
+                </div>
+              </section>
+            )}
 
-        {trips.length === 0 && (
-          <div className="rounded-2xl border border-dashed py-16 text-center">
-            <p className="text-muted-foreground">No trips yet. Start planning your first adventure!</p>
-            <Button asChild className="mt-4">
-              <Link href="/trips/new">Create Your First Trip</Link>
-            </Button>
+            {tripDetails.filter(({ trip }) => trip.end_date < now).length > 0 && (
+              <section>
+                <h2 className="text-display mb-4 text-lg font-semibold text-muted-foreground">
+                  Past adventures
+                </h2>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  {tripDetails
+                    .filter(({ trip }) => trip.end_date < now)
+                    .map(({ trip, travelers, items, activities }) => (
+                      <TripCard
+                        key={trip.id}
+                        trip={trip}
+                        travelers={travelers}
+                        packingItems={items}
+                        activities={activities}
+                      />
+                    ))}
+                </div>
+              </section>
+            )}
           </div>
-        )}
 
-        {templates.length > 0 && (
-          <section>
-            <div className="mb-4 flex items-center justify-between">
-              <h2 className="text-lg font-semibold">Templates</h2>
-              <Button asChild variant="ghost" size="sm">
-                <Link href="/templates">View all</Link>
-              </Button>
-            </div>
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {templates.slice(0, 3).map((tpl) => (
-                <Link
-                  key={tpl.id}
-                  href={`/trips/new?template=${tpl.id}`}
-                  className="rounded-xl border p-4 transition-colors hover:bg-muted/50"
-                >
-                  <h3 className="font-medium">{tpl.name}</h3>
-                  <p className="mt-1 text-sm text-muted-foreground">{tpl.description}</p>
-                </Link>
-              ))}
-            </div>
-          </section>
-        )}
-      </main>
-    </>
+          {/* Sidebar */}
+          <div className="space-y-6">
+            {featured?.weather && featured.weather.daily?.length > 0 && (
+              <WeatherPreview
+                location={featured.weather.location ?? featured.trip.destination}
+                days={featured.weather.daily}
+              />
+            )}
+
+            {featured && featured.travelers.length > 0 && (
+              <div className="rounded-2xl border bg-card p-5 shadow-travel-sm">
+                <p className="mb-4 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                  Travel party
+                </p>
+                <div className="flex flex-wrap justify-center gap-4">
+                  {featured.travelers.map((t, i) => {
+                    const prog = calculateProgress(featured.items, featured.travelers);
+                    const stats = prog.byTraveler[t.id];
+                    return (
+                      <TravelerAvatar
+                        key={t.id}
+                        name={t.name}
+                        type={t.traveler_type}
+                        index={i}
+                        size="lg"
+                        showName
+                        packed={stats?.packed}
+                        total={stats?.total}
+                      />
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {aiRecs.length > 0 && (
+              <div className="rounded-2xl border bg-card p-5 shadow-travel-sm">
+                <AiSuggestionList recommendations={aiRecs} />
+              </div>
+            )}
+
+            {templates.length > 0 && (
+              <div className="rounded-2xl border bg-card p-5 shadow-travel-sm">
+                <div className="mb-4 flex items-center justify-between">
+                  <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                    Quick start templates
+                  </p>
+                  <Link href="/templates" className="text-xs font-medium text-primary hover:underline">
+                    View all
+                  </Link>
+                </div>
+                <div className="space-y-2">
+                  {templates.slice(0, 2).map((tpl) => (
+                    <Link
+                      key={tpl.id}
+                      href={`/trips/new?template=${tpl.id}`}
+                      className="flex items-center gap-3 rounded-xl border bg-background p-3 transition-colors hover:bg-muted/50"
+                    >
+                      <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10">
+                        <Sparkles className="h-4 w-4 text-primary" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium">{tpl.name}</p>
+                        <p className="text-xs text-muted-foreground">{tpl.description}</p>
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </AppShell>
   );
 }

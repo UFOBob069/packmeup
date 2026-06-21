@@ -46,17 +46,22 @@ interface Message {
 }
 
 const STEP_PROMPTS: Record<Step, string> = {
-  destination: "Where are you headed? Tell me your destination.",
-  dates: "When are you traveling? Pick your departure and return dates.",
-  travelers: "Who's coming along? Add everyone — including pets!",
-  travel_type: "How are you packing?",
-  laundry: "Will you have access to laundry?",
-  style: "What's your style vibe for this trip?",
-  activities: "What activities are you planning?",
+  destination: "Let's plan something great. Where are you headed?",
+  dates: "When does the adventure begin — and when do you come home?",
+  travelers: "Who's joining you? Add everyone, pets included 🐾",
+  travel_type: "How are you traveling — carry-on warrior or checked bags?",
+  laundry: "Will you have laundry access? This helps me pack the right amount.",
+  style: "What's your vibe? I'll match outfits to your style.",
+  activities: "What are you doing on this trip? Select all that apply.",
   packing_mode: "How should I optimize your packing?",
-  notes: "Anything else I should know?",
-  review: "Here's your trip summary. Ready to generate your packing list?",
+  notes: "Anything I should know? Cold sensitivity, souvenirs, special needs...",
+  review: "Looking good! Ready for me to build your packing list?",
 };
+
+const STEP_ORDER: Step[] = [
+  "destination", "dates", "travelers", "travel_type", "laundry",
+  "style", "activities", "packing_mode", "notes", "review",
+];
 
 const TRAVEL_TYPES: TravelType[] = ["carry_on", "checked_bag", "multiple_bags", "road_trip"];
 const LAUNDRY_OPTIONS: LaundryAccess[] = ["none", "limited", "full"];
@@ -199,16 +204,32 @@ export function TripOnboardingChat({ templateData }: TripOnboardingChatProps) {
   };
 
   return (
-    <div className="mx-auto flex h-[calc(100vh-8rem)] max-w-2xl flex-col">
+    <div className="mx-auto flex h-[calc(100vh-10rem)] max-w-2xl flex-col">
+      {/* Progress */}
+      <div className="mb-6">
+        <div className="mb-2 flex items-center justify-between text-xs text-muted-foreground">
+          <span>Trip planning</span>
+          <span>{Math.round(((STEP_ORDER.indexOf(step) + 1) / STEP_ORDER.length) * 100)}%</span>
+        </div>
+        <div className="h-1.5 overflow-hidden rounded-full bg-muted">
+          <div
+            className="h-full rounded-full bg-primary transition-all duration-500 ease-out"
+            style={{
+              width: `${((STEP_ORDER.indexOf(step) + 1) / STEP_ORDER.length) * 100}%`,
+            }}
+          />
+        </div>
+      </div>
+
       <div className="flex-1 space-y-4 overflow-y-auto pb-4">
         {messages.map((msg, i) => (
           <div
             key={i}
             className={cn(
-              "max-w-[85%] rounded-2xl px-4 py-3 text-sm",
+              "max-w-[88%] rounded-2xl px-4 py-3 text-sm leading-relaxed",
               msg.role === "assistant"
-                ? "bg-muted"
-                : "ml-auto bg-primary text-primary-foreground"
+                ? "rounded-bl-md bg-muted/70"
+                : "ml-auto rounded-br-md bg-primary text-primary-foreground"
             )}
           >
             {msg.content}
@@ -216,7 +237,7 @@ export function TripOnboardingChat({ templateData }: TripOnboardingChatProps) {
         ))}
 
         {/* Step inputs */}
-        <div className="rounded-xl border bg-card p-4">
+        <div className="rounded-2xl border bg-card p-5 shadow-travel-sm">
           {step === "destination" && (
             <div className="flex gap-2">
               <Input

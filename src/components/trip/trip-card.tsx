@@ -1,70 +1,100 @@
 import { differenceInDays, format, parseISO } from "date-fns";
 import Link from "next/link";
-import { MapPin, Users, Calendar } from "lucide-react";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
-import type { Trip, PackingItem, Traveler } from "@/lib/types";
+import { MapPin, ChevronRight } from "lucide-react";
+import { ProgressRing } from "@/components/design/progress-ring";
+import { TravelerAvatarGroup } from "@/components/design/traveler-avatar";
+import { CountdownWidget } from "@/components/design/countdown-widget";
+import { ActivityTag } from "@/components/design/activity-tag";
+import type { Trip, PackingItem, Traveler, Activity } from "@/lib/types";
 import { calculateProgress } from "@/lib/demo/store";
+import { cn } from "@/lib/utils";
 
 interface TripCardProps {
   trip: Trip;
   travelers?: Traveler[];
   packingItems?: PackingItem[];
-  isShared?: boolean;
+  activities?: Activity[];
+  featured?: boolean;
 }
 
-export function TripCard({ trip, travelers = [], packingItems = [], isShared }: TripCardProps) {
+export function TripCard({
+  trip,
+  travelers = [],
+  packingItems = [],
+  activities = [],
+  featured,
+}: TripCardProps) {
   const daysUntil = differenceInDays(parseISO(trip.start_date), new Date());
-  const isPast = daysUntil < 0;
+  const isPast = daysUntil < 0 && trip.end_date < new Date().toISOString().split("T")[0];
   const progress = calculateProgress(packingItems, travelers);
+  const tripActivities = activities.slice(0, 3).map((a) => a.activity_name);
 
   return (
-    <Link href={`/trips/${trip.id}`}>
-      <Card className="group transition-all hover:border-primary/30 hover:shadow-md">
-        <CardHeader className="pb-2">
-          <div className="flex items-start justify-between gap-2">
-            <div>
-              <h3 className="font-semibold leading-tight group-hover:text-primary">
+    <Link href={`/trips/${trip.id}`} className="group block">
+      <article
+        className={cn(
+          "relative overflow-hidden rounded-2xl border bg-card transition-all duration-300",
+          "hover:-translate-y-1 hover:shadow-travel",
+          featured && "border-primary/20 shadow-travel-sm"
+        )}
+      >
+        {/* Gradient header strip */}
+        <div className="h-2 bg-gradient-to-r from-primary via-sky-blue to-ocean-teal" />
+
+        <div className="p-5">
+          <div className="flex items-start justify-between gap-4">
+            <div className="min-w-0 flex-1">
+              <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                {isPast ? "Past trip" : daysUntil <= 7 ? "Coming up soon" : "Upcoming"}
+              </p>
+              <h3 className="text-display mt-1 truncate text-xl font-semibold tracking-tight group-hover:text-primary">
                 {trip.destination}
               </h3>
-              <p className="mt-1 flex items-center gap-1 text-sm text-muted-foreground">
-                <Calendar className="h-3.5 w-3.5" />
+              <p className="mt-1 flex items-center gap-1.5 text-sm text-muted-foreground">
+                <MapPin className="h-3.5 w-3.5 shrink-0" />
                 {format(parseISO(trip.start_date), "MMM d")} –{" "}
                 {format(parseISO(trip.end_date), "MMM d, yyyy")}
               </p>
             </div>
-            {isShared && <Badge variant="secondary">Shared</Badge>}
-            {!isPast && daysUntil >= 0 && (
-              <Badge variant={daysUntil <= 7 ? "default" : "outline"}>
-                {daysUntil === 0 ? "Today!" : `${daysUntil}d`}
-              </Badge>
+            {!isPast && packingItems.length > 0 && (
+              <ProgressRing value={progress.percentage} size={64} strokeWidth={5} />
             )}
-            {isPast && <Badge variant="secondary">Past</Badge>}
           </div>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <div className="flex items-center gap-4 text-sm text-muted-foreground">
-            <span className="flex items-center gap-1">
-              <Users className="h-3.5 w-3.5" />
-              {travelers.length || 1} traveler{travelers.length !== 1 ? "s" : ""}
-            </span>
-            <span className="flex items-center gap-1">
-              <MapPin className="h-3.5 w-3.5" />
-              {trip.travel_type.replace(/_/g, " ")}
-            </span>
-          </div>
-          {packingItems.length > 0 && (
-            <div className="space-y-1">
-              <div className="flex justify-between text-xs text-muted-foreground">
-                <span>Packing progress</span>
-                <span>{progress.percentage}%</span>
-              </div>
-              <Progress value={progress.percentage} className="h-1.5" />
+
+          {!isPast && daysUntil >= 0 && (
+            <div className="mt-4">
+              <CountdownWidget days={daysUntil} compact className="border-0 bg-muted/50 p-3" />
             </div>
           )}
-        </CardContent>
-      </Card>
+
+          {travelers.length > 0 && (
+            <div className="mt-4 flex items-center justify-between">
+              <TravelerAvatarGroup
+                travelers={travelers.map((t) => ({
+                  name: t.name,
+                  traveler_type: t.traveler_type,
+                }))}
+              />
+              <span className="text-xs text-muted-foreground">
+                {progress.packed}/{progress.total} packed
+              </span>
+            </div>
+          )}
+
+          {tripActivities.length > 0 && (
+            <div className="mt-3 flex flex-wrap gap-1.5">
+              {tripActivities.map((name) => (
+                <ActivityTag key={name} name={name} />
+              ))}
+            </div>
+          )}
+
+          <div className="mt-4 flex items-center justify-end text-sm font-medium text-primary opacity-0 transition-opacity group-hover:opacity-100">
+            Open trip
+            <ChevronRight className="ml-0.5 h-4 w-4" />
+          </div>
+        </div>
+      </article>
     </Link>
   );
 }

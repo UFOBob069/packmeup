@@ -1,4 +1,5 @@
-import { Header } from "@/components/layout/header";
+import { Plane } from "lucide-react";
+import { AppShell } from "@/components/layout/header";
 import { TripOnboardingChat } from "@/components/trip/trip-onboarding-chat";
 import { getDemoTemplates } from "@/lib/demo/store";
 import { getCurrentUser } from "@/actions/trips";
@@ -23,17 +24,21 @@ export default async function NewTripPage({ searchParams }: NewTripPageProps) {
   }
 
   return (
-    <>
-      <Header />
-      <main className="mx-auto max-w-6xl flex-1 px-4 py-8">
-        <div className="mb-6 text-center">
-          <h1 className="text-2xl font-bold tracking-tight">Plan Your Trip</h1>
-          <p className="text-muted-foreground">
-            Answer a few quick questions and we&apos;ll build your packing list.
+    <AppShell>
+      <div className="mx-auto max-w-2xl">
+        <div className="mb-8 text-center">
+          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10">
+            <Plane className="h-7 w-7 text-primary" />
+          </div>
+          <h1 className="text-display text-3xl font-semibold tracking-tight">
+            Plan your trip
+          </h1>
+          <p className="mt-2 text-muted-foreground">
+            A quick conversation — then your packing list, outfits, and timeline are ready.
           </p>
         </div>
         <TripOnboardingChat templateData={templateData} />
-      </main>
-    </>
+      </div>
+    </AppShell>
   );
 }
