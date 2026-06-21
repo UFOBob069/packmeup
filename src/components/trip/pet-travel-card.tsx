@@ -29,6 +29,7 @@ export function PetTravelCard({ pet, items, tripId, className }: PetTravelCardPr
   );
   const packed = petItems.filter((i) => i.packed).length;
   const progress = petItems.length ? Math.round((packed / petItems.length) * 100) : 0;
+  const petLabel = [pet.pet_species, pet.pet_size].filter(Boolean).join(" · ");
 
   const handleToggle = (itemId: string, packed: boolean) => {
     setLocalItems((prev) =>
@@ -40,9 +41,32 @@ export function PetTravelCard({ pet, items, tripId, className }: PetTravelCardPr
     });
   };
 
-  if (petItems.length === 0) return null;
-
-  const petLabel = [pet.pet_species, pet.pet_size].filter(Boolean).join(" · ");
+  if (petItems.length === 0) {
+    return (
+      <section
+        className={cn(
+          "overflow-hidden rounded-2xl border border-warm-sand bg-gradient-to-br from-warm-sand/60 to-warm-sand/20 dark:from-warm-sand/10 dark:to-transparent",
+          className
+        )}
+      >
+        <div className="flex items-center gap-4 p-5">
+          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-background text-2xl shadow-travel-sm">
+            🐾
+          </div>
+          <div>
+            <p className="text-xs font-medium uppercase tracking-wider text-amber-700/70 dark:text-warm-sand/70">
+              Pet travel
+            </p>
+            <h3 className="text-display text-xl font-semibold">{pet.name}</h3>
+            <p className="text-sm text-muted-foreground">
+              {petLabel && <span className="capitalize">{petLabel} · </span>}
+              No pet items yet — use Packing Help or add items above.
+            </p>
+          </div>
+        </div>
+      </section>
+    );
+  }
 
   return (
     <section

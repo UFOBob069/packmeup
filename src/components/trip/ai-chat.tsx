@@ -1,38 +1,76 @@
 "use client";
 
 import { useState, useTransition, useRef, useEffect } from "react";
-import { Send, Sparkles, Luggage } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Check, Plus, Send, Sparkles, Luggage } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { sendChatMessage } from "@/actions/packing";
+import {
+  sendChatMessage,
+  addSuggestedPackingItem,
+  type PackingItemSuggestion,
+} from "@/actions/packing";
 import type { ChatMessage } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 const SUGGESTIONS = [
+  "Add my dog's supplies",
   "Make this fit in a carry-on",
   "Add a golf day",
-  "I need a wedding outfit",
   "Reduce overpacking",
-  "Add colder weather options",
 ];
+
+interface ChatDisplayMessage extends ChatMessage {
+  itemSuggestions?: PackingItemSuggestion[];
+  addedSuggestionKeys?: string[];
+}
 
 interface AiChatProps {
   tripId: string;
   initialMessages: ChatMessage[];
 }
 
+function suggestionKey(s: PackingItemSuggestion) {
+  return `${s.item_name}-${s.traveler_name ?? "shared"}`;
+}
+
 export function AiChat({ tripId, initialMessages }: AiChatProps) {
-  const [messages, setMessages] = useState(initialMessages);
+  const router = useRouter();
+  const [messages, setMessages] = useState<ChatDisplayMessage[]>(initialMessages);
   const [input, setInput] = useState("");
   const [isPending, startTransition] = useTransition();
+  const [addingKey, setAddingKey] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
   }, [messages, isPending]);
 
+  const handleAddSuggestion = (
+    messageId: string,
+    suggestion: PackingItemSuggestion,
+    key: string
+  ) => {
+    setAddingKey(key);
+    startTransition(async () => {
+      await addSuggestedPackingItem(tripId, suggestion);
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.id === messageId
+            ? {
+                ...m,
+                addedSuggestionKeys: [...(m.addedSuggestionKeys ?? []), key],
+              }
+            : m
+        )
+      );
+      setAddingKey(null);
+      router.refresh();
+    });
+  };
+
   const handleSend = (text: string) => {
     if (!text.trim()) return;
-    const userMsg: ChatMessage = {
+    const userMsg: ChatDisplayMessage = {
       id: `temp-${Date.now()}`,
       trip_id: tripId,
       user_id: null,
@@ -45,17 +83,23 @@ export function AiChat({ tripId, initialMessages }: AiChatProps) {
 
     startTransition(async () => {
       const result = await sendChatMessage(tripId, text);
+      const assistantId = `temp-${Date.now()}-ai`;
       setMessages((prev) => [
         ...prev,
         {
-          id: `temp-${Date.now()}-ai`,
+          id: assistantId,
           trip_id: tripId,
           user_id: null,
           role: "assistant",
           content: result.message,
           created_at: new Date().toISOString(),
+          itemSuggestions: result.suggestions,
+          addedSuggestionKeys: [],
         },
       ]);
+      if (result.suggestions.length === 0) {
+        router.refresh();
+      }
     });
   };
 
@@ -67,7 +111,7 @@ export function AiChat({ tripId, initialMessages }: AiChatProps) {
         </div>
         <div>
           <h3 className="text-display font-semibold">Packing expert</h3>
-          <p className="text-xs text-muted-foreground">Refine what to bring</p>
+          <p className="text-xs text-muted-foreground">Suggest items — you choose what to add</p>
         </div>
       </div>
 
@@ -81,8 +125,8 @@ export function AiChat({ tripId, initialMessages }: AiChatProps) {
                   <span className="text-sm font-medium">Hi! I&apos;m your packing expert.</span>
                 </div>
                 <p className="text-sm leading-relaxed text-muted-foreground">
-                  Ask me to optimize for carry-on, add gear for an activity, adjust for weather,
-                  or trim what you don&apos;t need.
+                  Ask for gear, pet supplies, or carry-on tweaks. I&apos;ll suggest items — tap
+                  to add them to your checklist.
                 </p>
               </div>
               <div className="flex flex-wrap gap-2">
@@ -102,13 +146,67 @@ export function AiChat({ tripId, initialMessages }: AiChatProps) {
             <div
               key={msg.id}
               className={cn(
-                "max-w-[88%] rounded-2xl px-4 py-3 text-sm leading-relaxed",
-                msg.role === "user"
-                  ? "ml-auto rounded-br-md bg-primary text-primary-foreground"
-                  : "rounded-bl-md bg-muted/70"
+                "max-w-[92%] space-y-2",
+                msg.role === "user" ? "ml-auto" : ""
               )}
             >
-              {msg.content}
+              <div
+                className={cn(
+                  "rounded-2xl px-4 py-3 text-sm leading-relaxed",
+                  msg.role === "user"
+                    ? "ml-auto max-w-[88%] rounded-br-md bg-primary text-primary-foreground"
+                    : "rounded-bl-md bg-muted/70"
+                )}
+              >
+                {msg.content}
+              </div>
+
+              {msg.role === "assistant" && msg.itemSuggestions && msg.itemSuggestions.length > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  {msg.itemSuggestions.map((suggestion) => {
+                    const key = suggestionKey(suggestion);
+                    const added = msg.addedSuggestionKeys?.includes(key);
+                    const isAdding = addingKey === key;
+
+                    return (
+                      <button
+                        key={key}
+                        type="button"
+                        disabled={added || isAdding || isPending}
+                        onClick={() => handleAddSuggestion(msg.id, suggestion, key)}
+                        className={cn(
+                          "flex items-center gap-2 rounded-xl border px-3 py-2 text-left text-xs transition-all",
+                          added
+                            ? "border-golf-green/30 bg-golf-green/10 text-golf-green"
+                            : "bg-background hover:border-primary/40 hover:bg-primary/5"
+                        )}
+                      >
+                        {added ? (
+                          <Check className="h-3.5 w-3.5 shrink-0" />
+                        ) : (
+                          <Plus className="h-3.5 w-3.5 shrink-0 text-primary" />
+                        )}
+                        <span>
+                          <span className="font-medium">
+                            {suggestion.quantity > 1 && `${suggestion.quantity}× `}
+                            {suggestion.item_name}
+                          </span>
+                          {suggestion.traveler_name && (
+                            <span className="mt-0.5 block text-[10px] text-muted-foreground">
+                              for {suggestion.traveler_name}
+                            </span>
+                          )}
+                          {suggestion.shared && (
+                            <span className="mt-0.5 block text-[10px] text-muted-foreground">
+                              shared
+                            </span>
+                          )}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           ))}
           {isPending && (
@@ -118,7 +216,7 @@ export function AiChat({ tripId, initialMessages }: AiChatProps) {
                 <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-primary [animation-delay:150ms]" />
                 <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-primary [animation-delay:300ms]" />
               </span>
-              Updating your packing list...
+              Thinking...
             </div>
           )}
         </div>

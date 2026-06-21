@@ -305,7 +305,8 @@ export function updateDemoItemNotes(itemId: string, notes: string): PackingItem 
 export function addDemoPackingItem(
   tripId: string,
   itemName: string,
-  travelerId: string | null
+  travelerId: string | null,
+  options?: { quantity?: number; category?: PackingItem["category"] }
 ): PackingItem {
   const store = getStore();
   const now = new Date().toISOString();
@@ -317,8 +318,8 @@ export function addDemoPackingItem(
     id,
     trip_id: tripId,
     item_name: itemName,
-    quantity: 1,
-    category: "miscellaneous",
+    quantity: options?.quantity ?? 1,
+    category: options?.category ?? "miscellaneous",
     traveler_id: travelerId,
     packed: false,
     shared: travelerId === null,

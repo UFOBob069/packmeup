@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { Loader2, MapPin } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
@@ -29,8 +30,23 @@ export function DestinationAutocomplete({
   const [isOpen, setIsOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [activeIndex, setActiveIndex] = useState(-1);
+  const [configured, setConfigured] = useState(true);
+  const [dropdownStyle, setDropdownStyle] = useState<React.CSSProperties>({});
   const containerRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLUListElement>(null);
+
+  const updateDropdownPosition = useCallback(() => {
+    if (!inputRef.current) return;
+    const rect = inputRef.current.getBoundingClientRect();
+    setDropdownStyle({
+      position: "fixed",
+      top: rect.bottom + 6,
+      left: rect.left,
+      width: rect.width,
+      zIndex: 9999,
+    });
+  }, []);
 
   const fetchSuggestions = useCallback(async (query: string) => {
     if (query.trim().length < 2) {
@@ -42,17 +58,25 @@ export function DestinationAutocomplete({
     setIsLoading(true);
     try {
       const res = await fetch(`/api/places/autocomplete?q=${encodeURIComponent(query.trim())}`);
-      const data = (await res.json()) as { suggestions: PlaceSuggestion[] };
+      const data = (await res.json()) as {
+        suggestions: PlaceSuggestion[];
+        configured?: boolean;
+        error?: string;
+      };
+      setConfigured(data.configured !== false);
       setSuggestions(data.suggestions ?? []);
       setIsOpen((data.suggestions ?? []).length > 0);
       setActiveIndex(-1);
+      if ((data.suggestions ?? []).length > 0) {
+        requestAnimationFrame(updateDropdownPosition);
+      }
     } catch {
       setSuggestions([]);
       setIsOpen(false);
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [updateDropdownPosition]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -64,12 +88,25 @@ export function DestinationAutocomplete({
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
       if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        const list = listRef.current;
+        if (list && list.contains(e.target as Node)) return;
         setIsOpen(false);
       }
     }
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    updateDropdownPosition();
+    window.addEventListener("scroll", updateDropdownPosition, true);
+    window.addEventListener("resize", updateDropdownPosition);
+    return () => {
+      window.removeEventListener("scroll", updateDropdownPosition, true);
+      window.removeEventListener("resize", updateDropdownPosition);
+    };
+  }, [isOpen, updateDropdownPosition, suggestions.length]);
 
   const selectSuggestion = (place: PlaceSuggestion) => {
     onChange(place.shortLabel);
@@ -111,16 +148,57 @@ export function DestinationAutocomplete({
     }
   }, [activeIndex]);
 
+  const dropdown =
+    isOpen && suggestions.length > 0 ? (
+      <ul
+        id="destination-suggestions"
+        ref={listRef}
+        role="listbox"
+        style={dropdownStyle}
+        className="max-h-60 overflow-auto rounded-xl border bg-popover py-1 shadow-travel-sm"
+      >
+        {suggestions.map((place, index) => (
+          <li key={place.id} role="option" aria-selected={index === activeIndex}>
+            <button
+              type="button"
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => selectSuggestion(place)}
+              className={cn(
+                "flex w-full items-start gap-3 px-3 py-2.5 text-left text-sm transition-colors hover:bg-muted",
+                index === activeIndex && "bg-muted"
+              )}
+            >
+              <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+              <span>
+                <span className="font-medium">{place.shortLabel}</span>
+                {place.label !== place.shortLabel && (
+                  <span className="mt-0.5 block text-xs text-muted-foreground line-clamp-1">
+                    {place.label}
+                  </span>
+                )}
+              </span>
+            </button>
+          </li>
+        ))}
+      </ul>
+    ) : null;
+
   return (
     <div ref={containerRef} className={cn("relative flex-1", className)}>
       <div className="relative">
         <Input
+          ref={inputRef}
           value={value}
           onChange={(e) => {
             onChange(e.target.value);
             setIsOpen(true);
           }}
-          onFocus={() => suggestions.length > 0 && setIsOpen(true)}
+          onFocus={() => {
+            if (suggestions.length > 0) {
+              setIsOpen(true);
+              updateDropdownPosition();
+            }
+          }}
           onKeyDown={handleKeyDown}
           placeholder={placeholder}
           disabled={disabled}
@@ -135,38 +213,16 @@ export function DestinationAutocomplete({
         )}
       </div>
 
-      {isOpen && suggestions.length > 0 && (
-        <ul
-          id="destination-suggestions"
-          ref={listRef}
-          role="listbox"
-          className="absolute z-50 mt-1.5 max-h-60 w-full overflow-auto rounded-xl border bg-popover py-1 shadow-travel-sm"
-        >
-          {suggestions.map((place, index) => (
-            <li key={place.id} role="option" aria-selected={index === activeIndex}>
-              <button
-                type="button"
-                onMouseDown={(e) => e.preventDefault()}
-                onClick={() => selectSuggestion(place)}
-                className={cn(
-                  "flex w-full items-start gap-3 px-3 py-2.5 text-left text-sm transition-colors hover:bg-muted",
-                  index === activeIndex && "bg-muted"
-                )}
-              >
-                <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-                <span>
-                  <span className="font-medium">{place.shortLabel}</span>
-                  {place.label !== place.shortLabel && (
-                    <span className="mt-0.5 block text-xs text-muted-foreground line-clamp-1">
-                      {place.label}
-                    </span>
-                  )}
-                </span>
-              </button>
-            </li>
-          ))}
-        </ul>
+      {!configured && value.trim().length >= 2 && !isLoading && (
+        <p className="mt-1.5 text-xs text-muted-foreground">
+          Autocomplete unavailable — add MAPBOX_ACCESS_TOKEN to your env. You can still type a
+          destination manually.
+        </p>
       )}
+
+      {typeof document !== "undefined" && dropdown
+        ? createPortal(dropdown, document.body)
+        : null}
     </div>
   );
 }

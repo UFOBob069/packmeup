@@ -147,10 +147,27 @@ export async function createTrip(data: TripOnboardingData): Promise<TripWithDeta
     sort_order: i,
   }));
 
-  const { data: travelers } = await supabase
-    .from("travelers")
-    .insert(travelerInserts)
-    .select();
+  let travelersInsert = await supabase.from("travelers").insert(travelerInserts).select();
+
+  if (travelersInsert.error?.message?.includes("pet_species")) {
+    travelersInsert = await supabase
+      .from("travelers")
+      .insert(
+        data.travelers.map((t, i) => ({
+          trip_id: trip.id,
+          name: t.name,
+          traveler_type: t.traveler_type,
+          sort_order: i,
+        }))
+      )
+      .select();
+  }
+
+  if (travelersInsert.error || !travelersInsert.data?.length) {
+    throw new Error(travelersInsert.error?.message ?? "Failed to save travelers");
+  }
+
+  const travelers = travelersInsert.data;
 
   if (data.activities.length) {
     await supabase.from("activities").insert(

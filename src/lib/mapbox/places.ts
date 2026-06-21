@@ -17,17 +17,19 @@ interface MapboxFeature {
 
 interface MapboxGeocodingResponse {
   features: MapboxFeature[];
+  message?: string;
 }
 
 export function isMapboxConfigured(): boolean {
-  return !!(
-    process.env.MAPBOX_ACCESS_TOKEN ||
-    process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN
-  );
+  return !!getMapboxToken();
 }
 
 export function getMapboxToken(): string | undefined {
-  return process.env.MAPBOX_ACCESS_TOKEN || process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN;
+  const token =
+    process.env.MAPBOX_ACCESS_TOKEN?.trim() ||
+    process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN?.trim();
+  if (!token || token === "pk.your-mapbox-token") return undefined;
+  return token;
 }
 
 /** Shorter display label, e.g. "Scottsdale, Arizona" */
@@ -63,14 +65,16 @@ export async function searchPlaces(query: string): Promise<PlaceSuggestion[]> {
     access_token: token,
     autocomplete: "true",
     language: "en",
-    limit: "6",
-    types: "place,locality,neighborhood,region,district,postcode",
+    limit: "8",
   });
 
   const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(query.trim())}.json?${params}`;
 
-  const res = await fetch(url, { next: { revalidate: 0 } });
-  if (!res.ok) return [];
+  const res = await fetch(url, { cache: "no-store" });
+  if (!res.ok) {
+    console.error("Mapbox geocoding failed:", res.status, await res.text());
+    return [];
+  }
 
   const data = (await res.json()) as MapboxGeocodingResponse;
   return (data.features ?? []).map(mapboxFeatureToSuggestion);

@@ -130,13 +130,11 @@ export function TripDetailClient({ trip, chatMessages }: TripDetailClientProps) 
               <Tabs defaultValue="all">
                 <TabsList className="mb-4 flex h-auto flex-wrap gap-1 rounded-xl bg-muted/40 p-1">
                   <TabsTrigger value="all" className="rounded-lg">All</TabsTrigger>
-                  {trip.travelers
-                    .filter((t) => t.traveler_type !== "pet")
-                    .map((t) => (
-                      <TabsTrigger key={t.id} value={t.id} className="rounded-lg">
-                        {t.name}
-                      </TabsTrigger>
-                    ))}
+                  {trip.travelers.map((t) => (
+                    <TabsTrigger key={t.id} value={t.id} className="rounded-lg">
+                      {t.traveler_type === "pet" ? `🐾 ${t.name}` : t.name}
+                    </TabsTrigger>
+                  ))}
                 </TabsList>
                 <TabsContent value="all">
                   <PackingChecklist
@@ -145,18 +143,16 @@ export function TripDetailClient({ trip, chatMessages }: TripDetailClientProps) 
                     tripId={trip.id}
                   />
                 </TabsContent>
-                {trip.travelers
-                  .filter((t) => t.traveler_type !== "pet")
-                  .map((t) => (
-                    <TabsContent key={t.id} value={t.id}>
-                      <PackingChecklist
-                        items={trip.packing_items}
-                        travelers={trip.travelers}
-                        tripId={trip.id}
-                        filterTraveler={t.id}
-                      />
-                    </TabsContent>
-                  ))}
+                {trip.travelers.map((t) => (
+                  <TabsContent key={t.id} value={t.id}>
+                    <PackingChecklist
+                      items={trip.packing_items}
+                      travelers={trip.travelers}
+                      tripId={trip.id}
+                      filterTraveler={t.id}
+                    />
+                  </TabsContent>
+                ))}
               </Tabs>
             </div>
 

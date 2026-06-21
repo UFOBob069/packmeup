@@ -13,7 +13,10 @@ import {
 } from "@/lib/demo/store";
 import { refineWithChat } from "@/lib/ai/chat-refinement";
 import { createClient } from "@/lib/supabase/server";
+import type { PackingCategory } from "@/lib/types";
 import { getCurrentUser, getTripDetails } from "./trips";
+
+export type { PackingItemSuggestion } from "@/lib/ai/chat-refinement";
 
 export async function toggleItemPacked(tripId: string, itemId: string, packed: boolean) {
   if (isDemoMode()) {
@@ -52,13 +55,14 @@ export async function updateItemNotes(tripId: string, itemId: string, notes: str
 export async function addPackingItem(
   tripId: string,
   itemName: string,
-  travelerId: string | null
+  travelerId: string | null,
+  options?: { quantity?: number; category?: PackingCategory }
 ) {
   const name = itemName.trim();
   if (!name) throw new Error("Item name is required");
 
   if (isDemoMode()) {
-    addDemoPackingItem(tripId, name, travelerId);
+    addDemoPackingItem(tripId, name, travelerId, options);
     revalidatePath(`/trips/${tripId}`);
     return;
   }
@@ -72,8 +76,8 @@ export async function addPackingItem(
   const { error } = await supabase.from("packing_items").insert({
     trip_id: tripId,
     item_name: name,
-    quantity: 1,
-    category: "miscellaneous",
+    quantity: options?.quantity ?? 1,
+    category: options?.category ?? "miscellaneous",
     shared: travelerId === null,
     traveler_id: travelerId,
     packed: false,
@@ -81,6 +85,29 @@ export async function addPackingItem(
   });
   if (error) throw new Error(error.message);
   revalidatePath(`/trips/${tripId}`);
+}
+
+export async function addSuggestedPackingItem(
+  tripId: string,
+  suggestion: {
+    item_name: string;
+    quantity: number;
+    category: PackingCategory;
+    shared: boolean;
+    traveler_name: string | null;
+  }
+) {
+  const trip = await getTripDetails(tripId);
+  if (!trip) throw new Error("Trip not found");
+
+  const travelerId = suggestion.shared
+    ? null
+    : trip.travelers.find((t) => t.name === suggestion.traveler_name)?.id ?? null;
+
+  await addPackingItem(tripId, suggestion.item_name, travelerId, {
+    quantity: suggestion.quantity,
+    category: suggestion.category,
+  });
 }
 
 export async function removePackingItem(tripId: string, itemId: string) {
@@ -105,26 +132,41 @@ export async function sendChatMessage(tripId: string, message: string) {
   const trip = await getTripDetails(tripId);
   if (!trip) throw new Error("Trip not found");
 
+  const priorHistory = (await getChatHistory(tripId))
+    .filter((m) => m.role === "user" || m.role === "assistant")
+    .slice(-8)
+    .map((m) => ({
+      role: m.role as "user" | "assistant",
+      content: m.content,
+    }));
+
+  const tripContext = {
+    destination: trip.destination,
+    packing_mode: trip.packing_mode,
+    travel_type: trip.travel_type,
+    items: trip.packing_items.map((i) => ({
+      item_name: i.item_name,
+      quantity: i.quantity,
+      category: i.category,
+      shared: i.shared,
+    })),
+    travelers: trip.travelers.map((t) => ({
+      name: t.name,
+      type: t.traveler_type,
+      pet_species: t.pet_species,
+      pet_size: t.pet_size,
+    })),
+  };
+
   if (isDemoMode()) {
     addDemoChatMessage(tripId, user?.id ?? null, "user", message);
 
-    const result = await refineWithChat(message, {
-      destination: trip.destination,
-      packing_mode: trip.packing_mode,
-      travel_type: trip.travel_type,
-      items: trip.packing_items.map((i) => ({
-        item_name: i.item_name,
-        quantity: i.quantity,
-        category: i.category,
-        shared: i.shared,
-      })),
-      travelers: trip.travelers.map((t) => ({ name: t.name })),
-    });
+    const result = await refineWithChat(message, tripContext, priorHistory);
 
     applyDemoItemUpdates(tripId, result.item_updates);
     addDemoChatMessage(tripId, null, "assistant", result.message);
     revalidatePath(`/trips/${tripId}`);
-    return { message: result.message };
+    return { message: result.message, suggestions: result.suggestions };
   }
 
   const supabase = await createClient();
@@ -136,18 +178,7 @@ export async function sendChatMessage(tripId: string, message: string) {
     content: message,
   });
 
-  const result = await refineWithChat(message, {
-    destination: trip.destination,
-    packing_mode: trip.packing_mode,
-    travel_type: trip.travel_type,
-    items: trip.packing_items.map((i) => ({
-      item_name: i.item_name,
-      quantity: i.quantity,
-      category: i.category,
-      shared: i.shared,
-    })),
-    travelers: trip.travelers.map((t) => ({ name: t.name })),
-  });
+  const result = await refineWithChat(message, tripContext, priorHistory);
 
   for (const update of result.item_updates) {
     if (update.action === "remove") {
@@ -162,17 +193,6 @@ export async function sendChatMessage(tripId: string, message: string) {
         .update({ quantity: update.quantity })
         .eq("trip_id", tripId)
         .eq("item_name", update.item_name);
-    } else if (update.action === "add") {
-      const traveler = trip.travelers.find((t) => t.name === update.traveler_name);
-      await supabase.from("packing_items").insert({
-        trip_id: tripId,
-        item_name: update.item_name,
-        quantity: update.quantity ?? 1,
-        category: update.category ?? "miscellaneous",
-        shared: update.shared ?? false,
-        traveler_id: update.shared ? null : traveler?.id ?? null,
-        packed: false,
-      });
     }
   }
 
@@ -183,7 +203,7 @@ export async function sendChatMessage(tripId: string, message: string) {
   });
 
   revalidatePath(`/trips/${tripId}`);
-  return { message: result.message };
+  return { message: result.message, suggestions: result.suggestions };
 }
 
 export async function getChatHistory(tripId: string) {

@@ -168,18 +168,23 @@ export function TripOnboardingChat({ templateData, userName }: TripOnboardingCha
     );
   };
 
-  const addTraveler = () => {
-    if (!travelerInput.name.trim()) return;
-    const entry: OnboardingTraveler = {
-      name: travelerInput.name.trim(),
-      traveler_type: travelerInput.traveler_type,
-      ...(travelerInput.traveler_type === "pet"
+  const buildTravelerEntry = (input: OnboardingTraveler): OnboardingTraveler | null => {
+    if (!input.name.trim()) return null;
+    return {
+      name: input.name.trim(),
+      traveler_type: input.traveler_type,
+      ...(input.traveler_type === "pet"
         ? {
-            pet_species: travelerInput.pet_species ?? "dog",
-            pet_size: travelerInput.pet_size ?? "medium",
+            pet_species: input.pet_species ?? "dog",
+            pet_size: input.pet_size ?? "medium",
           }
         : {}),
     };
+  };
+
+  const addTraveler = () => {
+    const entry = buildTravelerEntry(travelerInput);
+    if (!entry) return;
     setData((d) => ({ ...d, travelers: [...(d.travelers ?? []), entry] }));
     setTravelerInput({
       name: "",
@@ -198,7 +203,19 @@ export function TripOnboardingChat({ templateData, userName }: TripOnboardingCha
   };
 
   const handleTravelers = () => {
-    const valid = (data.travelers ?? []).filter((t) => t.name.trim());
+    let travelers = [...(data.travelers ?? [])];
+    const pending = buildTravelerEntry(travelerInput);
+    if (pending) {
+      travelers.push(pending);
+      setTravelerInput({
+        name: "",
+        traveler_type: "adult",
+        pet_species: "dog",
+        pet_size: "medium",
+      });
+    }
+
+    const valid = travelers.filter((t) => t.name.trim());
     const hasHuman = valid.some((t) => t.traveler_type !== "pet");
     if (valid.length === 0) {
       setTravelerError("Add at least one traveler to continue.");
@@ -299,7 +316,7 @@ export function TripOnboardingChat({ templateData, userName }: TripOnboardingCha
         </div>
       </div>
 
-      <div className="flex-1 space-y-4 overflow-y-auto pb-4">
+      <div className={cn("flex-1 space-y-4 pb-4", step === "destination" ? "overflow-visible" : "overflow-y-auto")}>
         {messages.map((msg, i) => (
           <div
             key={i}
@@ -315,7 +332,7 @@ export function TripOnboardingChat({ templateData, userName }: TripOnboardingCha
         ))}
 
         {/* Step inputs */}
-        <div className="rounded-2xl border bg-card p-5 shadow-travel-sm">
+        <div className={cn("rounded-2xl border bg-card p-5 shadow-travel-sm", step === "destination" && "relative z-10 overflow-visible")}>
           {step === "destination" && (
             <div className="flex gap-2">
               <DestinationAutocomplete
@@ -404,6 +421,10 @@ export function TripOnboardingChat({ templateData, userName }: TripOnboardingCha
               </div>
               <div className="space-y-2 rounded-xl border p-3">
                 <p className="text-xs font-medium text-muted-foreground">Add another traveler</p>
+                <p className="text-xs text-muted-foreground">
+                  Fill in details and click Add — or hit Continue and we&apos;ll include what
+                  you&apos;ve typed.
+                </p>
                 <div className="flex flex-wrap gap-2">
                   <Input
                     value={travelerInput.name}
