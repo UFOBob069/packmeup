@@ -80,14 +80,6 @@ export default function HomePage() {
                     <ArrowRight className="ml-2 h-4 w-4" />
                   </Link>
                 </Button>
-                <Button
-                  asChild
-                  variant="outline"
-                  size="lg"
-                  className="h-12 w-full rounded-full px-8 sm:w-auto"
-                >
-                  <Link href="/dashboard">Explore demo</Link>
-                </Button>
               </div>
               <p className="mt-4 text-xs text-muted-foreground">
                 Free to start · No credit card · Ready in 60 seconds
