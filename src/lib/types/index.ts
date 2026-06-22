@@ -139,6 +139,7 @@ export interface CalendarDay {
   title: string;
   activities: string[];
   weather_summary: string | null;
+  notes?: string | null;
   created_at: string;
 }
 

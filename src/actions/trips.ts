@@ -9,13 +9,15 @@ import {
   getDemoTrips,
   getDemoUser,
   saveDemoTemplate,
+  updateDemoTripWeather,
 } from "@/lib/demo/store";
 import { buildTripSpecialNotes } from "@/lib/trip-notes";
 import { createClient } from "@/lib/supabase/server";
 import { generateTripContent } from "@/lib/ai/packing-generator";
 import { fetchWeather } from "@/lib/weather/weather-service";
 import { fetchDestinationCoverUrl } from "@/lib/unsplash/destination-cover";
-import type { Trip, TripOnboardingData, TripTemplateData, TripWithDetails } from "@/lib/types";
+import { getAppUrl } from "@/lib/app-url";
+import type { Trip, TripOnboardingData, TripTemplateData, TripWithDetails, WeatherData } from "@/lib/types";
 
 export async function getCurrentUser() {
   if (isDemoMode()) {
@@ -35,6 +37,24 @@ export async function getCurrentUser() {
     .single();
 
   return profile;
+}
+
+/** Fetch weather only when missing, then cache on the trip row. */
+export async function ensureTripWeather(trip: Trip): Promise<WeatherData | null> {
+  const existing = trip.weather_data as WeatherData | null;
+  if (existing?.daily?.length) return existing;
+
+  const weather = await fetchWeather(trip.destination, trip.start_date, trip.end_date);
+  if (!weather) return null;
+
+  if (isDemoMode()) {
+    updateDemoTripWeather(trip.id, weather);
+  } else {
+    const supabase = await createClient();
+    await supabase.from("trips").update({ weather_data: weather }).eq("id", trip.id);
+  }
+
+  return weather;
 }
 
 export async function getUserTrips(): Promise<Trip[]> {
@@ -263,7 +283,7 @@ export async function signInWithGoogle() {
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: "google",
     options: {
-      redirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/auth/callback`,
+      redirectTo: `${getAppUrl()}/auth/callback`,
     },
   });
 

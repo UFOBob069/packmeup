@@ -7,7 +7,7 @@ import { AiSuggestionList } from "@/components/design/ai-suggestion-card";
 import { TravelerAvatar } from "@/components/design/traveler-avatar";
 import { EmptyTrips } from "@/components/design/empty-state";
 import { Button } from "@/components/ui/button";
-import { getCurrentUser, getUserTrips, getTripDetails } from "@/actions/trips";
+import { getCurrentUser, getUserTrips, getTripDetails, ensureTripWeather } from "@/actions/trips";
 import { getDemoTemplates, calculateProgress } from "@/lib/demo/store";
 import { generateAiRecommendations } from "@/lib/design-system";
 import { isDemoMode } from "@/lib/supabase/client";
@@ -28,12 +28,17 @@ export default async function DashboardPage() {
   const tripDetails = await Promise.all(
     trips.map(async (t) => {
       const details = await getTripDetails(t.id);
+      const isUpcoming = t.end_date >= now;
+      let weather = (details?.weather_data ?? t.weather_data) as WeatherData | null;
+      if (isUpcoming && !weather?.daily?.length) {
+        weather = await ensureTripWeather(t);
+      }
       return {
         trip: t,
         travelers: details?.travelers ?? [],
         items: details?.packing_items ?? [],
         activities: details?.activities ?? [],
-        weather: details?.weather_data as WeatherData | null,
+        weather,
       };
     })
   );

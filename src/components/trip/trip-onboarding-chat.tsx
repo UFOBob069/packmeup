@@ -158,12 +158,24 @@ interface TripOnboardingChatProps {
 
 function GenerationProgress() {
   const [messageIndex, setMessageIndex] = useState(0);
+  const [progress, setProgress] = useState(4);
 
   useEffect(() => {
     const timer = setInterval(() => {
       setMessageIndex((i) => (i + 1) % GENERATION_MESSAGES.length);
     }, 2400);
     return () => clearInterval(timer);
+  }, []);
+
+  useEffect(() => {
+    const start = Date.now();
+    const tick = setInterval(() => {
+      const elapsed = Date.now() - start;
+      // Ease from ~4% toward ~88% — never hits 100 until generation completes
+      const next = 4 + (1 - Math.exp(-elapsed / 22000)) * 84;
+      setProgress(Math.min(88, next));
+    }, 400);
+    return () => clearInterval(tick);
   }, []);
 
   return (
@@ -176,7 +188,10 @@ function GenerationProgress() {
         </p>
       </div>
       <div className="mx-auto h-1.5 max-w-xs overflow-hidden rounded-full bg-muted">
-        <div className="h-full w-2/3 animate-pulse rounded-full bg-primary" />
+        <div
+          className="h-full rounded-full bg-primary transition-[width] duration-500 ease-out"
+          style={{ width: `${progress}%` }}
+        />
       </div>
     </div>
   );

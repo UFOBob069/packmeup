@@ -6,14 +6,12 @@ import { differenceInDays, format, parseISO } from "date-fns";
 import {
   Luggage,
   ListChecks,
-  Shirt,
   CalendarDays,
   MessageCircle,
 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PackingChecklist } from "./packing-checklist";
-import { OutfitPlanner } from "./outfit-planner";
-import { CalendarView } from "./calendar-view";
+import { DayPlanner } from "./day-planner";
 import { AiChat } from "./ai-chat";
 import { InviteDialog } from "./invite-dialog";
 import { AddPackingItemForm } from "./add-packing-item-form";
@@ -24,7 +22,7 @@ import { TravelerPackingFilters } from "./packing-traveler-filters";
 import { CountdownWidget } from "@/components/design/countdown-widget";
 import { ActivityTag } from "@/components/design/activity-tag";
 import { DestinationCover } from "./destination-cover";
-import type { ChatMessage, TripWithDetails } from "@/lib/types";
+import type { ChatMessage, TripWithDetails, WeatherData } from "@/lib/types";
 import { calculateProgress } from "@/lib/demo/store";
 import { generatePackingTimeline } from "@/lib/design-system";
 
@@ -35,8 +33,7 @@ interface TripDetailClientProps {
 
 const tabItems = [
   { value: "pack", label: "Checklist", icon: ListChecks },
-  { value: "outfits", label: "Outfits", icon: Shirt },
-  { value: "timeline", label: "By Day", icon: CalendarDays },
+  { value: "days", label: "By Day", icon: CalendarDays },
   { value: "concierge", label: "Packing Help", icon: MessageCircle },
 ];
 
@@ -48,6 +45,7 @@ export function TripDetailClient({ trip, chatMessages }: TripDetailClientProps) 
   const daysUntil = differenceInDays(parseISO(trip.start_date), new Date());
   const activities = [...new Set(trip.activities.map((a) => a.activity_name))];
   const timeline = generatePackingTimeline(daysUntil);
+  const weather = trip.weather_data as WeatherData | null;
 
   const checklistFilter =
     travelerFilter === "all"
@@ -157,12 +155,17 @@ export function TripDetailClient({ trip, chatMessages }: TripDetailClientProps) 
           </div>
         </TabsContent>
 
-        <TabsContent value="outfits">
-          <OutfitPlanner outfits={trip.outfits} />
-        </TabsContent>
-
-        <TabsContent value="timeline" className="space-y-6">
-          <CalendarView days={trip.calendar_days} outfits={trip.outfits} />
+        <TabsContent value="days">
+          <DayPlanner
+            tripId={trip.id}
+            startDate={trip.start_date}
+            endDate={trip.end_date}
+            destination={trip.destination}
+            days={trip.calendar_days}
+            outfits={trip.outfits}
+            weather={weather}
+            notesEditable={trip.calendar_days.length > 0}
+          />
         </TabsContent>
 
         <TabsContent value="concierge">

@@ -12,11 +12,12 @@ import type {
   TripMember,
   TripOnboardingData,
   TripWithDetails,
+  WeatherData,
 } from "@/lib/types";
 import { DEMO_USER } from "@/lib/constants";
 import { generateTripContent } from "@/lib/ai/packing-generator";
 import { buildTripSpecialNotes } from "@/lib/trip-notes";
-import { fetchWeather } from "@/lib/weather/weather-service";
+import { fetchWeather, buildFallbackWeather } from "@/lib/weather/weather-service";
 import { fetchDestinationCoverUrl } from "@/lib/unsplash/destination-cover";
 
 const DEMO_COVER_FALLBACK =
@@ -91,7 +92,11 @@ function seedDemoData(store: DemoStore) {
     style_preferences: ["smart_casual", "athletic"],
     packing_mode: "standard",
     special_notes: "Golf weekend with Jen. Andre (dog) is coming too.",
-    weather_data: null,
+    weather_data: buildFallbackWeather(
+      "Scottsdale, Arizona",
+      startDate.toISOString().split("T")[0],
+      endDate.toISOString().split("T")[0]
+    ),
     cover_image_url: DEMO_COVER_FALLBACK,
     share_token: "demo-share-token",
     created_at: now,
@@ -219,6 +224,13 @@ export function updateDemoTripCover(tripId: string, coverImageUrl: string): void
   store.trips.set(tripId, { ...trip, cover_image_url: coverImageUrl, updated_at: new Date().toISOString() });
 }
 
+export function updateDemoTripWeather(tripId: string, weather: WeatherData): void {
+  const store = getStore();
+  const trip = store.trips.get(tripId);
+  if (!trip) return;
+  store.trips.set(tripId, { ...trip, weather_data: weather, updated_at: new Date().toISOString() });
+}
+
 export async function createDemoTrip(
   userId: string,
   data: TripOnboardingData
@@ -317,6 +329,13 @@ export function updateDemoItemNotes(itemId: string, notes: string): PackingItem 
   const updated = { ...item, notes, updated_at: new Date().toISOString() };
   store.packing_items.set(itemId, updated);
   return updated;
+}
+
+export function updateDemoCalendarDayNotes(dayId: string, notes: string): void {
+  const store = getStore();
+  const day = store.calendar_days.get(dayId);
+  if (!day) return;
+  store.calendar_days.set(dayId, { ...day, notes: notes.trim() || null });
 }
 
 export function addDemoPackingItem(

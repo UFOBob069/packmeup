@@ -32,7 +32,7 @@ export async function fetchWeather(
   endDate: string
 ): Promise<WeatherData | null> {
   const geo = await geocodeDestination(destination);
-  if (!geo) return getFallbackWeather(destination, startDate, endDate);
+  if (!geo) return buildFallbackWeather(destination, startDate, endDate);
 
   try {
     const res = await fetch(
@@ -56,7 +56,7 @@ export async function fetchWeather(
       fetched_at: new Date().toISOString(),
     };
   } catch {
-    return getFallbackWeather(destination, startDate, endDate);
+    return buildFallbackWeather(destination, startDate, endDate);
   }
 }
 
@@ -85,7 +85,7 @@ function weatherCodeToText(code: number): string {
   return map[code] ?? "Variable conditions";
 }
 
-function getFallbackWeather(
+export function buildFallbackWeather(
   destination: string,
   startDate: string,
   endDate: string

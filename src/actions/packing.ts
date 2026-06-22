@@ -10,6 +10,7 @@ import {
   removeDemoPackingItem,
   toggleDemoItemPacked,
   updateDemoItemNotes,
+  updateDemoCalendarDayNotes,
 } from "@/lib/demo/store";
 import { refineWithChat } from "@/lib/ai/chat-refinement";
 import { createClient } from "@/lib/supabase/server";
@@ -47,6 +48,27 @@ export async function updateItemNotes(tripId: string, itemId: string, notes: str
     .from("packing_items")
     .update({ notes, updated_at: new Date().toISOString() })
     .eq("id", itemId)
+    .eq("trip_id", tripId);
+  if (error) throw new Error(error.message);
+  revalidatePath(`/trips/${tripId}`);
+}
+
+export async function updateCalendarDayNotes(
+  tripId: string,
+  dayId: string,
+  notes: string
+) {
+  if (isDemoMode()) {
+    updateDemoCalendarDayNotes(dayId, notes);
+    revalidatePath(`/trips/${tripId}`);
+    return;
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("calendar_days")
+    .update({ notes: notes.trim() || null })
+    .eq("id", dayId)
     .eq("trip_id", tripId);
   if (error) throw new Error(error.message);
   revalidatePath(`/trips/${tripId}`);
