@@ -2,7 +2,8 @@
 
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, X } from "lucide-react";
+import Link from "next/link";
+import { Backpack, Plus, X } from "lucide-react";
 import { getOrCreateGearItem } from "@/actions/gear";
 import { addPackingItem, removePackingItem } from "@/actions/packing";
 import { Input } from "@/components/ui/input";
@@ -54,23 +55,30 @@ export function PackingItemSublist({
     (g) => !usedGearIds.has(g.id) && !usedNames.has(g.item_name.toLowerCase())
   );
 
-  const addSpecific = (itemName: string) => {
-    const trimmed = itemName.trim();
-    if (!trimmed) return;
-
-    const existingGear = categoryGear.find(
-      (g) => g.item_name.toLowerCase() === trimmed.toLowerCase()
-    );
-    if (existingGear && usedGearIds.has(existingGear.id)) return;
-    if (!existingGear && usedNames.has(trimmed.toLowerCase())) return;
+  const addFromGear = (gear: GearItem) => {
+    if (usedGearIds.has(gear.id) || usedNames.has(gear.item_name.toLowerCase())) return;
 
     startTransition(async () => {
-      const gearItem =
-        existingGear ??
-        (await getOrCreateGearItem({
-          item_name: trimmed,
-          category: parent.category,
-        }));
+      await addPackingItem(tripId, gear.item_name, parent.traveler_id, {
+        category: parent.category,
+        parent_item_id: parent.id,
+        gear_item_id: gear.id,
+        shared: parent.shared,
+      });
+      router.refresh();
+    });
+  };
+
+  const addNewItem = (itemName: string) => {
+    const trimmed = itemName.trim();
+    if (!trimmed) return;
+    if (usedNames.has(trimmed.toLowerCase())) return;
+
+    startTransition(async () => {
+      const gearItem = await getOrCreateGearItem({
+        item_name: trimmed,
+        category: parent.category,
+      });
 
       await addPackingItem(tripId, gearItem.item_name, parent.traveler_id, {
         category: parent.category,
@@ -94,12 +102,12 @@ export function PackingItemSublist({
 
   return (
     <div className="ml-9 mt-2 border-l-2 border-primary/15 pl-3">
-      <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-        Which ones? <span className="normal-case font-normal">(saved to My Gear)</span>
+      <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+        Which ones?
       </p>
 
       {children.length > 0 && (
-        <ul className="mb-2 flex flex-wrap gap-1.5">
+        <ul className="mb-3 flex flex-wrap gap-1.5">
           {children.map((child) => {
             const gear = child.gear_item_id ? gearById[child.gear_item_id] : null;
             return (
@@ -129,45 +137,75 @@ export function PackingItemSublist({
       )}
 
       {!readOnly && (
-        <div className="flex flex-col gap-1.5 sm:flex-row sm:items-center">
-          <div className="relative min-w-0 flex-1">
-            <Input
-              value={draft}
-              onChange={(e) => setDraft(e.target.value)}
-              list={availableGear.length > 0 ? `gear-options-${parent.id}` : undefined}
-              placeholder={
-                availableGear.length > 0
-                  ? "Pick from My Gear or type..."
-                  : "Type a specific item..."
-              }
-              disabled={isPending}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  e.preventDefault();
-                  addSpecific(draft);
-                }
-              }}
-              className="h-8 border-muted-foreground/20 bg-background text-sm"
-            />
-            {availableGear.length > 0 && (
-              <datalist id={`gear-options-${parent.id}`}>
-                {availableGear.map((g) => (
-                  <option key={g.id} value={g.item_name} />
+        <div className="space-y-2.5 rounded-xl border bg-muted/20 p-2.5">
+          {availableGear.length > 0 ? (
+            <div>
+              <p className="mb-1.5 flex items-center gap-1.5 text-xs font-medium text-foreground">
+                <Backpack className="h-3.5 w-3.5 text-primary" />
+                Pick from My Gear
+              </p>
+              <div className="flex flex-wrap gap-1.5">
+                {availableGear.map((gear) => (
+                  <button
+                    key={gear.id}
+                    type="button"
+                    disabled={isPending}
+                    onClick={() => addFromGear(gear)}
+                    className={cn(
+                      "cursor-pointer rounded-full border px-2.5 py-1 text-xs font-medium transition-all",
+                      "hover:scale-[1.02] hover:shadow-sm active:scale-[0.98]",
+                      gearPillClassName(gear.color)
+                    )}
+                  >
+                    {gear.item_name}
+                  </button>
                 ))}
-              </datalist>
-            )}
+              </div>
+            </div>
+          ) : categoryGear.length > 0 ? (
+            <p className="text-xs text-muted-foreground">
+              All your saved {parent.category.replace(/_/g, " ")} items are already listed.
+            </p>
+          ) : (
+            <p className="text-xs text-muted-foreground">
+              No saved items in this category yet.{" "}
+              <Link href="/gear" className="font-medium text-primary hover:underline">
+                Add to My Gear
+              </Link>
+            </p>
+          )}
+
+          <div className="border-t border-border/60 pt-2.5">
+            <p className="mb-1.5 text-xs font-medium text-muted-foreground">Or add something new</p>
+            <div className="flex gap-1.5">
+              <Input
+                value={draft}
+                onChange={(e) => setDraft(e.target.value)}
+                placeholder="e.g. orange v neck..."
+                disabled={isPending}
+                autoComplete="off"
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    addNewItem(draft);
+                  }
+                }}
+                className="h-8 flex-1 border-muted-foreground/20 bg-background text-sm"
+              />
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() => addNewItem(draft)}
+                disabled={isPending || !draft.trim()}
+                className="h-8 shrink-0 rounded-full px-3"
+              >
+                <Plus className="mr-1 h-3.5 w-3.5" />
+                Add
+              </Button>
+            </div>
+            <p className="mt-1 text-[10px] text-muted-foreground">New items are saved to My Gear automatically.</p>
           </div>
-          <Button
-            type="button"
-            size="sm"
-            variant="ghost"
-            onClick={() => addSpecific(draft)}
-            disabled={isPending || !draft.trim()}
-            className={cn("h-8 shrink-0 rounded-full px-3")}
-          >
-            <Plus className="mr-1 h-3.5 w-3.5" />
-            Add
-          </Button>
         </div>
       )}
 
