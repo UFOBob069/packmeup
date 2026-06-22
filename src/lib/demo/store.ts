@@ -2,6 +2,7 @@ import type {
   Activity,
   CalendarDay,
   ChatMessage,
+  GearItem,
   Outfit,
   PackingItem,
   PackingProgress,
@@ -38,6 +39,7 @@ interface DemoStore {
   trip_members: Map<string, TripMember>;
   templates: Map<string, Template>;
   chat_messages: Map<string, ChatMessage>;
+  gear_items: Map<string, GearItem>;
   currentUserId: string;
 }
 
@@ -56,6 +58,7 @@ function getStore(): DemoStore {
       trip_members: new Map(),
       templates: new Map(),
       chat_messages: new Map(),
+      gear_items: new Map(),
       currentUserId: DEMO_USER.id,
     };
     seedDemoData(globalForDemo.demoStore);
@@ -180,6 +183,19 @@ function seedDemoData(store: DemoStore) {
     created_at: now,
     updated_at: now,
   });
+
+  const sampleGear: Omit<GearItem, "created_at" | "updated_at">[] = [
+    { id: "gear-1", user_id: DEMO_USER.id, item_name: "Blue Nike Polo", category: "clothing", description: null },
+    { id: "gear-2", user_id: DEMO_USER.id, item_name: "Pink TravisMathew Polo", category: "clothing", description: null },
+    { id: "gear-3", user_id: DEMO_USER.id, item_name: "White Golf Shoes", category: "shoes", description: null },
+    { id: "gear-4", user_id: DEMO_USER.id, item_name: "Anker Charger", category: "electronics", description: "65W USB-C" },
+    { id: "gear-5", user_id: DEMO_USER.id, item_name: "Andre's Travel Bowl", category: "pet_supplies", description: null },
+    { id: "gear-6", user_id: DEMO_USER.id, item_name: "Passport Holder", category: "travel_documents", description: null },
+  ];
+
+  sampleGear.forEach((item) => {
+    store.gear_items.set(item.id, { ...item, created_at: now, updated_at: now });
+  });
 }
 
 export function getDemoUser(): Profile {
@@ -287,7 +303,12 @@ export async function createDemoTrip(
     store.activities.set(id, { id, trip_id: tripId, activity_name: name, created_at: now });
   });
 
-  const generated = await generateTripContent(data, weather, travelerIds);
+  const generated = await generateTripContent(
+    data,
+    weather,
+    travelerIds,
+    getDemoGearItems(userId)
+  );
 
   generated.packing_items.forEach((item) => {
     const id = uuid();
@@ -518,4 +539,57 @@ export function saveDemoTemplate(
   };
   store.templates.set(template.id, template);
   return template;
+}
+
+export function getDemoGearItems(userId: string): GearItem[] {
+  const store = getStore();
+  return Array.from(store.gear_items.values())
+    .filter((item) => item.user_id === userId)
+    .sort((a, b) => a.item_name.localeCompare(b.item_name));
+}
+
+export function addDemoGearItem(
+  userId: string,
+  input: Pick<GearItem, "item_name" | "category" | "description">
+): { item: GearItem | null; alreadyExists: boolean } {
+  const store = getStore();
+  const existing = Array.from(store.gear_items.values()).find(
+    (item) => item.user_id === userId && item.item_name.toLowerCase() === input.item_name.toLowerCase()
+  );
+  if (existing) return { item: null, alreadyExists: true };
+
+  const now = new Date().toISOString();
+  const item: GearItem = {
+    id: uuid(),
+    user_id: userId,
+    item_name: input.item_name,
+    category: input.category,
+    description: input.description,
+    created_at: now,
+    updated_at: now,
+  };
+  store.gear_items.set(item.id, item);
+  return { item, alreadyExists: false };
+}
+
+export function updateDemoGearItem(
+  userId: string,
+  itemId: string,
+  updates: Partial<Pick<GearItem, "item_name" | "category" | "description">>
+) {
+  const store = getStore();
+  const item = store.gear_items.get(itemId);
+  if (!item || item.user_id !== userId) return;
+  store.gear_items.set(itemId, {
+    ...item,
+    ...updates,
+    updated_at: new Date().toISOString(),
+  });
+}
+
+export function deleteDemoGearItem(userId: string, itemId: string) {
+  const store = getStore();
+  const item = store.gear_items.get(itemId);
+  if (!item || item.user_id !== userId) return;
+  store.gear_items.delete(itemId);
 }

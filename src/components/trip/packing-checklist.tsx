@@ -2,12 +2,14 @@
 
 import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Check, ChevronDown, Trash2 } from "lucide-react";
+import { Check, ChevronDown, Trash2, BookmarkPlus } from "lucide-react";
+import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import type { PackingCategory, PackingItem, Traveler } from "@/lib/types";
 import { CATEGORY_LABELS } from "@/lib/types";
 import { CATEGORY_ICONS } from "@/lib/constants";
 import { toggleItemPacked, updateItemNotes, removePackingItem } from "@/actions/packing";
+import { saveToMyGear } from "@/actions/gear";
 import { TravelerAvatar } from "@/components/design/traveler-avatar";
 
 const CATEGORY_ORDER: PackingCategory[] = [
@@ -29,6 +31,7 @@ interface PackingChecklistProps {
   filterTraveler?: string | null;
   filterActivity?: string | null;
   readOnly?: boolean;
+  savedGearNames?: string[];
 }
 
 export function PackingChecklist({
@@ -38,15 +41,21 @@ export function PackingChecklist({
   filterTraveler,
   filterActivity,
   readOnly,
+  savedGearNames = [],
 }: PackingChecklistProps) {
   const router = useRouter();
   const [localItems, setLocalItems] = useState(items);
   const [expandedCategory, setExpandedCategory] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  const [savedNames, setSavedNames] = useState(() => new Set(savedGearNames));
 
   useEffect(() => {
     setLocalItems(items);
   }, [items]);
+
+  useEffect(() => {
+    setSavedNames(new Set(savedGearNames));
+  }, [savedGearNames]);
 
   let filtered = localItems;
   if (filterTraveler === "shared") {
@@ -105,6 +114,28 @@ export function PackingChecklist({
     startTransition(async () => {
       await removePackingItem(tripId, itemId);
       router.refresh();
+    });
+  };
+
+  const handleSaveToGear = (item: PackingItem) => {
+    startTransition(async () => {
+      try {
+        const result = await saveToMyGear({
+          item_name: item.item_name,
+          category: item.category,
+          description: item.notes,
+        });
+        if (result.alreadyExists) {
+          toast.info("Already in My Gear");
+          setSavedNames((prev) => new Set(prev).add(item.item_name.toLowerCase()));
+        } else {
+          toast.success("Saved to My Gear");
+          setSavedNames((prev) => new Set(prev).add(item.item_name.toLowerCase()));
+          router.refresh();
+        }
+      } catch {
+        toast.error("Could not save to My Gear");
+      }
     });
   };
 
@@ -224,6 +255,16 @@ export function PackingChecklist({
                             className="mt-1.5 w-full border-0 bg-transparent p-0 text-xs text-muted-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-0"
                           />
                         )}
+                        {!readOnly && !savedNames.has(item.item_name.toLowerCase()) && (
+                          <button
+                            type="button"
+                            onClick={() => handleSaveToGear(item)}
+                            disabled={isPending}
+                            className="mt-1 text-xs font-medium text-primary/80 transition-colors hover:text-primary"
+                          >
+                            Save to My Gear
+                          </button>
+                        )}
                       </div>
 
                       {traveler && !item.shared && (
@@ -236,22 +277,35 @@ export function PackingChecklist({
                       )}
 
                       {!readOnly && (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            if (
-                              window.confirm(
-                                `Remove "${item.item_name}" from your packing list?`
-                              )
-                            ) {
-                              handleRemove(item.id);
-                            }
-                          }}
-                          className="shrink-0 rounded-lg p-2 text-muted-foreground/70 transition-colors hover:bg-destructive/10 hover:text-destructive sm:p-1.5 sm:opacity-0 sm:group-hover:opacity-100"
-                          aria-label={`Remove ${item.item_name}`}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
+                        <>
+                          {!savedNames.has(item.item_name.toLowerCase()) && (
+                            <button
+                              type="button"
+                              onClick={() => handleSaveToGear(item)}
+                              className="shrink-0 rounded-lg p-2 text-muted-foreground/70 transition-colors hover:bg-primary/10 hover:text-primary sm:p-1.5 sm:opacity-0 sm:group-hover:opacity-100"
+                              aria-label={`Save ${item.item_name} to My Gear`}
+                              title="Save to My Gear"
+                            >
+                              <BookmarkPlus className="h-4 w-4" />
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (
+                                window.confirm(
+                                  `Remove "${item.item_name}" from your packing list?`
+                                )
+                              ) {
+                                handleRemove(item.id);
+                              }
+                            }}
+                            className="shrink-0 rounded-lg p-2 text-muted-foreground/70 transition-colors hover:bg-destructive/10 hover:text-destructive sm:p-1.5 sm:opacity-0 sm:group-hover:opacity-100"
+                            aria-label={`Remove ${item.item_name}`}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </>
                       )}
                     </div>
                   );

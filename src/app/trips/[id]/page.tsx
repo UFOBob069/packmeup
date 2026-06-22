@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { AppShell } from "@/components/layout/shells";
 import { TripDetailClient } from "@/components/trip/trip-detail-client";
 import { getChatHistory } from "@/actions/packing";
+import { getUserGearItems } from "@/actions/gear";
 import { getTripDetails, ensureTripWeather } from "@/actions/trips";
 
 interface TripPageProps {
@@ -20,10 +21,11 @@ export default async function TripPage({ params }: TripPageProps) {
   }
 
   const chatMessages = await getChatHistory(id);
+  const gearItems = await getUserGearItems();
 
   return (
     <AppShell>
-      <TripDetailClient trip={trip} chatMessages={chatMessages} />
+      <TripDetailClient trip={trip} chatMessages={chatMessages} gearItems={gearItems} />
     </AppShell>
   );
 }

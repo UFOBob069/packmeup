@@ -22,13 +22,14 @@ import { TravelerPackingFilters } from "./packing-traveler-filters";
 import { CountdownWidget } from "@/components/design/countdown-widget";
 import { ActivityTag } from "@/components/design/activity-tag";
 import { DestinationCover } from "./destination-cover";
-import type { ChatMessage, TripWithDetails, WeatherData } from "@/lib/types";
+import type { ChatMessage, GearItem, TripWithDetails, WeatherData } from "@/lib/types";
 import { calculateProgress } from "@/lib/demo/store";
 import { generatePackingTimeline } from "@/lib/design-system";
 
 interface TripDetailClientProps {
   trip: TripWithDetails;
   chatMessages: ChatMessage[];
+  gearItems: GearItem[];
 }
 
 const tabItems = [
@@ -37,7 +38,7 @@ const tabItems = [
   { value: "concierge", label: "Packing Help", icon: MessageCircle },
 ];
 
-export function TripDetailClient({ trip, chatMessages }: TripDetailClientProps) {
+export function TripDetailClient({ trip, chatMessages, gearItems }: TripDetailClientProps) {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState("pack");
   const [travelerFilter, setTravelerFilter] = useState("all");
@@ -115,7 +116,7 @@ export function TripDetailClient({ trip, chatMessages }: TripDetailClientProps) 
             <TabsTrigger
               key={value}
               value={value}
-              className="flex-1 rounded-xl px-4 py-2.5 data-[state=active]:bg-background data-[state=active]:shadow-travel-sm sm:flex-none"
+              className="flex-1 rounded-xl px-4 py-2.5 transition-colors hover:bg-background/80 data-active:bg-background data-active:shadow-travel-sm data-active:hover:bg-background sm:flex-none"
             >
               <Icon className="mr-2 h-4 w-4" />
               {label}
@@ -138,9 +139,10 @@ export function TripDetailClient({ trip, chatMessages }: TripDetailClientProps) 
                 travelers={trip.travelers}
                 tripId={trip.id}
                 filterTraveler={checklistFilter ?? null}
+                savedGearNames={gearItems.map((g) => g.item_name.toLowerCase())}
               />
 
-              <AddPackingItemForm tripId={trip.id} travelers={trip.travelers} />
+              <AddPackingItemForm tripId={trip.id} travelers={trip.travelers} gearItems={gearItems} />
 
               <div className="lg:hidden">
                 <PackingSidebar {...sidebarProps} />

@@ -14,6 +14,7 @@ import {
 import { buildTripSpecialNotes } from "@/lib/trip-notes";
 import { createClient } from "@/lib/supabase/server";
 import { generateTripContent } from "@/lib/ai/packing-generator";
+import { getUserGearItems } from "@/actions/gear";
 import { fetchWeather } from "@/lib/weather/weather-service";
 import { fetchDestinationCoverUrl } from "@/lib/unsplash/destination-cover";
 import { getAppUrl } from "@/lib/app-url";
@@ -202,7 +203,8 @@ export async function createTrip(data: TripOnboardingData): Promise<TripWithDeta
   }
 
   const travelerIds = (travelers ?? []).map((t) => ({ name: t.name, id: t.id }));
-  const generated = await generateTripContent(data, weather, travelerIds);
+  const gearItems = await getUserGearItems();
+  const generated = await generateTripContent(data, weather, travelerIds, gearItems);
 
   if (generated.packing_items.length) {
     await supabase.from("packing_items").insert(

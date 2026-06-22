@@ -162,6 +162,16 @@ export interface ChatMessage {
   created_at: string;
 }
 
+export interface GearItem {
+  id: string;
+  user_id: string;
+  item_name: string;
+  category: PackingCategory;
+  description: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface WeatherData {
   location: string;
   daily: WeatherDay[];

@@ -8,12 +8,14 @@ import { TravelerAvatar } from "@/components/design/traveler-avatar";
 import { EmptyTrips } from "@/components/design/empty-state";
 import { Button } from "@/components/ui/button";
 import { getCurrentUser, getUserTrips, getTripDetails, ensureTripWeather } from "@/actions/trips";
+import { getUserGearItems } from "@/actions/gear";
 import { getDemoTemplates, calculateProgress } from "@/lib/demo/store";
 import { generateAiRecommendations } from "@/lib/design-system";
 import { isDemoMode } from "@/lib/supabase/client";
 import { differenceInDays, parseISO } from "date-fns";
 import { redirect } from "next/navigation";
 import type { WeatherData } from "@/lib/types";
+import { MyGearPanel } from "@/components/gear/my-gear-panel";
 
 export default async function DashboardPage() {
   const user = await getCurrentUser();
@@ -21,6 +23,7 @@ export default async function DashboardPage() {
 
   const trips = user ? await getUserTrips() : [];
   const templates = user && isDemoMode() ? getDemoTemplates(user.id) : [];
+  const gearItems = user ? await getUserGearItems() : [];
 
   const now = new Date().toISOString().split("T")[0];
   const upcoming = trips.filter((t) => t.end_date >= now);
@@ -82,7 +85,12 @@ export default async function DashboardPage() {
       </div>
 
       {trips.length === 0 ? (
-        <EmptyTrips />
+        <div className="grid gap-6 lg:grid-cols-3">
+          <div className="lg:col-span-2">
+            <EmptyTrips />
+          </div>
+          <MyGearPanel items={gearItems} />
+        </div>
       ) : (
         <div className="grid gap-6 lg:grid-cols-3">
           <div className="space-y-6 lg:col-span-2">
@@ -199,6 +207,8 @@ export default async function DashboardPage() {
                 </div>
               </div>
             )}
+
+            <MyGearPanel items={gearItems} compact />
           </div>
         </div>
       )}

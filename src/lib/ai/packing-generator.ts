@@ -1,6 +1,7 @@
 import { getOpenAI } from "./openai";
 import type {
   CalendarDay,
+  GearItem,
   Outfit,
   PackingCategory,
   PackingItem,
@@ -10,6 +11,7 @@ import type {
   WeatherData,
 } from "@/lib/types";
 import { STYLE_LABELS } from "@/lib/types";
+import { formatGearForAiPrompt } from "@/lib/gear/format";
 import { eachDayOfInterval, format, parseISO } from "date-fns";
 
 export interface GeneratedTripContent {
@@ -209,7 +211,8 @@ function ensureCalendarDays(
 export async function generateTripContent(
   data: TripOnboardingData,
   weather: WeatherData | null,
-  travelerIds: { name: string; id: string }[]
+  travelerIds: { name: string; id: string }[],
+  gearItems: GearItem[] = []
 ): Promise<GeneratedTripContent> {
   const openai = getOpenAI();
   const days = eachDayOfInterval({
@@ -220,7 +223,7 @@ export async function generateTripContent(
   let content: GeneratedTripContent;
   if (openai) {
     try {
-      content = await generateWithOpenAI(data, weather, travelerIds, days);
+      content = await generateWithOpenAI(data, weather, travelerIds, days, gearItems);
     } catch (error) {
       console.error("OpenAI generation failed, using fallback:", error);
       content = generateFallbackContent(data, weather, travelerIds);
@@ -240,10 +243,12 @@ async function generateWithOpenAI(
   data: TripOnboardingData,
   weather: WeatherData | null,
   travelerIds: { name: string; id: string }[],
-  days: number
+  days: number,
+  gearItems: GearItem[] = []
 ): Promise<GeneratedTripContent> {
   const openai = getOpenAI()!;
   const styles = getStylePreferences(data);
+  const myGear = formatGearForAiPrompt(gearItems);
 
   const prompt = `Generate a complete travel packing plan as JSON for this trip:
 
@@ -259,6 +264,8 @@ ${data.is_multi_destination ? `Multi-destination: Yes${data.additional_destinati
 Destination-specific details: ${data.destination_context || "None"}
 Other notes: ${data.special_notes || "None"}
 Weather: ${weather ? JSON.stringify(weather.daily) : "Unknown"}
+User's saved gear (My Gear) — prefer these specific items over generic suggestions when appropriate:
+${myGear}
 
 Return JSON with this exact structure:
 {
@@ -277,7 +284,8 @@ Rules:
 - Every human traveler MUST have underwear and socks with quantities based on trip length and laundry access
 - Include activity-specific gear for human travelers
 - Weather-aware clothing suggestions
-- Blend all selected style preferences into the packing list`;
+- Blend all selected style preferences into the packing list
+- When My Gear items fit the trip, use those exact item names instead of generic equivalents`;
 
   const response = await openai.chat.completions.create({
     model: "gpt-4o-mini",
