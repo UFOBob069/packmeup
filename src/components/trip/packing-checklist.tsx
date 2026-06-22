@@ -168,7 +168,7 @@ export function PackingChecklist({
             <button
               type="button"
               onClick={() => toggleCategory(category)}
-              className="flex w-full items-center gap-3 px-4 py-3.5 text-left transition-colors hover:bg-muted/30"
+              className="flex w-full cursor-pointer items-center gap-3 px-4 py-3.5 text-left transition-colors hover:bg-muted/50"
               aria-expanded={isExpanded}
             >
               <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-muted text-base">
@@ -195,7 +195,7 @@ export function PackingChecklist({
                       key={item.id}
                       className={cn(
                         "group flex items-start gap-3 rounded-xl border bg-background p-3.5 transition-all",
-                        "hover:shadow-travel-sm",
+                        "hover:border-primary/20 hover:bg-muted/30 hover:shadow-travel-sm",
                         item.packed && "border-primary/10 bg-primary/[0.02]"
                       )}
                     >
@@ -204,10 +204,10 @@ export function PackingChecklist({
                         disabled={readOnly}
                         onClick={() => handleToggle(item.id, !item.packed)}
                         className={cn(
-                          "mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2 transition-all",
+                          "mt-0.5 flex h-6 w-6 shrink-0 cursor-pointer items-center justify-center rounded-full border-2 transition-all",
                           item.packed
-                            ? "border-primary bg-primary text-primary-foreground"
-                            : "border-muted-foreground/25 hover:border-primary/50"
+                            ? "border-primary bg-primary text-primary-foreground hover:bg-primary/90"
+                            : "border-muted-foreground/25 hover:border-primary hover:bg-primary/5"
                         )}
                         aria-label={item.packed ? "Mark unpacked" : "Mark packed"}
                       >
@@ -252,7 +252,7 @@ export function PackingChecklist({
                                 });
                               }
                             }}
-                            className="mt-1.5 w-full border-0 bg-transparent p-0 text-xs text-muted-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-0"
+                            className="mt-1.5 w-full cursor-text rounded-md border-0 bg-transparent px-1.5 py-1 text-xs text-muted-foreground transition-colors placeholder:text-muted-foreground/50 hover:bg-muted/50 focus:bg-muted/50 focus:outline-none focus:ring-0"
                           />
                         )}
                         {!readOnly && !savedNames.has(item.item_name.toLowerCase()) && (
@@ -260,8 +260,9 @@ export function PackingChecklist({
                             type="button"
                             onClick={() => handleSaveToGear(item)}
                             disabled={isPending}
-                            className="mt-1 text-xs font-medium text-primary/80 transition-colors hover:text-primary"
+                            className="mt-1.5 inline-flex cursor-pointer items-center gap-1 rounded-md border border-primary/20 bg-primary/5 px-2 py-1 text-xs font-medium text-primary transition-colors hover:border-primary/40 hover:bg-primary/15 hover:underline disabled:cursor-not-allowed disabled:opacity-50"
                           >
+                            <BookmarkPlus className="h-3 w-3" />
                             Save to My Gear
                           </button>
                         )}
@@ -277,35 +278,22 @@ export function PackingChecklist({
                       )}
 
                       {!readOnly && (
-                        <>
-                          {!savedNames.has(item.item_name.toLowerCase()) && (
-                            <button
-                              type="button"
-                              onClick={() => handleSaveToGear(item)}
-                              className="shrink-0 rounded-lg p-2 text-muted-foreground/70 transition-colors hover:bg-primary/10 hover:text-primary sm:p-1.5 sm:opacity-0 sm:group-hover:opacity-100"
-                              aria-label={`Save ${item.item_name} to My Gear`}
-                              title="Save to My Gear"
-                            >
-                              <BookmarkPlus className="h-4 w-4" />
-                            </button>
-                          )}
-                          <button
-                            type="button"
-                            onClick={() => {
-                              if (
-                                window.confirm(
-                                  `Remove "${item.item_name}" from your packing list?`
-                                )
-                              ) {
-                                handleRemove(item.id);
-                              }
-                            }}
-                            className="shrink-0 rounded-lg p-2 text-muted-foreground/70 transition-colors hover:bg-destructive/10 hover:text-destructive sm:p-1.5 sm:opacity-0 sm:group-hover:opacity-100"
-                            aria-label={`Remove ${item.item_name}`}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </button>
-                        </>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (
+                              window.confirm(
+                                `Remove "${item.item_name}" from your packing list?`
+                              )
+                            ) {
+                              handleRemove(item.id);
+                            }
+                          }}
+                          className="shrink-0 cursor-pointer rounded-lg p-2 text-muted-foreground/60 transition-colors hover:bg-destructive/10 hover:text-destructive sm:opacity-60 sm:group-hover:opacity-100"
+                          aria-label={`Remove ${item.item_name}`}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
                       )}
                     </div>
                   );

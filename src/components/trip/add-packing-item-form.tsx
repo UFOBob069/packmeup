@@ -60,7 +60,7 @@ export function AddPackingItemForm({
           <button
             type="button"
             onClick={() => setShowGear((v) => !v)}
-            className="flex w-full items-center justify-between text-left"
+            className="flex w-full cursor-pointer items-center justify-between rounded-lg px-1 py-0.5 text-left transition-colors hover:bg-muted/50"
           >
             <span className="flex items-center gap-2 text-sm font-medium">
               <Backpack className="h-4 w-4 text-primary" />
@@ -88,7 +88,7 @@ export function AddPackingItemForm({
                         onClick={() =>
                           addItem(item.item_name, item.category)
                         }
-                        className="rounded-full border bg-background px-3 py-1 text-xs font-medium transition-colors hover:border-primary/40 hover:bg-primary/5"
+                        className="cursor-pointer rounded-full border bg-background px-3 py-1 text-xs font-medium transition-colors hover:border-primary/50 hover:bg-primary/10 hover:shadow-sm active:scale-[0.98]"
                       >
                         {item.item_name}
                       </button>

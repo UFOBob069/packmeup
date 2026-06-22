@@ -62,10 +62,10 @@ export function TravelerPackingFilters({
             aria-selected={active}
             onClick={() => onChange(filter.id)}
             className={cn(
-              "min-w-0 flex-1 rounded-lg px-2 py-2 text-center transition-all sm:px-3",
+              "min-w-0 flex-1 cursor-pointer rounded-lg px-2 py-2 text-center transition-all sm:px-3",
               active
                 ? "bg-background font-semibold text-foreground shadow-travel-sm"
-                : "text-muted-foreground hover:text-foreground"
+                : "text-muted-foreground hover:bg-background/70 hover:text-foreground hover:shadow-sm"
             )}
           >
             <span className="block truncate text-sm">{filter.label}</span>
