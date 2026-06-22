@@ -12,6 +12,7 @@ import { toggleItemPacked, updateItemNotes, removePackingItem } from "@/actions/
 import { saveToMyGear } from "@/actions/gear";
 import { TravelerAvatar } from "@/components/design/traveler-avatar";
 import { CategoryInlineAdd } from "./category-inline-add";
+import { PackingItemSublist } from "./packing-item-sublist";
 
 const CATEGORY_ORDER: PackingCategory[] = [
   "clothing",
@@ -60,17 +61,30 @@ export function PackingChecklist({
     setSavedNames(new Set(savedGearNames));
   }, [savedGearNames]);
 
-  let filtered = localItems;
+  let filtered = localItems.filter((i) => !i.parent_item_id);
   if (filterTraveler === "shared") {
-    filtered = localItems.filter((i) => i.shared);
+    filtered = filtered.filter((i) => i.shared);
   } else if (filterTraveler) {
-    filtered = localItems.filter((i) => i.traveler_id === filterTraveler);
+    filtered = filtered.filter((i) => i.traveler_id === filterTraveler);
   }
   if (filterActivity) {
     filtered = filtered.filter(
       (i) => i.activity_name?.toLowerCase() === filterActivity.toLowerCase()
     );
   }
+
+  const childrenByParent = useMemo(() => {
+    return localItems.reduce(
+      (acc, item) => {
+        if (item.parent_item_id) {
+          if (!acc[item.parent_item_id]) acc[item.parent_item_id] = [];
+          acc[item.parent_item_id].push(item);
+        }
+        return acc;
+      },
+      {} as Record<string, PackingItem[]>
+    );
+  }, [localItems]);
 
   const grouped = filtered.reduce(
     (acc, item) => {
@@ -211,15 +225,17 @@ export function PackingChecklist({
               <div className="space-y-2 border-t px-3 pb-3 pt-2">
                 {categoryItems.map((item) => {
                   const traveler = item.traveler_id ? travelerMap[item.traveler_id] : null;
+                  const childItems = childrenByParent[item.id] ?? [];
                   return (
                     <div
                       key={item.id}
                       className={cn(
-                        "group flex items-start gap-3 rounded-xl border bg-background p-3.5 transition-all",
+                        "group rounded-xl border bg-background p-3.5 transition-all",
                         "hover:border-primary/20 hover:bg-muted/30 hover:shadow-travel-sm",
                         item.packed && "border-primary/10 bg-primary/[0.02]"
                       )}
                     >
+                      <div className="flex items-start gap-3">
                       <button
                         type="button"
                         disabled={readOnly}
@@ -276,7 +292,7 @@ export function PackingChecklist({
                             className="mt-1.5 w-full cursor-text rounded-md border-0 bg-transparent px-1.5 py-1 text-xs text-muted-foreground transition-colors placeholder:text-muted-foreground/50 hover:bg-muted/50 focus:bg-muted/50 focus:outline-none focus:ring-0"
                           />
                         )}
-                        {!readOnly && !savedNames.has(item.item_name.toLowerCase()) && (
+                        {!readOnly && !item.parent_item_id && !savedNames.has(item.item_name.toLowerCase()) && (
                           <button
                             type="button"
                             onClick={() => handleSaveToGear(item)}
@@ -316,6 +332,15 @@ export function PackingChecklist({
                           <Trash2 className="h-4 w-4" />
                         </button>
                       )}
+                      </div>
+
+                      <PackingItemSublist
+                        tripId={tripId}
+                        parent={item}
+                        children={childItems}
+                        gearItems={gearItems}
+                        readOnly={readOnly}
+                      />
                     </div>
                   );
                 })}
@@ -325,7 +350,6 @@ export function PackingChecklist({
                     tripId={tripId}
                     category={category as PackingCategory}
                     categoryLabel={label}
-                    gearItems={gearItems}
                     filterTraveler={filterTraveler}
                   />
                 )}

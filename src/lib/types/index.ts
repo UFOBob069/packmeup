@@ -107,6 +107,8 @@ export interface PackingItem {
   id: string;
   trip_id: string;
   traveler_id: string | null;
+  parent_item_id: string | null;
+  gear_item_id: string | null;
   category: PackingCategory;
   item_name: string;
   quantity: number;

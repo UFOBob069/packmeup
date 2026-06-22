@@ -78,10 +78,19 @@ export async function addPackingItem(
   tripId: string,
   itemName: string,
   travelerId: string | null,
-  options?: { quantity?: number; category?: PackingCategory }
+  options?: {
+    quantity?: number;
+    category?: PackingCategory;
+    parent_item_id?: string | null;
+    gear_item_id?: string | null;
+    shared?: boolean;
+  }
 ) {
   const name = itemName.trim();
   if (!name) throw new Error("Item name is required");
+
+  const isChild = !!options?.parent_item_id;
+  const shared = options?.shared ?? travelerId === null;
 
   if (isDemoMode()) {
     addDemoPackingItem(tripId, name, travelerId, options);
@@ -98,10 +107,12 @@ export async function addPackingItem(
   const { error } = await supabase.from("packing_items").insert({
     trip_id: tripId,
     item_name: name,
-    quantity: options?.quantity ?? 1,
+    quantity: isChild ? 1 : (options?.quantity ?? 1),
     category: options?.category ?? "miscellaneous",
-    shared: travelerId === null,
+    shared,
     traveler_id: travelerId,
+    parent_item_id: options?.parent_item_id ?? null,
+    gear_item_id: options?.gear_item_id ?? null,
     packed: false,
     sort_order: count ?? 0,
   });
