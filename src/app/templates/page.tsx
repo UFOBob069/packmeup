@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Plus, Sparkles, Waves, Flag } from "lucide-react";
-import { AppShell } from "@/components/layout/header";
+import { AppShell } from "@/components/layout/shells";
 import { ActivityTag } from "@/components/design/activity-tag";
 import { Button } from "@/components/ui/button";
 import { getCurrentUser } from "@/actions/trips";

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { ArrowRight, Sparkles, Users, CloudSun, Shirt, PawPrint, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { MarketingShell } from "@/components/layout/header";
+import { MarketingShell } from "@/components/layout/shells";
 import { ProductMockup } from "@/components/design/product-mockup";
 import { APP_NAME } from "@/lib/constants";
 

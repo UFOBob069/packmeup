@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { AppShell } from "@/components/layout/header";
+import { AppShell } from "@/components/layout/shells";
 import { TripDetailClient } from "@/components/trip/trip-detail-client";
 import { getChatHistory } from "@/actions/packing";
 import { getTripDetails, ensureTripWeather } from "@/actions/trips";

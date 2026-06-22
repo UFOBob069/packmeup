@@ -2,11 +2,13 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Luggage, LayoutGrid, Plus, Layers, User } from "lucide-react";
+import { Luggage, LayoutGrid, Plus, Layers } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { APP_NAME } from "@/lib/constants";
 import { ThemeToggle } from "./theme-toggle";
 import { Button } from "@/components/ui/button";
+import { TravelerAvatar } from "@/components/design/traveler-avatar";
+import type { Profile } from "@/lib/types";
 
 const navItems = [
   { href: "/dashboard", label: "Packing Lists", icon: LayoutGrid },
@@ -14,15 +16,22 @@ const navItems = [
   { href: "/templates", label: "Templates", icon: Layers },
 ];
 
-export function Header({ variant = "app" }: { variant?: "landing" | "app" }) {
+interface HeaderProps {
+  variant?: "landing" | "app";
+  user?: Profile | null;
+}
+
+export function Header({ variant = "app", user = null }: HeaderProps) {
   const pathname = usePathname();
   const isLanding = variant === "landing" || pathname === "/";
+  const firstName = user?.name?.split(" ")[0];
+  const isLoggedIn = !!user;
 
   return (
     <>
       <header className="sticky top-0 z-50 border-b border-border/60 bg-background/85 backdrop-blur-xl">
         <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 sm:px-6">
-          <Link href="/" className="group flex items-center gap-2.5">
+          <Link href={isLoggedIn ? "/dashboard" : "/"} className="group flex items-center gap-2.5">
             <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-travel-sm transition-transform group-hover:scale-105">
               <Luggage className="h-4.5 w-4.5" />
             </div>
@@ -55,9 +64,17 @@ export function Header({ variant = "app" }: { variant?: "landing" | "app" }) {
 
           <div className="flex items-center gap-2">
             <ThemeToggle />
-            {isLanding ? (
+            {isLoggedIn ? (
+              <Button asChild variant="outline" size="sm" className="rounded-full gap-2 pl-1.5 pr-4">
+                <Link href="/dashboard">
+                  <TravelerAvatar name={user.name ?? "You"} type="adult" index={0} size="sm" />
+                  <span className="hidden sm:inline">{firstName ?? "Dashboard"}</span>
+                  <span className="sm:hidden">Lists</span>
+                </Link>
+              </Button>
+            ) : isLanding ? (
               <>
-                <Button asChild variant="ghost" size="sm" className="hidden sm:inline-flex rounded-full">
+                <Button asChild variant="ghost" size="sm" className="hidden rounded-full sm:inline-flex">
                   <Link href="/login">Sign in</Link>
                 </Button>
                 <Button asChild size="sm" className="rounded-full px-5">
@@ -65,17 +82,14 @@ export function Header({ variant = "app" }: { variant?: "landing" | "app" }) {
                 </Button>
               </>
             ) : (
-              <Button asChild variant="ghost" size="icon" className="rounded-full md:hidden">
-                <Link href="/login">
-                  <User className="h-4 w-4" />
-                </Link>
+              <Button asChild variant="ghost" size="sm" className="rounded-full">
+                <Link href="/login">Sign in</Link>
               </Button>
             )}
           </div>
         </div>
       </header>
 
-      {/* Mobile bottom nav */}
       {!isLanding && (
         <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-border/60 bg-background/90 backdrop-blur-xl md:hidden">
           <div className="mx-auto flex max-w-lg items-center justify-around px-2 py-2 pb-[max(0.5rem,env(safe-area-inset-bottom))]">
@@ -107,25 +121,5 @@ export function Header({ variant = "app" }: { variant?: "landing" | "app" }) {
         </nav>
       )}
     </>
-  );
-}
-
-export function AppShell({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="flex min-h-screen flex-col">
-      <Header variant="app" />
-      <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-6 pb-24 sm:px-6 md:pb-8">
-        {children}
-      </main>
-    </div>
-  );
-}
-
-export function MarketingShell({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="flex min-h-screen flex-col">
-      <Header variant="landing" />
-      {children}
-    </div>
   );
 }

@@ -54,24 +54,32 @@ interface WeatherPreviewProps {
   location: string;
   days: WeatherDay[];
   className?: string;
+  /** Max days to show; omit to show the full trip forecast */
+  maxDays?: number;
 }
 
-export function WeatherPreview({ location, days, className }: WeatherPreviewProps) {
+export function WeatherPreview({ location, days, className, maxDays }: WeatherPreviewProps) {
   if (!days.length) return null;
+
+  const visibleDays = maxDays ? days.slice(0, maxDays) : days;
 
   return (
     <div className={cn("rounded-2xl border bg-card p-5 shadow-travel-sm", className)}>
       <div className="mb-4 flex items-center justify-between">
         <div>
           <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-            Weather preview
+            Trip forecast
           </p>
           <p className="text-display text-lg font-semibold">{location}</p>
+          <p className="text-xs text-muted-foreground">
+            {visibleDays.length} day{visibleDays.length !== 1 ? "s" : ""}
+            {maxDays && days.length > maxDays ? ` · ${days.length} total available` : ""}
+          </p>
         </div>
         <Sun className="h-5 w-5 text-sun-yellow" />
       </div>
       <div className="flex gap-2 overflow-x-auto pb-1">
-        {days.slice(0, 5).map((day) => (
+        {visibleDays.map((day) => (
           <WeatherCard key={day.date} day={day} compact />
         ))}
       </div>

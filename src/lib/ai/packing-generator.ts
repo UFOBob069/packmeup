@@ -169,6 +169,43 @@ function ensureHumanBasics(
   return result;
 }
 
+function ensureCalendarDays(
+  calendar_days: GeneratedTripContent["calendar_days"],
+  data: TripOnboardingData,
+  weather: WeatherData | null
+): GeneratedTripContent["calendar_days"] {
+  const range = eachDayOfInterval({
+    start: parseISO(data.start_date),
+    end: parseISO(data.end_date),
+  });
+  const byDate = new Map(calendar_days.map((d) => [d.trip_date, d]));
+  const activities = data.activities.length ? data.activities : ["Sightseeing"];
+
+  return range.map((day, i) => {
+    const dateStr = format(day, "yyyy-MM-dd");
+    const existing = byDate.get(dateStr);
+    if (existing) return existing;
+
+    const isFirst = i === 0;
+    const isLast = i === range.length - 1;
+    const weatherDay = weather?.daily.find((d) => d.date === dateStr);
+    const dayActivities = isFirst
+      ? ["Travel Day"]
+      : isLast
+        ? ["Travel Home"]
+        : [activities[i % activities.length]];
+
+    return {
+      trip_date: dateStr,
+      title: isFirst ? "Travel Day" : isLast ? "Travel Home" : dayActivities[0],
+      activities: dayActivities,
+      weather_summary: weatherDay
+        ? `${weatherDay.temp_high}°/${weatherDay.temp_low}°F, ${weatherDay.conditions}`
+        : null,
+    };
+  });
+}
+
 export async function generateTripContent(
   data: TripOnboardingData,
   weather: WeatherData | null,
@@ -195,6 +232,7 @@ export async function generateTripContent(
   content.packing_items = sanitizePackingAssignments(content.packing_items, data, travelerIds);
   content.packing_items = ensureHumanBasics(content.packing_items, data, travelerIds, days);
   content.packing_items = ensurePetSupplies(content.packing_items, data, travelerIds, days);
+  content.calendar_days = ensureCalendarDays(content.calendar_days, data, weather);
   return content;
 }
 

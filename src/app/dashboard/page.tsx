@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Plus, Sparkles } from "lucide-react";
-import { AppShell } from "@/components/layout/header";
+import { AppShell } from "@/components/layout/shells";
 import { TripCard } from "@/components/trip/trip-card";
 import { CountdownWidget } from "@/components/design/countdown-widget";
 import { AiSuggestionList } from "@/components/design/ai-suggestion-card";

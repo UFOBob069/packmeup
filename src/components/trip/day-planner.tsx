@@ -45,17 +45,18 @@ function buildPlanningDays(
   startDate: string,
   endDate: string
 ): CalendarDay[] {
-  if (calendarDays.length > 0) {
-    return [...calendarDays].sort((a, b) => a.trip_date.localeCompare(b.trip_date));
-  }
-
   const range = eachDayOfInterval({
     start: parseISO(startDate),
     end: parseISO(endDate),
   });
 
+  const byDate = new Map(calendarDays.map((d) => [d.trip_date, d]));
+
   return range.map((date, i) => {
     const tripDate = format(date, "yyyy-MM-dd");
+    const existing = byDate.get(tripDate);
+    if (existing) return existing;
+
     const isFirst = i === 0;
     const isLast = i === range.length - 1;
     return {
@@ -69,6 +70,10 @@ function buildPlanningDays(
       created_at: "",
     };
   });
+}
+
+function isPersistedCalendarDay(day: CalendarDay): boolean {
+  return Boolean(day.trip_id && day.id && !/^\d{4}-\d{2}-\d{2}$/.test(day.id));
 }
 
 function DayWeatherBadge({
@@ -329,7 +334,7 @@ export function DayPlanner({
                         tripId={tripId}
                         dayId={day.id}
                         initialNotes={day.notes ?? ""}
-                        canSave={notesEditable}
+                        canSave={notesEditable && isPersistedCalendarDay(day)}
                       />
                     </div>
                   </div>

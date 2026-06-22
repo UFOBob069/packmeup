@@ -1,5 +1,5 @@
 import { Luggage } from "lucide-react";
-import { AppShell } from "@/components/layout/header";
+import { AppShell } from "@/components/layout/shells";
 import { TripOnboardingChat } from "@/components/trip/trip-onboarding-chat";
 import { getDemoTemplates } from "@/lib/demo/store";
 import { getCurrentUser } from "@/actions/trips";
