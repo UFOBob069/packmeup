@@ -1,16 +1,17 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Check, ChevronDown, Trash2, BookmarkPlus } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import type { PackingCategory, PackingItem, Traveler } from "@/lib/types";
+import type { GearItem, PackingCategory, PackingItem, Traveler } from "@/lib/types";
 import { CATEGORY_LABELS } from "@/lib/types";
 import { CATEGORY_ICONS } from "@/lib/constants";
 import { toggleItemPacked, updateItemNotes, removePackingItem } from "@/actions/packing";
 import { saveToMyGear } from "@/actions/gear";
 import { TravelerAvatar } from "@/components/design/traveler-avatar";
+import { CategoryInlineAdd } from "./category-inline-add";
 
 const CATEGORY_ORDER: PackingCategory[] = [
   "clothing",
@@ -32,6 +33,7 @@ interface PackingChecklistProps {
   filterActivity?: string | null;
   readOnly?: boolean;
   savedGearNames?: string[];
+  gearItems?: GearItem[];
 }
 
 export function PackingChecklist({
@@ -42,6 +44,7 @@ export function PackingChecklist({
   filterActivity,
   readOnly,
   savedGearNames = [],
+  gearItems = [],
 }: PackingChecklistProps) {
   const router = useRouter();
   const [localItems, setLocalItems] = useState(items);
@@ -78,23 +81,31 @@ export function PackingChecklist({
     {} as Record<string, PackingItem[]>
   );
 
-  const categories = CATEGORY_ORDER.filter((c) => grouped[c]?.length).concat(
-    Object.keys(grouped).filter(
-      (c) => !CATEGORY_ORDER.includes(c as PackingCategory)
-    ) as PackingCategory[]
-  );
+  const displayCategories = useMemo(() => {
+    const withItems = CATEGORY_ORDER.filter((c) => grouped[c]?.length).concat(
+      Object.keys(grouped).filter(
+        (c) => !CATEGORY_ORDER.includes(c as PackingCategory)
+      ) as PackingCategory[]
+    );
 
-  const categoryKey = categories.join(",");
+    if (!readOnly) return CATEGORY_ORDER;
+
+    return withItems;
+  }, [grouped, readOnly]);
+
+  const categoryKey = displayCategories.join(",");
 
   useEffect(() => {
-    if (categories.length === 0) {
+    if (displayCategories.length === 0) {
       setExpandedCategory(null);
       return;
     }
     setExpandedCategory((prev) =>
-      prev && categories.includes(prev as PackingCategory) ? prev : categories[0]
+      prev && displayCategories.includes(prev as PackingCategory)
+        ? prev
+        : displayCategories[0]
     );
-  }, [categoryKey, categories.length]);
+  }, [categoryKey, displayCategories.length]);
 
   const travelerMap = Object.fromEntries(travelers.map((t) => [t.id, t]));
   const travelerIndex = Object.fromEntries(travelers.map((t, i) => [t.id, i]));
@@ -126,10 +137,20 @@ export function PackingChecklist({
           description: item.notes,
         });
         if (result.alreadyExists) {
-          toast.info("Already in My Gear");
+          toast.info("Already in My Gear", {
+            action: {
+              label: "View My Gear",
+              onClick: () => router.push("/gear"),
+            },
+          });
           setSavedNames((prev) => new Set(prev).add(item.item_name.toLowerCase()));
         } else {
-          toast.success("Saved to My Gear");
+          toast.success("Saved to My Gear", {
+            action: {
+              label: "View My Gear",
+              onClick: () => router.push("/gear"),
+            },
+          });
           setSavedNames((prev) => new Set(prev).add(item.item_name.toLowerCase()));
           router.refresh();
         }
@@ -143,18 +164,18 @@ export function PackingChecklist({
     setExpandedCategory((prev) => (prev === category ? null : category));
   };
 
-  if (filtered.length === 0) {
+  if (displayCategories.length === 0) {
     return (
       <p className="py-12 text-center text-sm text-muted-foreground">
-        Nothing here yet — your list will appear as you pack.
+        Nothing matches this filter.
       </p>
     );
   }
 
   return (
     <div className={cn("space-y-2", isPending && "opacity-80")}>
-      {categories.map((category) => {
-        const categoryItems = grouped[category];
+      {displayCategories.map((category) => {
+        const categoryItems = grouped[category] ?? [];
         const packedCount = categoryItems.filter((i) => i.packed).length;
         const isExpanded = expandedCategory === category;
         const label =
@@ -298,6 +319,16 @@ export function PackingChecklist({
                     </div>
                   );
                 })}
+
+                {!readOnly && (
+                  <CategoryInlineAdd
+                    tripId={tripId}
+                    category={category as PackingCategory}
+                    categoryLabel={label}
+                    gearItems={gearItems}
+                    filterTraveler={filterTraveler}
+                  />
+                )}
               </div>
             )}
           </section>

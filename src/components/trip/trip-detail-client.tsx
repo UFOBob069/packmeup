@@ -14,7 +14,6 @@ import { PackingChecklist } from "./packing-checklist";
 import { DayPlanner } from "./day-planner";
 import { AiChat } from "./ai-chat";
 import { InviteDialog } from "./invite-dialog";
-import { AddPackingItemForm } from "./add-packing-item-form";
 import { TripSettingsMenu } from "./trip-settings-menu";
 import { RealtimePacking } from "./realtime-packing";
 import { PackingSidebar } from "./packing-sidebar";
@@ -140,9 +139,8 @@ export function TripDetailClient({ trip, chatMessages, gearItems }: TripDetailCl
                 tripId={trip.id}
                 filterTraveler={checklistFilter ?? null}
                 savedGearNames={gearItems.map((g) => g.item_name.toLowerCase())}
+                gearItems={gearItems}
               />
-
-              <AddPackingItemForm tripId={trip.id} travelers={trip.travelers} gearItems={gearItems} />
 
               <div className="lg:hidden">
                 <PackingSidebar {...sidebarProps} />

@@ -49,6 +49,7 @@ export async function saveToMyGear(input: {
       description: input.description?.trim() || null,
     });
     revalidatePath("/dashboard");
+    revalidatePath("/gear");
     return result;
   }
 
@@ -77,6 +78,7 @@ export async function saveToMyGear(input: {
 
   if (error || !data) throw new Error(error?.message ?? "Failed to save item");
   revalidatePath("/dashboard");
+  revalidatePath("/gear");
   return { item: data as GearItem, alreadyExists: false };
 }
 
@@ -100,6 +102,7 @@ export async function updateMyGearItem(
       ...(updates.category ? { category: updates.category } : {}),
     });
     revalidatePath("/dashboard");
+    revalidatePath("/gear");
     return;
   }
 
@@ -119,6 +122,7 @@ export async function updateMyGearItem(
 
   if (error) throw new Error(error.message);
   revalidatePath("/dashboard");
+  revalidatePath("/gear");
 }
 
 export async function deleteMyGearItem(itemId: string) {
@@ -128,6 +132,7 @@ export async function deleteMyGearItem(itemId: string) {
   if (isDemoMode()) {
     deleteDemoGearItem(user.id, itemId);
     revalidatePath("/dashboard");
+    revalidatePath("/gear");
     return;
   }
 
@@ -140,4 +145,5 @@ export async function deleteMyGearItem(itemId: string) {
 
   if (error) throw new Error(error.message);
   revalidatePath("/dashboard");
+  revalidatePath("/gear");
 }

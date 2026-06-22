@@ -1,10 +1,12 @@
 "use client";
 
+import Link from "next/link";
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Backpack, Pencil, Search, Trash2, X, Check } from "lucide-react";
 import { toast } from "sonner";
 import { deleteMyGearItem, updateMyGearItem } from "@/actions/gear";
+import { AddGearItemForm } from "@/components/gear/add-gear-item-form";
 import { CATEGORY_ICONS } from "@/lib/constants";
 import type { GearItem, PackingCategory } from "@/lib/types";
 import { CATEGORY_LABELS } from "@/lib/types";
@@ -28,9 +30,10 @@ interface MyGearPanelProps {
   items: GearItem[];
   compact?: boolean;
   className?: string;
+  showAddForm?: boolean;
 }
 
-export function MyGearPanel({ items, compact, className }: MyGearPanelProps) {
+export function MyGearPanel({ items, compact, className, showAddForm }: MyGearPanelProps) {
   const router = useRouter();
   const [query, setQuery] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -109,6 +112,8 @@ export function MyGearPanel({ items, compact, className }: MyGearPanelProps) {
     });
   };
 
+  const showForm = showAddForm ?? !compact;
+
   return (
     <div
       className={cn(
@@ -129,12 +134,28 @@ export function MyGearPanel({ items, compact, className }: MyGearPanelProps) {
             </p>
           </div>
         </div>
-        {items.length > 0 && (
-          <span className="rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium text-muted-foreground">
-            {items.length}
-          </span>
-        )}
+        <div className="flex items-center gap-2">
+          {compact && (
+            <Link
+              href="/gear"
+              className="shrink-0 text-xs font-medium text-primary transition-colors hover:underline"
+            >
+              View all
+            </Link>
+          )}
+          {items.length > 0 && (
+            <span className="rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium text-muted-foreground">
+              {items.length}
+            </span>
+          )}
+        </div>
       </div>
+
+      {showForm && (
+        <div className="mb-4">
+          <AddGearItemForm />
+        </div>
+      )}
 
       {items.length > 0 && (
         <div className="relative mb-4">
@@ -151,8 +172,18 @@ export function MyGearPanel({ items, compact, className }: MyGearPanelProps) {
       {items.length === 0 ? (
         <div className="rounded-xl border border-dashed bg-muted/20 px-4 py-6 text-center">
           <p className="text-sm font-medium">No saved gear yet</p>
-          <p className="mt-1 text-xs text-muted-foreground">
-            Save specific items from your packing lists with &ldquo;Save to My Gear&rdquo;
+          <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
+            {showForm ? (
+              <>Use the form above to add your first item.</>
+            ) : (
+              <>
+                Add items on the{" "}
+                <Link href="/gear" className="font-medium text-primary hover:underline">
+                  My Gear page
+                </Link>
+                , or tap &ldquo;Save to My Gear&rdquo; on any packing list item.
+              </>
+            )}
           </p>
         </div>
       ) : filtered.length === 0 ? (
