@@ -9,6 +9,11 @@ import { addPackingItem, removePackingItem } from "@/actions/packing";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { gearPillClassName } from "@/lib/gear/infer-color";
+import {
+  gearMatchesParentLine,
+  inferSubcategory,
+  subcategoryLabel,
+} from "@/lib/gear/subcategory";
 import type { GearItem, PackingItem } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -36,9 +41,19 @@ export function PackingItemSublist({
     [gearItems]
   );
 
+  const parentSubcategory = useMemo(
+    () => inferSubcategory(parent.item_name, parent.category),
+    [parent.item_name, parent.category]
+  );
+
   const categoryGear = useMemo(
-    () => gearItems.filter((g) => g.category === parent.category),
-    [gearItems, parent.category]
+    () =>
+      gearItems.filter(
+        (g) =>
+          g.category === parent.category &&
+          gearMatchesParentLine(g, parent.item_name, parent.category)
+      ),
+    [gearItems, parent.category, parent.item_name]
   );
 
   const usedGearIds = useMemo(
@@ -78,6 +93,7 @@ export function PackingItemSublist({
       const gearItem = await getOrCreateGearItem({
         item_name: trimmed,
         category: parent.category,
+        parent_item_name: parent.item_name,
       });
 
       await addPackingItem(tripId, gearItem.item_name, parent.traveler_id, {
@@ -143,6 +159,11 @@ export function PackingItemSublist({
               <p className="mb-1.5 flex items-center gap-1.5 text-xs font-medium text-foreground">
                 <Backpack className="h-3.5 w-3.5 text-primary" />
                 Pick from My Gear
+                {parentSubcategory && (
+                  <span className="font-normal text-muted-foreground">
+                    · {subcategoryLabel(parentSubcategory)}
+                  </span>
+                )}
               </p>
               <div className="flex flex-wrap gap-1.5">
                 {availableGear.map((gear) => (
@@ -164,7 +185,16 @@ export function PackingItemSublist({
             </div>
           ) : categoryGear.length > 0 ? (
             <p className="text-xs text-muted-foreground">
-              All your saved {parent.category.replace(/_/g, " ")} items are already listed.
+              All matching {subcategoryLabel(parentSubcategory).toLowerCase()} are already listed.
+            </p>
+          ) : parentSubcategory ? (
+            <p className="text-xs text-muted-foreground">
+              No saved {subcategoryLabel(parentSubcategory).toLowerCase()} in My Gear yet. Add
+              below or on the{" "}
+              <Link href="/gear" className="font-medium text-primary hover:underline">
+                My Gear page
+              </Link>
+              .
             </p>
           ) : (
             <p className="text-xs text-muted-foreground">

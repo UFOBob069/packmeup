@@ -186,12 +186,12 @@ function seedDemoData(store: DemoStore) {
   });
 
   const sampleGear: Omit<GearItem, "created_at" | "updated_at">[] = [
-    { id: "gear-1", user_id: DEMO_USER.id, item_name: "Blue Nike Polo", category: "clothing", description: null, color: "blue" },
-    { id: "gear-2", user_id: DEMO_USER.id, item_name: "Pink TravisMathew Polo", category: "clothing", description: null, color: "pink" },
-    { id: "gear-3", user_id: DEMO_USER.id, item_name: "White Golf Shoes", category: "shoes", description: null, color: "white" },
-    { id: "gear-4", user_id: DEMO_USER.id, item_name: "Anker Charger", category: "electronics", description: "65W USB-C", color: null },
-    { id: "gear-5", user_id: DEMO_USER.id, item_name: "Andre's Travel Bowl", category: "pet_supplies", description: null, color: null },
-    { id: "gear-6", user_id: DEMO_USER.id, item_name: "Passport Holder", category: "travel_documents", description: null, color: null },
+    { id: "gear-1", user_id: DEMO_USER.id, item_name: "Blue Nike Polo", category: "clothing", description: null, color: "blue", subcategory: "shirts" },
+    { id: "gear-2", user_id: DEMO_USER.id, item_name: "Pink TravisMathew Polo", category: "clothing", description: null, color: "pink", subcategory: "shirts" },
+    { id: "gear-3", user_id: DEMO_USER.id, item_name: "White Golf Shoes", category: "shoes", description: null, color: "white", subcategory: null },
+    { id: "gear-4", user_id: DEMO_USER.id, item_name: "Anker Charger", category: "electronics", description: "65W USB-C", color: null, subcategory: null },
+    { id: "gear-5", user_id: DEMO_USER.id, item_name: "Andre's Travel Bowl", category: "pet_supplies", description: null, color: null, subcategory: null },
+    { id: "gear-6", user_id: DEMO_USER.id, item_name: "Passport Holder", category: "travel_documents", description: null, color: null, subcategory: null },
   ];
 
   sampleGear.forEach((item) => {
@@ -567,7 +567,7 @@ export function getDemoGearItems(userId: string): GearItem[] {
 
 export function addDemoGearItem(
   userId: string,
-  input: Pick<GearItem, "item_name" | "category" | "description" | "color">
+  input: Pick<GearItem, "item_name" | "category" | "description" | "color" | "subcategory">
 ): { item: GearItem; alreadyExists: boolean } {
   const store = getStore();
   const existing = Array.from(store.gear_items.values()).find(
@@ -583,6 +583,7 @@ export function addDemoGearItem(
     category: input.category,
     description: input.description,
     color: input.color,
+    subcategory: input.subcategory,
     created_at: now,
     updated_at: now,
   };
@@ -593,7 +594,7 @@ export function addDemoGearItem(
 export function updateDemoGearItem(
   userId: string,
   itemId: string,
-  updates: Partial<Pick<GearItem, "item_name" | "category" | "description">>
+  updates: Partial<Pick<GearItem, "item_name" | "category" | "description" | "subcategory">>
 ) {
   const store = getStore();
   const item = store.gear_items.get(itemId);

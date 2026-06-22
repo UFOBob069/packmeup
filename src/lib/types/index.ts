@@ -171,6 +171,7 @@ export interface GearItem {
   category: PackingCategory;
   description: string | null;
   color: string | null;
+  subcategory: string | null;
   created_at: string;
   updated_at: string;
 }
