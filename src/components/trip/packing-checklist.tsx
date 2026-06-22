@@ -2,14 +2,12 @@
 
 import { useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Check, ChevronDown, Trash2, BookmarkPlus } from "lucide-react";
-import { toast } from "sonner";
+import { Check, ChevronDown, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { GearItem, PackingCategory, PackingItem, Traveler } from "@/lib/types";
 import { CATEGORY_LABELS } from "@/lib/types";
 import { CATEGORY_ICONS } from "@/lib/constants";
 import { toggleItemPacked, updateItemNotes, removePackingItem } from "@/actions/packing";
-import { saveToMyGear } from "@/actions/gear";
 import { TravelerAvatar } from "@/components/design/traveler-avatar";
 import { CategoryInlineAdd } from "./category-inline-add";
 import { PackingItemSublist } from "./packing-item-sublist";
@@ -33,7 +31,6 @@ interface PackingChecklistProps {
   filterTraveler?: string | null;
   filterActivity?: string | null;
   readOnly?: boolean;
-  savedGearNames?: string[];
   gearItems?: GearItem[];
 }
 
@@ -44,22 +41,16 @@ export function PackingChecklist({
   filterTraveler,
   filterActivity,
   readOnly,
-  savedGearNames = [],
   gearItems = [],
 }: PackingChecklistProps) {
   const router = useRouter();
   const [localItems, setLocalItems] = useState(items);
   const [expandedCategory, setExpandedCategory] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
-  const [savedNames, setSavedNames] = useState(() => new Set(savedGearNames));
 
   useEffect(() => {
     setLocalItems(items);
   }, [items]);
-
-  useEffect(() => {
-    setSavedNames(new Set(savedGearNames));
-  }, [savedGearNames]);
 
   let filtered = localItems.filter((i) => !i.parent_item_id);
   if (filterTraveler === "shared") {
@@ -139,38 +130,6 @@ export function PackingChecklist({
     startTransition(async () => {
       await removePackingItem(tripId, itemId);
       router.refresh();
-    });
-  };
-
-  const handleSaveToGear = (item: PackingItem) => {
-    startTransition(async () => {
-      try {
-        const result = await saveToMyGear({
-          item_name: item.item_name,
-          category: item.category,
-          description: item.notes,
-        });
-        if (result.alreadyExists) {
-          toast.info("Already in My Gear", {
-            action: {
-              label: "View My Gear",
-              onClick: () => router.push("/gear"),
-            },
-          });
-          setSavedNames((prev) => new Set(prev).add(item.item_name.toLowerCase()));
-        } else {
-          toast.success("Saved to My Gear", {
-            action: {
-              label: "View My Gear",
-              onClick: () => router.push("/gear"),
-            },
-          });
-          setSavedNames((prev) => new Set(prev).add(item.item_name.toLowerCase()));
-          router.refresh();
-        }
-      } catch {
-        toast.error("Could not save to My Gear");
-      }
     });
   };
 
@@ -291,17 +250,6 @@ export function PackingChecklist({
                             }}
                             className="mt-1.5 w-full cursor-text rounded-md border-0 bg-transparent px-1.5 py-1 text-xs text-muted-foreground transition-colors placeholder:text-muted-foreground/50 hover:bg-muted/50 focus:bg-muted/50 focus:outline-none focus:ring-0"
                           />
-                        )}
-                        {!readOnly && !item.parent_item_id && !savedNames.has(item.item_name.toLowerCase()) && (
-                          <button
-                            type="button"
-                            onClick={() => handleSaveToGear(item)}
-                            disabled={isPending}
-                            className="mt-1.5 inline-flex cursor-pointer items-center gap-1 rounded-md border border-primary/20 bg-primary/5 px-2 py-1 text-xs font-medium text-primary transition-colors hover:border-primary/40 hover:bg-primary/15 hover:underline disabled:cursor-not-allowed disabled:opacity-50"
-                          >
-                            <BookmarkPlus className="h-3 w-3" />
-                            Save to My Gear
-                          </button>
                         )}
                       </div>
 

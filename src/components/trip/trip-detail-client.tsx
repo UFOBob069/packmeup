@@ -138,7 +138,6 @@ export function TripDetailClient({ trip, chatMessages, gearItems }: TripDetailCl
                 travelers={trip.travelers}
                 tripId={trip.id}
                 filterTraveler={checklistFilter ?? null}
-                savedGearNames={gearItems.map((g) => g.item_name.toLowerCase())}
                 gearItems={gearItems}
               />
 

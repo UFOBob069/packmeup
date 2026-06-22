@@ -3,9 +3,11 @@
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Plus, X } from "lucide-react";
+import { getOrCreateGearItem } from "@/actions/gear";
 import { addPackingItem, removePackingItem } from "@/actions/packing";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { gearPillClassName } from "@/lib/gear/infer-color";
 import type { GearItem, PackingItem } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -28,6 +30,11 @@ export function PackingItemSublist({
   const [draft, setDraft] = useState("");
   const [isPending, startTransition] = useTransition();
 
+  const gearById = useMemo(
+    () => Object.fromEntries(gearItems.map((g) => [g.id, g])),
+    [gearItems]
+  );
+
   const categoryGear = useMemo(
     () => gearItems.filter((g) => g.category === parent.category),
     [gearItems, parent.category]
@@ -47,22 +54,28 @@ export function PackingItemSublist({
     (g) => !usedGearIds.has(g.id) && !usedNames.has(g.item_name.toLowerCase())
   );
 
-  const addSpecific = (itemName: string, gearItemId?: string) => {
+  const addSpecific = (itemName: string) => {
     const trimmed = itemName.trim();
     if (!trimmed) return;
 
-    const gear = gearItemId
-      ? categoryGear.find((g) => g.id === gearItemId)
-      : categoryGear.find((g) => g.item_name.toLowerCase() === trimmed.toLowerCase());
-
-    if (gear && usedGearIds.has(gear.id)) return;
-    if (!gear && usedNames.has(trimmed.toLowerCase())) return;
+    const existingGear = categoryGear.find(
+      (g) => g.item_name.toLowerCase() === trimmed.toLowerCase()
+    );
+    if (existingGear && usedGearIds.has(existingGear.id)) return;
+    if (!existingGear && usedNames.has(trimmed.toLowerCase())) return;
 
     startTransition(async () => {
-      await addPackingItem(tripId, gear?.item_name ?? trimmed, parent.traveler_id, {
+      const gearItem =
+        existingGear ??
+        (await getOrCreateGearItem({
+          item_name: trimmed,
+          category: parent.category,
+        }));
+
+      await addPackingItem(tripId, gearItem.item_name, parent.traveler_id, {
         category: parent.category,
         parent_item_id: parent.id,
-        gear_item_id: gear?.id ?? null,
+        gear_item_id: gearItem.id,
         shared: parent.shared,
       });
       setDraft("");
@@ -82,33 +95,36 @@ export function PackingItemSublist({
   return (
     <div className="ml-9 mt-2 border-l-2 border-primary/15 pl-3">
       <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-        Which ones?
+        Which ones? <span className="normal-case font-normal">(saved to My Gear)</span>
       </p>
 
       {children.length > 0 && (
-        <ul className="mb-2 space-y-1">
-          {children.map((child) => (
-            <li
-              key={child.id}
-              className="group flex items-center gap-2 rounded-lg bg-muted/30 px-2 py-1.5 text-sm"
-            >
-              <span className="min-w-0 flex-1 truncate font-medium">{child.item_name}</span>
-              {child.gear_item_id && (
-                <span className="shrink-0 text-[10px] text-muted-foreground">My Gear</span>
-              )}
-              {!readOnly && (
-                <button
-                  type="button"
-                  onClick={() => removeChild(child.id)}
-                  disabled={isPending}
-                  className="shrink-0 cursor-pointer rounded p-0.5 text-muted-foreground opacity-70 transition-colors hover:bg-destructive/10 hover:text-destructive group-hover:opacity-100"
-                  aria-label={`Remove ${child.item_name}`}
-                >
-                  <X className="h-3.5 w-3.5" />
-                </button>
-              )}
-            </li>
-          ))}
+        <ul className="mb-2 flex flex-wrap gap-1.5">
+          {children.map((child) => {
+            const gear = child.gear_item_id ? gearById[child.gear_item_id] : null;
+            return (
+              <li
+                key={child.id}
+                className={cn(
+                  "group inline-flex max-w-full items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium",
+                  gearPillClassName(gear?.color)
+                )}
+              >
+                <span className="truncate">{child.item_name}</span>
+                {!readOnly && (
+                  <button
+                    type="button"
+                    onClick={() => removeChild(child.id)}
+                    disabled={isPending}
+                    className="shrink-0 cursor-pointer rounded-full p-0.5 opacity-60 transition-opacity hover:opacity-100"
+                    aria-label={`Remove ${child.item_name}`}
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                )}
+              </li>
+            );
+          })}
         </ul>
       )}
 

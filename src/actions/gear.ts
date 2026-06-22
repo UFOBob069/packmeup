@@ -10,6 +10,7 @@ import {
 } from "@/lib/demo/store";
 import { createClient } from "@/lib/supabase/server";
 import type { GearItem, PackingCategory } from "@/lib/types";
+import { inferColorFromName } from "@/lib/gear/infer-color";
 import { getCurrentUser } from "./trips";
 
 export async function getUserGearItems(): Promise<GearItem[]> {
@@ -35,34 +36,39 @@ export async function saveToMyGear(input: {
   item_name: string;
   category: PackingCategory;
   description?: string | null;
-}): Promise<{ item: GearItem | null; alreadyExists: boolean }> {
+  color?: string | null;
+}): Promise<{ item: GearItem; alreadyExists: boolean }> {
   const user = await getCurrentUser();
   if (!user) throw new Error("Not authenticated");
 
   const item_name = input.item_name.trim();
   if (!item_name) throw new Error("Item name is required");
 
+  const color = input.color?.trim() || inferColorFromName(item_name);
+
   if (isDemoMode()) {
     const result = addDemoGearItem(user.id, {
       item_name,
       category: input.category,
       description: input.description?.trim() || null,
+      color,
     });
     revalidatePath("/dashboard");
     revalidatePath("/gear");
-    return result;
+    if (!result.item) throw new Error("Failed to save gear item");
+    return { item: result.item, alreadyExists: result.alreadyExists };
   }
 
   const supabase = await createClient();
   const { data: existing } = await supabase
     .from("gear_items")
-    .select("id")
+    .select("*")
     .eq("user_id", user.id)
     .ilike("item_name", item_name)
     .maybeSingle();
 
   if (existing) {
-    return { item: null, alreadyExists: true };
+    return { item: existing as GearItem, alreadyExists: true };
   }
 
   const { data, error } = await supabase
@@ -72,6 +78,7 @@ export async function saveToMyGear(input: {
       item_name,
       category: input.category,
       description: input.description?.trim() || null,
+      color,
     })
     .select()
     .single();
@@ -80,6 +87,17 @@ export async function saveToMyGear(input: {
   revalidatePath("/dashboard");
   revalidatePath("/gear");
   return { item: data as GearItem, alreadyExists: false };
+}
+
+export async function getOrCreateGearItem(input: {
+  item_name: string;
+  category: PackingCategory;
+}): Promise<GearItem> {
+  const { item } = await saveToMyGear({
+    item_name: input.item_name,
+    category: input.category,
+  });
+  return item;
 }
 
 export async function updateMyGearItem(

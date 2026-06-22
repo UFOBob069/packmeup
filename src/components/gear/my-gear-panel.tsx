@@ -7,6 +7,7 @@ import { Backpack, Pencil, Search, Trash2, X, Check } from "lucide-react";
 import { toast } from "sonner";
 import { deleteMyGearItem, updateMyGearItem } from "@/actions/gear";
 import { AddGearItemForm } from "@/components/gear/add-gear-item-form";
+import { gearPillClassName } from "@/lib/gear/infer-color";
 import { CATEGORY_ICONS } from "@/lib/constants";
 import type { GearItem, PackingCategory } from "@/lib/types";
 import { CATEGORY_LABELS } from "@/lib/types";
@@ -241,7 +242,14 @@ export function MyGearPanel({ items, compact, className, showAddForm }: MyGearPa
                     ) : (
                       <div className="flex items-start gap-2">
                         <div className="min-w-0 flex-1">
-                          <p className="text-sm font-medium leading-snug">{item.item_name}</p>
+                          <p
+                            className={cn(
+                              "inline-flex max-w-full rounded-full border px-2.5 py-0.5 text-sm font-medium",
+                              gearPillClassName(item.color)
+                            )}
+                          >
+                            {item.item_name}
+                          </p>
                           {item.description && (
                             <p className="mt-0.5 text-xs text-muted-foreground">{item.description}</p>
                           )}

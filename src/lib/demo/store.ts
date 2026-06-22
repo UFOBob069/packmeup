@@ -186,12 +186,12 @@ function seedDemoData(store: DemoStore) {
   });
 
   const sampleGear: Omit<GearItem, "created_at" | "updated_at">[] = [
-    { id: "gear-1", user_id: DEMO_USER.id, item_name: "Blue Nike Polo", category: "clothing", description: null },
-    { id: "gear-2", user_id: DEMO_USER.id, item_name: "Pink TravisMathew Polo", category: "clothing", description: null },
-    { id: "gear-3", user_id: DEMO_USER.id, item_name: "White Golf Shoes", category: "shoes", description: null },
-    { id: "gear-4", user_id: DEMO_USER.id, item_name: "Anker Charger", category: "electronics", description: "65W USB-C" },
-    { id: "gear-5", user_id: DEMO_USER.id, item_name: "Andre's Travel Bowl", category: "pet_supplies", description: null },
-    { id: "gear-6", user_id: DEMO_USER.id, item_name: "Passport Holder", category: "travel_documents", description: null },
+    { id: "gear-1", user_id: DEMO_USER.id, item_name: "Blue Nike Polo", category: "clothing", description: null, color: "blue" },
+    { id: "gear-2", user_id: DEMO_USER.id, item_name: "Pink TravisMathew Polo", category: "clothing", description: null, color: "pink" },
+    { id: "gear-3", user_id: DEMO_USER.id, item_name: "White Golf Shoes", category: "shoes", description: null, color: "white" },
+    { id: "gear-4", user_id: DEMO_USER.id, item_name: "Anker Charger", category: "electronics", description: "65W USB-C", color: null },
+    { id: "gear-5", user_id: DEMO_USER.id, item_name: "Andre's Travel Bowl", category: "pet_supplies", description: null, color: null },
+    { id: "gear-6", user_id: DEMO_USER.id, item_name: "Passport Holder", category: "travel_documents", description: null, color: null },
   ];
 
   sampleGear.forEach((item) => {
@@ -567,13 +567,13 @@ export function getDemoGearItems(userId: string): GearItem[] {
 
 export function addDemoGearItem(
   userId: string,
-  input: Pick<GearItem, "item_name" | "category" | "description">
-): { item: GearItem | null; alreadyExists: boolean } {
+  input: Pick<GearItem, "item_name" | "category" | "description" | "color">
+): { item: GearItem; alreadyExists: boolean } {
   const store = getStore();
   const existing = Array.from(store.gear_items.values()).find(
     (item) => item.user_id === userId && item.item_name.toLowerCase() === input.item_name.toLowerCase()
   );
-  if (existing) return { item: null, alreadyExists: true };
+  if (existing) return { item: existing, alreadyExists: true };
 
   const now = new Date().toISOString();
   const item: GearItem = {
@@ -582,6 +582,7 @@ export function addDemoGearItem(
     item_name: input.item_name,
     category: input.category,
     description: input.description,
+    color: input.color,
     created_at: now,
     updated_at: now,
   };

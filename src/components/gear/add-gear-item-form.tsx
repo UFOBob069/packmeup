@@ -45,6 +45,8 @@ export function AddGearItemForm() {
         });
         if (result.alreadyExists) {
           toast.info(`"${trimmed}" is already in My Gear`);
+          setName("");
+          setDescription("");
         } else {
           toast.success(`Added "${trimmed}" to My Gear`);
           setName("");
