@@ -22,9 +22,9 @@ import { RealtimePacking } from "./realtime-packing";
 import { PackingSidebar } from "./packing-sidebar";
 import { TravelerPackingFilters } from "./packing-traveler-filters";
 import { CountdownWidget } from "@/components/design/countdown-widget";
-import { WeatherPreview } from "@/components/design/weather-card";
 import { ActivityTag } from "@/components/design/activity-tag";
-import type { ChatMessage, TripWithDetails, WeatherData } from "@/lib/types";
+import { DestinationCover } from "./destination-cover";
+import type { ChatMessage, TripWithDetails } from "@/lib/types";
 import { calculateProgress } from "@/lib/demo/store";
 import { generatePackingTimeline } from "@/lib/design-system";
 
@@ -45,7 +45,6 @@ export function TripDetailClient({ trip, chatMessages }: TripDetailClientProps) 
   const [activeTab, setActiveTab] = useState("pack");
   const [travelerFilter, setTravelerFilter] = useState("all");
   const progress = calculateProgress(trip.packing_items, trip.travelers);
-  const weather = trip.weather_data as WeatherData | null;
   const daysUntil = differenceInDays(parseISO(trip.start_date), new Date());
   const activities = [...new Set(trip.activities.map((a) => a.activity_name))];
   const timeline = generatePackingTimeline(daysUntil);
@@ -69,33 +68,47 @@ export function TripDetailClient({ trip, chatMessages }: TripDetailClientProps) 
     <div className="space-y-5">
       <RealtimePacking tripId={trip.id} onUpdate={() => router.refresh()} />
 
-      <div className="flex flex-col gap-4 rounded-2xl border bg-card p-5 sm:flex-row sm:items-center sm:justify-between">
-        <div className="min-w-0">
-          <div className="mb-1.5 flex flex-wrap gap-1.5">
-            {activities.map((a) => (
-              <ActivityTag key={a} name={a} />
-            ))}
+      <div className="overflow-hidden rounded-2xl border bg-card shadow-travel-sm">
+        <DestinationCover
+          destination={trip.destination}
+          coverImageUrl={trip.cover_image_url}
+          variant="hero"
+        >
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+            <div className="min-w-0">
+              <div className="mb-2 flex flex-wrap gap-1.5">
+                {activities.map((a) => (
+                  <ActivityTag key={a} name={a} className="border-white/20 bg-black/30 text-white" />
+                ))}
+              </div>
+              <h1 className="text-display truncate text-2xl font-semibold tracking-tight text-white sm:text-3xl">
+                {trip.destination}
+              </h1>
+              <p className="mt-1 text-sm text-white/80">
+                {format(parseISO(trip.start_date), "MMM d")} –{" "}
+                {format(parseISO(trip.end_date), "MMM d, yyyy")}
+              </p>
+            </div>
+            <div className="flex shrink-0 items-center gap-2">
+              {daysUntil >= 0 && (
+                <CountdownWidget
+                  days={daysUntil}
+                  destination={trip.destination.split(",")[0]}
+                  compact
+                  className="border-white/20 bg-black/30 text-white"
+                />
+              )}
+              <InviteDialog
+                tripId={trip.id}
+                destination={trip.destination}
+                coverImageUrl={trip.cover_image_url}
+                startDate={trip.start_date}
+                endDate={trip.end_date}
+              />
+              <TripSettingsMenu tripId={trip.id} destination={trip.destination} />
+            </div>
           </div>
-          <h1 className="text-display truncate text-2xl font-semibold tracking-tight sm:text-3xl">
-            {trip.destination}
-          </h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {format(parseISO(trip.start_date), "MMM d")} –{" "}
-            {format(parseISO(trip.end_date), "MMM d, yyyy")}
-          </p>
-        </div>
-        <div className="flex shrink-0 items-center gap-2">
-          {daysUntil >= 0 && (
-            <CountdownWidget
-              days={daysUntil}
-              destination={trip.destination.split(",")[0]}
-              compact
-              className="border-0 bg-muted/40 px-3 py-2"
-            />
-          )}
-          <InviteDialog tripId={trip.id} />
-          <TripSettingsMenu tripId={trip.id} destination={trip.destination} />
-        </div>
+        </DestinationCover>
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-5">
@@ -149,9 +162,6 @@ export function TripDetailClient({ trip, chatMessages }: TripDetailClientProps) 
         </TabsContent>
 
         <TabsContent value="timeline" className="space-y-6">
-          {weather?.daily && weather.daily.length > 0 && (
-            <WeatherPreview location={weather.location ?? trip.destination} days={weather.daily} />
-          )}
           <CalendarView days={trip.calendar_days} outfits={trip.outfits} />
         </TabsContent>
 

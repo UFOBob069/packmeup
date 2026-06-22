@@ -60,6 +60,7 @@ export interface Trip {
   packing_mode: PackingMode;
   special_notes: string | null;
   weather_data: WeatherData | null;
+  cover_image_url?: string | null;
   share_token: string;
   created_at: string;
   updated_at: string;

@@ -117,6 +117,58 @@ function ensurePetSupplies(
   return result;
 }
 
+function ensureHumanBasics(
+  items: GeneratedTripContent["packing_items"],
+  data: TripOnboardingData,
+  travelerIds: { name: string; id: string }[],
+  days: number
+): GeneratedTripContent["packing_items"] {
+  const nameToId = Object.fromEntries(travelerIds.map((t) => [t.name, t.id]));
+  const humans = data.travelers.filter((t) => t.traveler_type !== "pet");
+  if (!humans.length) return items;
+
+  const result = [...items];
+  let sort = items.length;
+  const laundryQty = data.laundry_access === "full" ? Math.ceil(days / 2) : days;
+  const reduced =
+    data.packing_mode === "minimalist" || data.packing_mode === "carry_on_optimized";
+  const qty = reduced ? Math.min(laundryQty + 1, 6) : laundryQty + 1;
+
+  const hasItem = (travelerId: string, keywords: string[]) =>
+    result.some(
+      (i) =>
+        i.traveler_id === travelerId &&
+        keywords.some((k) => i.item_name.toLowerCase().includes(k))
+    );
+
+  const addBasic = (travelerId: string, item_name: string, quantity: number) => {
+    result.push({
+      item_name,
+      quantity,
+      category: "clothing",
+      traveler_id: travelerId,
+      packed: false,
+      shared: false,
+      activity_name: null,
+      notes: null,
+      sort_order: sort++,
+    });
+  };
+
+  humans.forEach((traveler) => {
+    const id = nameToId[traveler.name];
+    if (!id) return;
+    if (!hasItem(id, ["underwear", "underpants", "briefs", "boxers", "panties", "bra"])) {
+      addBasic(id, "Underwear", qty);
+    }
+    if (!hasItem(id, ["sock"])) {
+      addBasic(id, "Socks", qty);
+    }
+  });
+
+  return result;
+}
+
 export async function generateTripContent(
   data: TripOnboardingData,
   weather: WeatherData | null,
@@ -141,6 +193,7 @@ export async function generateTripContent(
   }
 
   content.packing_items = sanitizePackingAssignments(content.packing_items, data, travelerIds);
+  content.packing_items = ensureHumanBasics(content.packing_items, data, travelerIds, days);
   content.packing_items = ensurePetSupplies(content.packing_items, data, travelerIds, days);
   return content;
 }
@@ -164,7 +217,6 @@ Laundry Access: ${data.laundry_access}
 Style (pick all that apply): ${styles.map((s) => STYLE_LABELS[s]).join(", ")}
 Packing Mode: ${data.packing_mode}
 Activities: ${data.activities.join(", ") || "General sightseeing"}
-Destination: ${data.destination}
 ${data.is_multi_destination ? `Multi-destination: Yes${data.additional_destinations ? ` — also visiting ${data.additional_destinations}` : ""}` : "Multi-destination: No"}
 Destination-specific details: ${data.destination_context || "None"}
 Other notes: ${data.special_notes || "None"}
@@ -184,6 +236,7 @@ Rules:
 - Assign human packing items only to adult, child, or infant travelers
 - Match quantities to trip length and laundry access
 - Respect packing mode (${data.packing_mode})
+- Every human traveler MUST have underwear and socks with quantities based on trip length and laundry access
 - Include activity-specific gear for human travelers
 - Weather-aware clothing suggestions
 - Blend all selected style preferences into the packing list`;

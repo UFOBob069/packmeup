@@ -73,7 +73,7 @@ const STEP_PROMPTS: Record<Step, string> = {
 
 const STEP_HINTS: Record<Step, string> = {
   destination: "I'll use this for weather and local packing tips.",
-  destination_details: "This helps us tailor your list to where you're going.",
+  destination_details: "We’ll pull the forecast once you pick dates — this is for plans weather can’t tell us.",
   dates: "Trip length changes how much clothing you need.",
   travelers: "Start with yourself — add partners, kids, or pets.",
   travel_type: "Carry-on vs checked bags changes what we suggest.",
@@ -669,7 +669,7 @@ export function TripOnboardingChat({ templateData, userName }: TripOnboardingCha
                     <>
                       <p className="text-sm font-medium">{destinationQuestion}</p>
                       <Textarea
-                        placeholder="Optional — share anything that might affect what you pack"
+                        placeholder="Optional — e.g. wedding guest, theme park days, business dinners..."
                         value={destinationContext}
                         onChange={(e) => setDestinationContext(e.target.value)}
                         rows={3}

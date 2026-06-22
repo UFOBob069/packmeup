@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2, MoreHorizontal, Trash2 } from "lucide-react";
+import { ImageIcon, Loader2, MoreHorizontal, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -19,6 +19,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { deleteTrip } from "@/actions/trips";
+import { refreshTripCoverImage } from "@/actions/cover-image";
+import { toast } from "sonner";
 
 interface TripSettingsMenuProps {
   tripId: string;
@@ -29,6 +31,7 @@ export function TripSettingsMenu({ tripId, destination }: TripSettingsMenuProps)
   const router = useRouter();
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
+  const [isRefreshingCover, startCoverTransition] = useTransition();
 
   const handleDelete = () => {
     startTransition(async () => {
@@ -38,17 +41,46 @@ export function TripSettingsMenu({ tripId, destination }: TripSettingsMenuProps)
     });
   };
 
+  const handleRefreshCover = () => {
+    startCoverTransition(async () => {
+      try {
+        const url = await refreshTripCoverImage(tripId);
+        if (url) {
+          toast.success("Cover image updated");
+          router.refresh();
+        } else {
+          toast.error("Could not fetch a new cover image. Check your Unsplash API key.");
+        }
+      } catch {
+        toast.error("Failed to refresh cover image");
+      }
+    });
+  };
+
   return (
     <>
       <DropdownMenu>
         <DropdownMenuTrigger
           render={
-            <Button variant="outline" size="icon" aria-label="Trip options">
+            <Button
+              variant="outline"
+              size="icon"
+              aria-label="Trip options"
+              className="border-white/20 bg-black/30 text-white hover:bg-black/40 hover:text-white"
+            >
               <MoreHorizontal className="h-4 w-4" />
             </Button>
           }
         />
         <DropdownMenuContent align="end">
+          <DropdownMenuItem onClick={handleRefreshCover} disabled={isRefreshingCover}>
+            {isRefreshingCover ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <ImageIcon className="h-4 w-4" />
+            )}
+            Refresh cover image
+          </DropdownMenuItem>
           <DropdownMenuItem
             variant="destructive"
             onClick={() => setConfirmOpen(true)}

@@ -17,7 +17,6 @@ import {
   generateSmartInsights,
   getReadinessStatus,
   getRecommendedNextSteps,
-  getWeatherSnapshot,
   type AiRecommendation,
   type TimelineMilestone,
 } from "@/lib/design-system";
@@ -75,7 +74,6 @@ export function PackingSidebar({
     weather,
     trip.travel_type
   );
-  const weatherSnap = getWeatherSnapshot(weather);
 
   const travelerRows = [
     ...trip.travelers.map((t) => {
@@ -195,26 +193,6 @@ export function PackingSidebar({
       </section>
 
       <PackingTimeline milestones={timeline} compact />
-
-      {weatherSnap && (
-        <section className="rounded-2xl border bg-card p-4 shadow-travel-sm">
-          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-            Destination weather
-          </p>
-          <div className="mt-3 flex items-baseline gap-2">
-            <span className="text-display text-3xl font-semibold">{weatherSnap.avgHigh}°</span>
-            <span className="text-sm text-muted-foreground">{weatherSnap.conditions}</span>
-          </div>
-          <div className="mt-2 grid grid-cols-2 gap-2 text-xs text-muted-foreground">
-            <span>Lows ~{weatherSnap.avgLow}°</span>
-            <span>Rain chance: {weatherSnap.rainChance}%</span>
-          </div>
-          <p className="mt-3 rounded-lg bg-sky-blue/10 px-3 py-2 text-xs text-foreground/80">
-            <span className="font-medium">Suggested: </span>
-            {weatherSnap.suggestion}
-          </p>
-        </section>
-      )}
     </aside>
   );
 }

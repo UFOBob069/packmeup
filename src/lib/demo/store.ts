@@ -17,6 +17,10 @@ import { DEMO_USER } from "@/lib/constants";
 import { generateTripContent } from "@/lib/ai/packing-generator";
 import { buildTripSpecialNotes } from "@/lib/trip-notes";
 import { fetchWeather } from "@/lib/weather/weather-service";
+import { fetchDestinationCoverUrl } from "@/lib/unsplash/destination-cover";
+
+const DEMO_COVER_FALLBACK =
+  "https://images.unsplash.com/photo-1501785888041-af3ef285b470?w=1200&q=80";
 
 function uuid(): string {
   return crypto.randomUUID();
@@ -88,6 +92,7 @@ function seedDemoData(store: DemoStore) {
     packing_mode: "standard",
     special_notes: "Golf weekend with Jen. Andre (dog) is coming too.",
     weather_data: null,
+    cover_image_url: DEMO_COVER_FALLBACK,
     share_token: "demo-share-token",
     created_at: now,
     updated_at: now,
@@ -207,6 +212,13 @@ export function getDemoTripWithDetails(tripId: string): TripWithDetails | null {
   };
 }
 
+export function updateDemoTripCover(tripId: string, coverImageUrl: string): void {
+  const store = getStore();
+  const trip = store.trips.get(tripId);
+  if (!trip) return;
+  store.trips.set(tripId, { ...trip, cover_image_url: coverImageUrl, updated_at: new Date().toISOString() });
+}
+
 export async function createDemoTrip(
   userId: string,
   data: TripOnboardingData
@@ -215,7 +227,10 @@ export async function createDemoTrip(
   const now = new Date().toISOString();
   const tripId = uuid();
 
-  const weather = await fetchWeather(data.destination, data.start_date, data.end_date);
+  const [weather, coverImageUrl] = await Promise.all([
+    fetchWeather(data.destination, data.start_date, data.end_date),
+    fetchDestinationCoverUrl(data.destination),
+  ]);
 
   const trip: Trip = {
     id: tripId,
@@ -232,6 +247,7 @@ export async function createDemoTrip(
     packing_mode: data.packing_mode,
     special_notes: buildTripSpecialNotes(data) || null,
     weather_data: weather,
+    cover_image_url: coverImageUrl ?? DEMO_COVER_FALLBACK,
     share_token: uuid().replace(/-/g, "").slice(0, 32),
     created_at: now,
     updated_at: now,

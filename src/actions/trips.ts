@@ -14,6 +14,7 @@ import { buildTripSpecialNotes } from "@/lib/trip-notes";
 import { createClient } from "@/lib/supabase/server";
 import { generateTripContent } from "@/lib/ai/packing-generator";
 import { fetchWeather } from "@/lib/weather/weather-service";
+import { fetchDestinationCoverUrl } from "@/lib/unsplash/destination-cover";
 import type { Trip, TripOnboardingData, TripTemplateData, TripWithDetails } from "@/lib/types";
 
 export async function getCurrentUser() {
@@ -109,7 +110,10 @@ export async function createTrip(data: TripOnboardingData): Promise<TripWithDeta
   }
 
   const supabase = await createClient();
-  const weather = await fetchWeather(data.destination, data.start_date, data.end_date);
+  const [weather, coverImageUrl] = await Promise.all([
+    fetchWeather(data.destination, data.start_date, data.end_date),
+    fetchDestinationCoverUrl(data.destination),
+  ]);
 
   const { data: trip, error } = await supabase
     .from("trips")
@@ -127,6 +131,7 @@ export async function createTrip(data: TripOnboardingData): Promise<TripWithDeta
       packing_mode: data.packing_mode,
       special_notes: buildTripSpecialNotes(data) || null,
       weather_data: weather,
+      cover_image_url: coverImageUrl,
     })
     .select()
     .single();

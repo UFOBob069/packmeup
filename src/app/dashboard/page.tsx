@@ -3,7 +3,6 @@ import { Plus, Sparkles } from "lucide-react";
 import { AppShell } from "@/components/layout/header";
 import { TripCard } from "@/components/trip/trip-card";
 import { CountdownWidget } from "@/components/design/countdown-widget";
-import { WeatherPreview } from "@/components/design/weather-card";
 import { AiSuggestionList } from "@/components/design/ai-suggestion-card";
 import { TravelerAvatar } from "@/components/design/traveler-avatar";
 import { EmptyTrips } from "@/components/design/empty-state";
@@ -95,13 +94,14 @@ export default async function DashboardPage() {
                 <div className="grid gap-4 sm:grid-cols-2">
                   {tripDetails
                     .filter(({ trip }) => trip.end_date >= now)
-                    .map(({ trip, travelers, items, activities }, i) => (
+                    .map(({ trip, travelers, items, activities, weather }, i) => (
                       <TripCard
                         key={trip.id}
                         trip={trip}
                         travelers={travelers}
                         packingItems={items}
                         activities={activities}
+                        weather={weather}
                         featured={i === 0}
                       />
                     ))}
@@ -117,13 +117,14 @@ export default async function DashboardPage() {
                 <div className="grid gap-4 sm:grid-cols-2">
                   {tripDetails
                     .filter(({ trip }) => trip.end_date < now)
-                    .map(({ trip, travelers, items, activities }) => (
+                    .map(({ trip, travelers, items, activities, weather }) => (
                       <TripCard
                         key={trip.id}
                         trip={trip}
                         travelers={travelers}
                         packingItems={items}
                         activities={activities}
+                        weather={weather}
                       />
                     ))}
                 </div>
@@ -132,13 +133,6 @@ export default async function DashboardPage() {
           </div>
 
           <div className="space-y-6">
-            {featured?.weather && featured.weather.daily?.length > 0 && (
-              <WeatherPreview
-                location={featured.weather.location ?? featured.trip.destination}
-                days={featured.weather.daily}
-              />
-            )}
-
             {featured && featured.travelers.length > 0 && (
               <div className="rounded-2xl border bg-card p-5 shadow-travel-sm">
                 <p className="mb-4 text-xs font-medium uppercase tracking-wider text-muted-foreground">

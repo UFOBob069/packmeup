@@ -238,8 +238,16 @@ export function PackingChecklist({
                       {!readOnly && (
                         <button
                           type="button"
-                          onClick={() => handleRemove(item.id)}
-                          className="shrink-0 rounded-lg p-1.5 text-muted-foreground opacity-0 transition-opacity hover:bg-destructive/10 hover:text-destructive group-hover:opacity-100"
+                          onClick={() => {
+                            if (
+                              window.confirm(
+                                `Remove "${item.item_name}" from your packing list?`
+                              )
+                            ) {
+                              handleRemove(item.id);
+                            }
+                          }}
+                          className="shrink-0 rounded-lg p-2 text-muted-foreground/70 transition-colors hover:bg-destructive/10 hover:text-destructive sm:p-1.5 sm:opacity-0 sm:group-hover:opacity-100"
                           aria-label={`Remove ${item.item_name}`}
                         >
                           <Trash2 className="h-4 w-4" />
