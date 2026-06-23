@@ -360,6 +360,106 @@ export function updateDemoCalendarDayNotes(dayId: string, notes: string): void {
   store.calendar_days.set(dayId, { ...day, notes: notes.trim() || null });
 }
 
+export function upsertDemoCalendarDay(
+  tripId: string,
+  tripDate: string,
+  updates: { title?: string; notes?: string }
+): CalendarDay {
+  const store = getStore();
+  const existing = Array.from(store.calendar_days.values()).find(
+    (d) => d.trip_id === tripId && d.trip_date === tripDate
+  );
+  const now = new Date().toISOString();
+
+  if (existing) {
+    const day: CalendarDay = {
+      ...existing,
+      title: updates.title ?? existing.title,
+      notes:
+        updates.notes !== undefined ? updates.notes.trim() || null : (existing.notes ?? null),
+    };
+    store.calendar_days.set(existing.id, day);
+    return day;
+  }
+
+  const id = uuid();
+  const day: CalendarDay = {
+    id,
+    trip_id: tripId,
+    trip_date: tripDate,
+    title: updates.title ?? "On the trip",
+    activities: [],
+    weather_summary: null,
+    notes: updates.notes?.trim() || null,
+    created_at: now,
+  };
+  store.calendar_days.set(id, day);
+  return day;
+}
+
+export function updateDemoCalendarDayTitle(dayId: string, title: string): CalendarDay | null {
+  const store = getStore();
+  const day = store.calendar_days.get(dayId);
+  if (!day) return null;
+  const updated = { ...day, title: title.trim() || day.title };
+  store.calendar_days.set(dayId, updated);
+  return updated;
+}
+
+export function createDemoOutfit(
+  tripId: string,
+  input: {
+    trip_date: string;
+    time_of_day?: Outfit["time_of_day"];
+    title?: string;
+    description?: string;
+    activity_name?: string | null;
+    items?: string[];
+  }
+): Outfit {
+  const store = getStore();
+  const now = new Date().toISOString();
+  const id = uuid();
+  const outfit: Outfit = {
+    id,
+    trip_id: tripId,
+    trip_date: input.trip_date,
+    time_of_day: input.time_of_day ?? "all_day",
+    title: input.title?.trim() || "New event",
+    description: input.description?.trim() || "",
+    activity_name: input.activity_name ?? null,
+    items: input.items ?? [],
+    created_at: now,
+  };
+  store.outfits.set(id, outfit);
+  return outfit;
+}
+
+export function updateDemoOutfit(
+  outfitId: string,
+  updates: Partial<
+    Pick<Outfit, "title" | "description" | "time_of_day" | "activity_name" | "items" | "trip_date">
+  >
+): Outfit | null {
+  const store = getStore();
+  const outfit = store.outfits.get(outfitId);
+  if (!outfit) return null;
+  const updated: Outfit = {
+    ...outfit,
+    ...updates,
+    title: updates.title !== undefined ? updates.title.trim() || outfit.title : outfit.title,
+    description:
+      updates.description !== undefined ? updates.description.trim() : outfit.description,
+    items: updates.items !== undefined ? updates.items : outfit.items,
+  };
+  store.outfits.set(outfitId, updated);
+  return updated;
+}
+
+export function deleteDemoOutfit(outfitId: string): void {
+  getStore().outfits.delete(outfitId);
+}
+
 export function addDemoPackingItem(
   tripId: string,
   itemName: string,

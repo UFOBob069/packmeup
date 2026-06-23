@@ -6,15 +6,20 @@ import {
   addDemoChatMessage,
   addDemoPackingItem,
   applyDemoItemUpdates,
+  createDemoOutfit,
+  deleteDemoOutfit,
   getDemoChatMessages,
   removeDemoPackingItem,
   toggleDemoItemPacked,
-  updateDemoItemNotes,
   updateDemoCalendarDayNotes,
+  updateDemoCalendarDayTitle,
+  updateDemoItemNotes,
+  updateDemoOutfit,
+  upsertDemoCalendarDay,
 } from "@/lib/demo/store";
 import { refineWithChat } from "@/lib/ai/chat-refinement";
 import { createClient } from "@/lib/supabase/server";
-import type { PackingCategory } from "@/lib/types";
+import type { Outfit, PackingCategory } from "@/lib/types";
 import { getCurrentUser, getTripDetails } from "./trips";
 
 export type { PackingItemSuggestion } from "@/lib/ai/chat-refinement";
@@ -56,19 +61,175 @@ export async function updateItemNotes(tripId: string, itemId: string, notes: str
 export async function updateCalendarDayNotes(
   tripId: string,
   dayId: string,
-  notes: string
+  notes: string,
+  tripDate?: string
 ) {
   if (isDemoMode()) {
-    updateDemoCalendarDayNotes(dayId, notes);
+    if (dayId && !/^\d{4}-\d{2}-\d{2}$/.test(dayId)) {
+      updateDemoCalendarDayNotes(dayId, notes);
+    } else if (tripDate) {
+      upsertDemoCalendarDay(tripId, tripDate, { notes });
+    }
+    revalidatePath(`/trips/${tripId}`);
+    return;
+  }
+
+  const supabase = await createClient();
+  const trimmed = notes.trim() || null;
+
+  if (dayId && !/^\d{4}-\d{2}-\d{2}$/.test(dayId)) {
+    const { error } = await supabase
+      .from("calendar_days")
+      .update({ notes: trimmed })
+      .eq("id", dayId)
+      .eq("trip_id", tripId);
+    if (error) throw new Error(error.message);
+  } else if (tripDate) {
+    const { data: existing } = await supabase
+      .from("calendar_days")
+      .select("id, title")
+      .eq("trip_id", tripId)
+      .eq("trip_date", tripDate)
+      .maybeSingle();
+
+    if (existing) {
+      const { error } = await supabase
+        .from("calendar_days")
+        .update({ notes: trimmed })
+        .eq("id", existing.id);
+      if (error) throw new Error(error.message);
+    } else {
+      const { error } = await supabase.from("calendar_days").insert({
+        trip_id: tripId,
+        trip_date: tripDate,
+        title: "On the trip",
+        activities: [],
+        notes: trimmed,
+      });
+      if (error) throw new Error(error.message);
+    }
+  }
+
+  revalidatePath(`/trips/${tripId}`);
+}
+
+export async function saveCalendarDayTitle(
+  tripId: string,
+  tripDate: string,
+  title: string,
+  dayId?: string
+) {
+  const trimmed = title.trim();
+  if (!trimmed) throw new Error("Day title is required");
+
+  if (isDemoMode()) {
+    if (dayId && !/^\d{4}-\d{2}-\d{2}$/.test(dayId)) {
+      updateDemoCalendarDayTitle(dayId, trimmed);
+    } else {
+      upsertDemoCalendarDay(tripId, tripDate, { title: trimmed });
+    }
+    revalidatePath(`/trips/${tripId}`);
+    return;
+  }
+
+  const supabase = await createClient();
+
+  if (dayId && !/^\d{4}-\d{2}-\d{2}$/.test(dayId)) {
+    const { error } = await supabase
+      .from("calendar_days")
+      .update({ title: trimmed })
+      .eq("id", dayId)
+      .eq("trip_id", tripId);
+    if (error) throw new Error(error.message);
+  } else {
+    const { error } = await supabase.from("calendar_days").upsert(
+      {
+        trip_id: tripId,
+        trip_date: tripDate,
+        title: trimmed,
+        activities: [],
+      },
+      { onConflict: "trip_id,trip_date" }
+    );
+    if (error) throw new Error(error.message);
+  }
+
+  revalidatePath(`/trips/${tripId}`);
+}
+
+export async function createOutfit(
+  tripId: string,
+  input: {
+    trip_date: string;
+    time_of_day?: Outfit["time_of_day"];
+    title?: string;
+    description?: string;
+    activity_name?: string | null;
+    items?: string[];
+  }
+) {
+  if (isDemoMode()) {
+    createDemoOutfit(tripId, input);
+    revalidatePath(`/trips/${tripId}`);
+    return;
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase.from("outfits").insert({
+    trip_id: tripId,
+    trip_date: input.trip_date,
+    time_of_day: input.time_of_day ?? "all_day",
+    title: input.title?.trim() || "New event",
+    description: input.description?.trim() || "",
+    activity_name: input.activity_name ?? null,
+    items: input.items ?? [],
+  });
+  if (error) throw new Error(error.message);
+  revalidatePath(`/trips/${tripId}`);
+}
+
+export async function updateOutfit(
+  tripId: string,
+  outfitId: string,
+  updates: Partial<
+    Pick<Outfit, "title" | "description" | "time_of_day" | "activity_name" | "items">
+  >
+) {
+  if (isDemoMode()) {
+    updateDemoOutfit(outfitId, updates);
+    revalidatePath(`/trips/${tripId}`);
+    return;
+  }
+
+  const payload: Record<string, unknown> = {};
+  if (updates.title !== undefined) payload.title = updates.title.trim() || "Event";
+  if (updates.description !== undefined) payload.description = updates.description.trim();
+  if (updates.time_of_day !== undefined) payload.time_of_day = updates.time_of_day;
+  if (updates.activity_name !== undefined) payload.activity_name = updates.activity_name;
+  if (updates.items !== undefined) payload.items = updates.items;
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("outfits")
+    .update(payload)
+    .eq("id", outfitId)
+    .eq("trip_id", tripId);
+  if (error) throw new Error(error.message);
+  revalidatePath(`/trips/${tripId}`);
+}
+
+export async function deleteOutfit(tripId: string, outfitId: string) {
+  if (isDemoMode()) {
+    deleteDemoOutfit(outfitId);
     revalidatePath(`/trips/${tripId}`);
     return;
   }
 
   const supabase = await createClient();
   const { error } = await supabase
-    .from("calendar_days")
-    .update({ notes: notes.trim() || null })
-    .eq("id", dayId)
+    .from("outfits")
+    .delete()
+    .eq("id", outfitId)
     .eq("trip_id", tripId);
   if (error) throw new Error(error.message);
   revalidatePath(`/trips/${tripId}`);

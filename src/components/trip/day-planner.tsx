@@ -9,18 +9,36 @@ import {
   MapPin,
   Moon,
   Plane,
+  Plus,
   StickyNote,
   Sun,
   CloudSun,
+  Trash2,
 } from "lucide-react";
 import { ActivityTag } from "@/components/design/activity-tag";
 import { WeatherPreview } from "@/components/design/weather-card";
 import { Textarea } from "@/components/ui/textarea";
-import { updateCalendarDayNotes } from "@/actions/packing";
-import type { CalendarDay, Outfit, WeatherData } from "@/lib/types";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import {
+  createOutfit,
+  deleteOutfit,
+  saveCalendarDayTitle,
+  updateCalendarDayNotes,
+  updateOutfit,
+} from "@/actions/packing";
+import { OutfitItemsPicker } from "@/components/trip/outfit-items-picker";
+import type { CalendarDay, GearItem, Outfit, WeatherData } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 const TIME_ORDER: Outfit["time_of_day"][] = ["morning", "afternoon", "evening", "all_day"];
+
+const TIME_LABELS: Record<Outfit["time_of_day"], string> = {
+  morning: "Morning",
+  afternoon: "Afternoon",
+  evening: "Evening",
+  all_day: "All day",
+};
 
 const timeIcons = {
   morning: Sun,
@@ -37,7 +55,8 @@ interface DayPlannerProps {
   days: CalendarDay[];
   outfits: Outfit[];
   weather: WeatherData | null;
-  notesEditable?: boolean;
+  gearItems: GearItem[];
+  editable?: boolean;
 }
 
 function buildPlanningDays(
@@ -119,60 +138,246 @@ function DayWeatherBadge({
   return null;
 }
 
-function OutfitBlock({ outfit }: { outfit: Outfit }) {
+function DayTitle({
+  tripId,
+  day,
+  editable,
+}: {
+  tripId: string;
+  day: CalendarDay;
+  editable: boolean;
+}) {
+  const router = useRouter();
+  const [title, setTitle] = useState(day.title);
+  const [, startTransition] = useTransition();
+
+  const save = () => {
+    const trimmed = title.trim();
+    if (!trimmed || trimmed === day.title) return;
+    startTransition(async () => {
+      await saveCalendarDayTitle(
+        tripId,
+        day.trip_date,
+        trimmed,
+        isPersistedCalendarDay(day) ? day.id : undefined
+      );
+      router.refresh();
+    });
+  };
+
+  if (!editable) {
+    return <h3 className="text-display text-lg font-semibold">{day.title}</h3>;
+  }
+
+  return (
+    <Input
+      value={title}
+      onChange={(e) => setTitle(e.target.value)}
+      onBlur={save}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") {
+          e.currentTarget.blur();
+        }
+      }}
+      className="text-display h-auto border-transparent bg-transparent px-0 text-lg font-semibold shadow-none focus-visible:border-border focus-visible:bg-background focus-visible:px-3"
+      aria-label="Day title"
+    />
+  );
+}
+
+function OutfitBlock({
+  tripId,
+  outfit,
+  gearItems,
+  editable,
+  tripActivities,
+}: {
+  tripId: string;
+  outfit: Outfit;
+  gearItems: GearItem[];
+  editable: boolean;
+  tripActivities: string[];
+}) {
+  const router = useRouter();
+  const [title, setTitle] = useState(outfit.title);
+  const [description, setDescription] = useState(outfit.description);
+  const [activityName, setActivityName] = useState(outfit.activity_name ?? "");
+  const [timeOfDay, setTimeOfDay] = useState(outfit.time_of_day);
+  const [, startTransition] = useTransition();
+
   const TimeIcon = timeIcons[outfit.time_of_day] ?? CloudSun;
-  const items = outfit.items as string[];
+  const filterHint = outfit.activity_name ?? outfit.title;
+
+  const saveField = (updates: Parameters<typeof updateOutfit>[2]) => {
+    startTransition(async () => {
+      await updateOutfit(tripId, outfit.id, updates);
+      router.refresh();
+    });
+  };
+
+  const handleDelete = () => {
+    startTransition(async () => {
+      await deleteOutfit(tripId, outfit.id);
+      router.refresh();
+    });
+  };
+
+  if (!editable) {
+    const items = outfit.items as string[];
+    return (
+      <div className="rounded-xl border bg-background/80 p-4">
+        <div className="mb-2 flex flex-wrap items-start justify-between gap-2">
+          <div>
+            <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+              <TimeIcon className="h-3.5 w-3.5" />
+              {outfit.time_of_day.replace("_", " ")}
+            </div>
+            <p className="text-display mt-0.5 font-semibold">{outfit.title}</p>
+          </div>
+          {outfit.activity_name && <ActivityTag name={outfit.activity_name} />}
+        </div>
+        {outfit.description && (
+          <p className="mb-3 text-sm text-muted-foreground">{outfit.description}</p>
+        )}
+        {items.length > 0 && (
+          <div className="flex flex-wrap gap-2">
+            {items.map((item, i) => (
+              <span
+                key={i}
+                className="rounded-full border bg-muted/40 px-2.5 py-1 text-xs font-medium"
+              >
+                {item}
+              </span>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className="rounded-xl border bg-background/80 p-4">
-      <div className="mb-2 flex flex-wrap items-start justify-between gap-2">
-        <div>
-          <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
-            <TimeIcon className="h-3.5 w-3.5" />
-            {outfit.time_of_day.replace("_", " ")}
-          </div>
-          <p className="text-display mt-0.5 font-semibold">{outfit.title}</p>
-        </div>
-        {outfit.activity_name && <ActivityTag name={outfit.activity_name} />}
-      </div>
-      {outfit.description && (
-        <p className="mb-3 text-sm text-muted-foreground">{outfit.description}</p>
-      )}
-      {items.length > 0 && (
-        <div className="flex flex-wrap gap-2">
-          {items.map((item, i) => (
-            <span
-              key={i}
-              className="rounded-full border bg-muted/40 px-2.5 py-1 text-xs font-medium"
+      <div className="mb-3 flex flex-wrap items-start justify-between gap-2">
+        <div className="min-w-0 flex-1 space-y-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <TimeIcon className="h-3.5 w-3.5 text-muted-foreground" />
+            <select
+              value={timeOfDay}
+              onChange={(e) => {
+                const value = e.target.value as Outfit["time_of_day"];
+                setTimeOfDay(value);
+                saveField({ time_of_day: value });
+              }}
+              className="h-7 cursor-pointer rounded-lg border border-muted-foreground/20 bg-background px-2 text-xs font-medium uppercase tracking-wider"
             >
-              {item}
-            </span>
-          ))}
+              {TIME_ORDER.map((t) => (
+                <option key={t} value={t}>
+                  {TIME_LABELS[t]}
+                </option>
+              ))}
+            </select>
+          </div>
+          <Input
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            onBlur={() => {
+              if (title.trim() && title !== outfit.title) {
+                saveField({ title });
+              }
+            }}
+            placeholder="Event name"
+            className="text-display h-8 font-semibold"
+          />
         </div>
-      )}
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon-sm"
+          onClick={handleDelete}
+          className="shrink-0 cursor-pointer text-muted-foreground hover:text-destructive"
+          aria-label="Delete event"
+        >
+          <Trash2 className="h-4 w-4" />
+        </Button>
+      </div>
+
+      <Textarea
+        value={description}
+        onChange={(e) => setDescription(e.target.value)}
+        onBlur={() => {
+          if (description !== outfit.description) {
+            saveField({ description });
+          }
+        }}
+        placeholder="What are you doing? e.g. Golf shirt and shorts for a day on the course."
+        rows={2}
+        className="mb-3 resize-none text-sm"
+      />
+
+      <div className="mb-3">
+        <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+          Activity tag
+        </label>
+        <Input
+          value={activityName}
+          onChange={(e) => setActivityName(e.target.value)}
+          onBlur={() => {
+            const next = activityName.trim() || null;
+            if (next !== outfit.activity_name) {
+              saveField({ activity_name: next });
+            }
+          }}
+          placeholder="e.g. Golf"
+          list={tripActivities.length > 0 ? `activities-${outfit.id}` : undefined}
+          className="h-8 text-sm"
+        />
+        {tripActivities.length > 0 && (
+          <datalist id={`activities-${outfit.id}`}>
+            {tripActivities.map((a) => (
+              <option key={a} value={a} />
+            ))}
+          </datalist>
+        )}
+      </div>
+
+      <div>
+        <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+          What to wear / bring
+        </p>
+        <OutfitItemsPicker
+          tripId={tripId}
+          outfitId={outfit.id}
+          items={outfit.items as string[]}
+          gearItems={gearItems}
+          filterHint={filterHint}
+        />
+      </div>
     </div>
   );
 }
 
 function DayNotes({
   tripId,
-  dayId,
-  initialNotes,
+  day,
   canSave,
 }: {
   tripId: string;
-  dayId: string;
-  initialNotes: string;
+  day: CalendarDay;
   canSave: boolean;
 }) {
   const router = useRouter();
-  const [notes, setNotes] = useState(initialNotes);
+  const [notes, setNotes] = useState(day.notes ?? "");
   const [, startTransition] = useTransition();
 
   const save = () => {
-    if (!canSave || notes === initialNotes) return;
+    if (!canSave || notes === (day.notes ?? "")) return;
     startTransition(async () => {
-      await updateCalendarDayNotes(tripId, dayId, notes);
+      await updateCalendarDayNotes(
+        tripId,
+        day.id,
+        notes,
+        isPersistedCalendarDay(day) ? undefined : day.trip_date
+      );
       router.refresh();
     });
   };
@@ -196,6 +401,45 @@ function DayNotes({
   );
 }
 
+function AddEventButton({
+  tripId,
+  tripDate,
+  defaultActivity,
+}: {
+  tripId: string;
+  tripDate: string;
+  defaultActivity?: string | null;
+}) {
+  const router = useRouter();
+  const [, startTransition] = useTransition();
+
+  const handleAdd = () => {
+    startTransition(async () => {
+      await createOutfit(tripId, {
+        trip_date: tripDate,
+        time_of_day: "all_day",
+        title: defaultActivity ? `${defaultActivity} event` : "New event",
+        activity_name: defaultActivity ?? null,
+        items: [],
+      });
+      router.refresh();
+    });
+  };
+
+  return (
+    <Button
+      type="button"
+      variant="outline"
+      size="sm"
+      onClick={handleAdd}
+      className="mt-3 cursor-pointer rounded-full"
+    >
+      <Plus className="mr-1.5 h-3.5 w-3.5" />
+      Add event
+    </Button>
+  );
+}
+
 export function DayPlanner({
   tripId,
   startDate,
@@ -204,7 +448,8 @@ export function DayPlanner({
   days,
   outfits,
   weather,
-  notesEditable = false,
+  gearItems,
+  editable = true,
 }: DayPlannerProps) {
   const planningDays = useMemo(
     () => buildPlanningDays(days, startDate, endDate),
@@ -223,6 +468,15 @@ export function DayPlanner({
     return map;
   }, [outfits]);
 
+  const tripActivities = useMemo(() => {
+    const set = new Set<string>();
+    planningDays.forEach((d) => (d.activities as string[]).forEach((a) => set.add(a)));
+    outfits.forEach((o) => {
+      if (o.activity_name) set.add(o.activity_name);
+    });
+    return Array.from(set);
+  }, [planningDays, outfits]);
+
   if (planningDays.length === 0) {
     return (
       <p className="py-12 text-center text-sm text-muted-foreground">
@@ -236,8 +490,8 @@ export function DayPlanner({
       <div className="rounded-2xl border bg-muted/20 p-5">
         <p className="text-display text-lg font-semibold">What you&apos;re doing each day</p>
         <p className="mt-1 text-sm text-muted-foreground">
-          Weather, activities, outfits, and notes for {destination.split(",")[0]} — your checklist
-          tracks what&apos;s packed; this is how you&apos;ll use it day by day.
+          Edit day names, add events, and pick gear for each day. Your checklist tracks
+          what&apos;s packed — this is how you&apos;ll use it day by day.
         </p>
       </div>
 
@@ -255,6 +509,8 @@ export function DayPlanner({
             const DayIcon = isFirst ? Plane : isLast ? Home : MapPin;
             const dayOutfits = outfitsByDate[day.trip_date] ?? [];
             const eventLabel = isFirst ? "Arrival" : isLast ? "Departure" : null;
+            const dayActivities = day.activities as string[];
+            const defaultActivity = dayActivities[0] ?? null;
 
             return (
               <article key={day.id} className="relative sm:pl-14">
@@ -296,7 +552,7 @@ export function DayPlanner({
                     </div>
 
                     <div className="min-w-0 flex-1 p-5">
-                      <h3 className="text-display text-lg font-semibold">{day.title}</h3>
+                      <DayTitle tripId={tripId} day={day} editable={editable} />
 
                       <div className="mt-3">
                         <DayWeatherBadge
@@ -306,35 +562,47 @@ export function DayPlanner({
                         />
                       </div>
 
-                      {(day.activities as string[]).length > 0 && (
+                      {dayActivities.length > 0 && (
                         <div className="mt-3 flex flex-wrap gap-1.5">
-                          {(day.activities as string[]).map((activity) => (
+                          {dayActivities.map((activity) => (
                             <ActivityTag key={activity} name={activity} />
                           ))}
                         </div>
                       )}
 
-                      {dayOutfits.length > 0 ? (
-                        <div className="mt-4 space-y-3">
-                          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                            What to wear
-                          </p>
-                          {dayOutfits.map((outfit) => (
-                            <OutfitBlock key={outfit.id} outfit={outfit} />
-                          ))}
-                        </div>
-                      ) : (
-                        <p className="mt-4 text-sm text-muted-foreground">
-                          No outfit suggestions for this day yet — check your checklist for
-                          activity gear.
+                      <div className="mt-4 space-y-3">
+                        <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                          Events & outfits
                         </p>
-                      )}
+                        {dayOutfits.length > 0 ? (
+                          dayOutfits.map((outfit) => (
+                            <OutfitBlock
+                              key={outfit.id}
+                              tripId={tripId}
+                              outfit={outfit}
+                              gearItems={gearItems}
+                              editable={editable}
+                              tripActivities={tripActivities}
+                            />
+                          ))
+                        ) : (
+                          <p className="text-sm text-muted-foreground">
+                            No events yet — add one to plan what to wear or bring.
+                          </p>
+                        )}
+                        {editable && (
+                          <AddEventButton
+                            tripId={tripId}
+                            tripDate={day.trip_date}
+                            defaultActivity={defaultActivity}
+                          />
+                        )}
+                      </div>
 
                       <DayNotes
                         tripId={tripId}
-                        dayId={day.id}
-                        initialNotes={day.notes ?? ""}
-                        canSave={notesEditable && isPersistedCalendarDay(day)}
+                        day={day}
+                        canSave={editable}
                       />
                     </div>
                   </div>

@@ -163,7 +163,7 @@ export function TripDetailClient({ trip, chatMessages, gearItems }: TripDetailCl
             days={trip.calendar_days}
             outfits={trip.outfits}
             weather={weather}
-            notesEditable={trip.calendar_days.length > 0}
+            gearItems={gearItems}
           />
         </TabsContent>
 
