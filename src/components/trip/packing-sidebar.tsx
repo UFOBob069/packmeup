@@ -11,7 +11,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { ProgressRing } from "@/components/design/progress-ring";
 import { PackingTimeline } from "./packing-timeline";
-import type { PackingProgress, TripWithDetails, WeatherData } from "@/lib/types";
+import type { GearItem, PackingProgress, TripWithDetails, WeatherData } from "@/lib/types";
 import {
   generatePackingCoachAlerts,
   generateSmartInsights,
@@ -20,6 +20,7 @@ import {
   type AiRecommendation,
   type TimelineMilestone,
 } from "@/lib/design-system";
+import { TripReadinessPanel } from "@/components/trip/trip-readiness-panel";
 import { cn } from "@/lib/utils";
 
 interface PackingSidebarProps {
@@ -27,6 +28,7 @@ interface PackingSidebarProps {
   progress: PackingProgress;
   daysUntil: number;
   timeline: TimelineMilestone[];
+  gearItems: GearItem[];
   onOptimize: () => void;
   className?: string;
 }
@@ -52,6 +54,7 @@ export function PackingSidebar({
   progress,
   daysUntil,
   timeline,
+  gearItems,
   onOptimize,
   className,
 }: PackingSidebarProps) {
@@ -132,6 +135,8 @@ export function PackingSidebar({
           </div>
         )}
       </section>
+
+      <TripReadinessPanel trip={trip} gearItems={gearItems} />
 
       <section className="rounded-2xl border bg-gradient-to-br from-primary/5 to-sky-blue/5 p-5 shadow-travel-sm">
         <div className="mb-3 flex items-center gap-2">

@@ -198,3 +198,19 @@
     animation: float 4s ease-in-out infinite;
   }
 }
+
+@media print {
+  .no-print {
+    display: none !important;
+  }
+
+  body {
+    background: white !important;
+    color: black !important;
+  }
+
+  .print-document {
+    max-width: none !important;
+    padding: 0 !important;
+  }
+}

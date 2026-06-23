@@ -13,6 +13,7 @@ import type { ChatMessage } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 const SUGGESTIONS = [
+  "Am I missing anything?",
   "Add my dog's supplies",
   "Make this fit in a carry-on",
   "Add a golf day",

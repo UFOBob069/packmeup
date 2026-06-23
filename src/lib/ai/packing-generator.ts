@@ -351,7 +351,7 @@ Rules:
         title: o.title,
         description: o.description,
         activity_name: o.activity_name,
-        items: o.items ?? [],
+        items: (o.items ?? []).map((name: string) => ({ name })),
       })
     ),
     calendar_days: (parsed.calendar_days ?? []).map(
@@ -583,7 +583,9 @@ function generateFallbackContent(
           title: "Golf Outfit",
           description: "Comfortable course-ready look",
           activity_name: "Golf",
-          items: ["Blue Polo", "Khaki Shorts", "White Hat", "Golf Shoes"],
+          items: ["Blue Polo", "Khaki Shorts", "White Hat", "Golf Shoes"].map((name) => ({
+            name,
+          })),
         });
         outfits.push({
           trip_date: dateStr,
@@ -591,7 +593,7 @@ function generateFallbackContent(
           title: "Dinner Outfit",
           description: "Smart casual for evening",
           activity_name: "Nice Dinners",
-          items: ["Black Polo", "Chinos", "Loafers"],
+          items: ["Black Polo", "Chinos", "Loafers"].map((name) => ({ name })),
         });
       } else {
         outfits.push({
@@ -600,7 +602,9 @@ function generateFallbackContent(
           title: `${activity} Outfit`,
           description: `Comfortable outfit for ${activity.toLowerCase()}`,
           activity_name: activity,
-          items: ["Casual Top", "Comfortable Shorts", "Walking Shoes"],
+          items: ["Casual Top", "Comfortable Shorts", "Walking Shoes"].map((name) => ({
+            name,
+          })),
         });
       }
     }

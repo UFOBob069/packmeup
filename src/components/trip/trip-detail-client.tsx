@@ -59,6 +59,7 @@ export function TripDetailClient({ trip, chatMessages, gearItems }: TripDetailCl
     progress,
     daysUntil,
     timeline,
+    gearItems,
     onOptimize: () => setActiveTab("concierge"),
   };
 

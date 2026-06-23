@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Backpack, Plus, X } from "lucide-react";
 import { getOrCreateGearItem } from "@/actions/gear";
-import { updateOutfit } from "@/actions/packing";
+import { syncGearToChecklist, updateOutfit } from "@/actions/packing";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { gearPillClassName } from "@/lib/gear/infer-color";
@@ -14,8 +14,14 @@ import {
   inferSubcategory,
   subcategoryLabel,
 } from "@/lib/gear/subcategory";
-import type { GearItem, PackingCategory } from "@/lib/types";
+import {
+  normalizeOutfitItems,
+  outfitItemKey,
+  serializeOutfitItems,
+} from "@/lib/outfit-items";
+import type { GearItem, OutfitItem, PackingCategory } from "@/lib/types";
 import { CATEGORY_LABELS } from "@/lib/types";
+import { CATEGORY_ITEM_PLACEHOLDERS } from "@/lib/gear/category-placeholders";
 import { cn } from "@/lib/utils";
 
 const OUTFIT_CATEGORIES: PackingCategory[] = [
@@ -28,80 +34,100 @@ const OUTFIT_CATEGORIES: PackingCategory[] = [
 interface OutfitItemsPickerProps {
   tripId: string;
   outfitId: string;
-  items: string[];
+  items: OutfitItem[] | unknown;
   gearItems: GearItem[];
   filterHint?: string;
+  activityName?: string | null;
   disabled?: boolean;
 }
 
 export function OutfitItemsPicker({
   tripId,
   outfitId,
-  items,
+  items: rawItems,
   gearItems,
   filterHint,
+  activityName,
   disabled,
 }: OutfitItemsPickerProps) {
   const router = useRouter();
+  const items = useMemo(() => normalizeOutfitItems(rawItems), [rawItems]);
   const [draft, setDraft] = useState("");
   const [category, setCategory] = useState<PackingCategory>("clothing");
   const [isPending, startTransition] = useTransition();
 
-  const gearByName = useMemo(() => {
-    const map = new Map<string, GearItem>();
-    gearItems.forEach((g) => map.set(g.item_name.toLowerCase(), g));
-    return map;
-  }, [gearItems]);
+  const gearById = useMemo(
+    () => Object.fromEntries(gearItems.map((g) => [g.id, g])),
+    [gearItems]
+  );
 
   const filterSubcategory = useMemo(
     () => (filterHint ? inferSubcategory(filterHint, "clothing") : null),
     [filterHint]
   );
 
+  const usedKeys = useMemo(() => new Set(items.map(outfitItemKey)), [items]);
+
   const matchingGear = useMemo(() => {
-    const used = new Set(items.map((i) => i.toLowerCase()));
     return gearItems.filter((g) => {
       if (!OUTFIT_CATEGORIES.includes(g.category)) return false;
-      if (used.has(g.item_name.toLowerCase())) return false;
+      if (usedKeys.has(g.id) || usedKeys.has(g.item_name.toLowerCase())) return false;
       if (filterHint && g.category === "clothing") {
         return gearMatchesParentLine(g, filterHint, "clothing");
       }
       return true;
     });
-  }, [gearItems, items, filterHint]);
+  }, [gearItems, usedKeys, filterHint]);
 
-  const saveItems = (next: string[]) => {
+  const saveItems = (next: OutfitItem[], syncGear?: GearItem) => {
     startTransition(async () => {
-      await updateOutfit(tripId, outfitId, { items: next });
+      await updateOutfit(tripId, outfitId, { items: serializeOutfitItems(next) });
+      if (syncGear) {
+        await syncGearToChecklist(tripId, syncGear, { activity_name: activityName });
+      }
       router.refresh();
     });
   };
 
   const addFromGear = (gear: GearItem) => {
-    if (items.some((i) => i.toLowerCase() === gear.item_name.toLowerCase())) return;
-    saveItems([...items, gear.item_name]);
+    if (usedKeys.has(gear.id) || usedKeys.has(gear.item_name.toLowerCase())) return;
+    const next: OutfitItem = {
+      name: gear.item_name,
+      gear_item_id: gear.id,
+      category: gear.category,
+    };
+    saveItems([...items, next], gear);
   };
 
   const addGeneric = (name: string) => {
     const trimmed = name.trim();
     if (!trimmed) return;
-    if (items.some((i) => i.toLowerCase() === trimmed.toLowerCase())) return;
-    saveItems([...items, trimmed]);
+    if (usedKeys.has(trimmed.toLowerCase())) return;
+    const next: OutfitItem = { name: trimmed, category, day_only: true };
+    saveItems([...items, next]);
     setDraft("");
   };
 
   const addNewToGear = (name: string) => {
     const trimmed = name.trim();
     if (!trimmed) return;
-    if (items.some((i) => i.toLowerCase() === trimmed.toLowerCase())) return;
+    if (usedKeys.has(trimmed.toLowerCase())) return;
 
     startTransition(async () => {
-      await getOrCreateGearItem({
+      const gearItem = await getOrCreateGearItem({
         item_name: trimmed,
         category,
         parent_item_name: filterHint,
       });
-      await updateOutfit(tripId, outfitId, { items: [...items, trimmed] });
+      const next: OutfitItem = {
+        name: gearItem.item_name,
+        gear_item_id: gearItem.id,
+        category: gearItem.category,
+      };
+      await updateOutfit(tripId, outfitId, {
+        items: serializeOutfitItems([...items, next]),
+      });
+      await syncGearToChecklist(tripId, gearItem, { activity_name: activityName });
       setDraft("");
       router.refresh();
     });
@@ -120,23 +146,23 @@ export function OutfitItemsPicker({
       {items.length > 0 && (
         <div className="flex flex-wrap gap-1.5">
           {items.map((item, index) => {
-            const gear = gearByName.get(item.toLowerCase());
+            const gear = item.gear_item_id ? gearById[item.gear_item_id] : null;
             return (
               <span
-                key={`${item}-${index}`}
+                key={`${outfitItemKey(item)}-${index}`}
                 className={cn(
                   "inline-flex max-w-full items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium",
                   gear ? gearPillClassName(gear.color) : "bg-muted/40"
                 )}
               >
-                <span className="truncate">{item}</span>
+                <span className="truncate">{item.name}</span>
                 {!disabled && (
                   <button
                     type="button"
                     onClick={() => removeItem(index)}
                     disabled={isPending}
                     className="shrink-0 cursor-pointer rounded-full p-0.5 opacity-60 transition-opacity hover:opacity-100"
-                    aria-label={`Remove ${item}`}
+                    aria-label={`Remove ${item.name}`}
                   >
                     <X className="h-3 w-3" />
                   </button>
@@ -159,6 +185,9 @@ export function OutfitItemsPicker({
                     · {subcategoryLabel(filterSubcategory)}
                   </span>
                 )}
+              </p>
+              <p className="mb-1.5 text-[10px] text-muted-foreground">
+                Adds to this day and your packing checklist.
               </p>
               <div className="flex flex-wrap gap-1.5">
                 {matchingGear.map((gear) => (
@@ -197,7 +226,7 @@ export function OutfitItemsPicker({
 
           <div className="border-t border-border/60 pt-2.5">
             <p className="mb-1.5 text-xs font-medium text-muted-foreground">
-              Or add a general item
+              Not in My Gear? Add a generic item
             </p>
             <div className="flex flex-wrap gap-1.5">
               <select
@@ -205,6 +234,7 @@ export function OutfitItemsPicker({
                 onChange={(e) => setCategory(e.target.value as PackingCategory)}
                 disabled={isPending}
                 className="h-8 cursor-pointer rounded-lg border border-muted-foreground/20 bg-background px-2 text-xs"
+                aria-label="Item category"
               >
                 {OUTFIT_CATEGORIES.map((c) => (
                   <option key={c} value={c}>
@@ -215,7 +245,7 @@ export function OutfitItemsPicker({
               <Input
                 value={draft}
                 onChange={(e) => setDraft(e.target.value)}
-                placeholder="e.g. golf shirts..."
+                placeholder={CATEGORY_ITEM_PLACEHOLDERS[category]}
                 disabled={isPending}
                 autoComplete="off"
                 onKeyDown={(e) => {
@@ -233,8 +263,9 @@ export function OutfitItemsPicker({
                 onClick={() => addGeneric(draft)}
                 disabled={isPending || !draft.trim()}
                 className="h-8 shrink-0 rounded-full px-3"
+                title="Day plan only — not added to checklist or My Gear"
               >
-                Add
+                This day only
               </Button>
               <Button
                 type="button"
@@ -243,14 +274,16 @@ export function OutfitItemsPicker({
                 onClick={() => addNewToGear(draft)}
                 disabled={isPending || !draft.trim()}
                 className="h-8 shrink-0 rounded-full px-3"
-                title="Save to My Gear and add to this event"
+                title="Save to My Gear, day plan, and packing checklist"
               >
                 <Plus className="mr-1 h-3.5 w-3.5" />
                 Save to Gear
               </Button>
             </div>
             <p className="mt-1 text-[10px] text-muted-foreground">
-              &quot;Add&quot; keeps it generic for this day. &quot;Save to Gear&quot; adds it to My Gear too.
+              <span className="font-medium text-foreground/80">This day only</span> — not on your
+              checklist. <span className="font-medium text-foreground/80">Save to Gear</span> —
+              checklist + My Gear.
             </p>
           </div>
         </div>

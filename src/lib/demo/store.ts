@@ -414,12 +414,15 @@ export function createDemoOutfit(
     title?: string;
     description?: string;
     activity_name?: string | null;
-    items?: string[];
+    items?: (string | import("@/lib/types").OutfitItem)[];
   }
 ): Outfit {
   const store = getStore();
   const now = new Date().toISOString();
   const id = uuid();
+  const items = (input.items ?? []).map((item) =>
+    typeof item === "string" ? { name: item } : item
+  );
   const outfit: Outfit = {
     id,
     trip_id: tripId,
@@ -428,7 +431,7 @@ export function createDemoOutfit(
     title: input.title?.trim() || "New event",
     description: input.description?.trim() || "",
     activity_name: input.activity_name ?? null,
-    items: input.items ?? [],
+    items,
     created_at: now,
   };
   store.outfits.set(id, outfit);
@@ -470,6 +473,7 @@ export function addDemoPackingItem(
     parent_item_id?: string | null;
     gear_item_id?: string | null;
     shared?: boolean;
+    activity_name?: string | null;
   }
 ): PackingItem {
   const store = getStore();
@@ -490,7 +494,7 @@ export function addDemoPackingItem(
     gear_item_id: options?.gear_item_id ?? null,
     packed: false,
     shared: options?.shared ?? travelerId === null,
-    activity_name: null,
+    activity_name: options?.activity_name ?? null,
     notes: null,
     sort_order: sortOrder,
     created_at: now,

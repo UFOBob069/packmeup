@@ -28,6 +28,7 @@ import {
   updateOutfit,
 } from "@/actions/packing";
 import { OutfitItemsPicker } from "@/components/trip/outfit-items-picker";
+import { normalizeOutfitItems } from "@/lib/outfit-items";
 import type { CalendarDay, GearItem, Outfit, WeatherData } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -223,7 +224,7 @@ function OutfitBlock({
   };
 
   if (!editable) {
-    const items = outfit.items as string[];
+    const items = normalizeOutfitItems(outfit.items);
     return (
       <div className="rounded-xl border bg-background/80 p-4">
         <div className="mb-2 flex flex-wrap items-start justify-between gap-2">
@@ -246,7 +247,7 @@ function OutfitBlock({
                 key={i}
                 className="rounded-full border bg-muted/40 px-2.5 py-1 text-xs font-medium"
               >
-                {item}
+                {item.name}
               </span>
             ))}
           </div>
@@ -347,9 +348,10 @@ function OutfitBlock({
         <OutfitItemsPicker
           tripId={tripId}
           outfitId={outfit.id}
-          items={outfit.items as string[]}
+          items={outfit.items}
           gearItems={gearItems}
           filterHint={filterHint}
+          activityName={outfit.activity_name}
         />
       </div>
     </div>

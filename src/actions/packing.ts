@@ -19,7 +19,15 @@ import {
 } from "@/lib/demo/store";
 import { refineWithChat } from "@/lib/ai/chat-refinement";
 import { createClient } from "@/lib/supabase/server";
-import type { Outfit, PackingCategory } from "@/lib/types";
+import type { Outfit, OutfitItem, PackingCategory } from "@/lib/types";
+import { serializeOutfitItems } from "@/lib/outfit-items";
+import {
+  defaultHumanTraveler,
+  packingItemHasGear,
+  planGearChecklistPlacement,
+} from "@/lib/packing/sync-gear-to-checklist";
+import { analyzePackingGaps, formatGapsForAi } from "@/lib/packing/gap-analysis";
+import { getUserGearItems } from "@/actions/gear";
 import { getCurrentUser, getTripDetails } from "./trips";
 
 export type { PackingItemSuggestion } from "@/lib/ai/chat-refinement";
@@ -195,18 +203,23 @@ export async function updateOutfit(
     Pick<Outfit, "title" | "description" | "time_of_day" | "activity_name" | "items">
   >
 ) {
+  const normalized = {
+    ...updates,
+    items: updates.items !== undefined ? serializeOutfitItems(updates.items) : undefined,
+  };
+
   if (isDemoMode()) {
-    updateDemoOutfit(outfitId, updates);
+    updateDemoOutfit(outfitId, normalized);
     revalidatePath(`/trips/${tripId}`);
     return;
   }
 
   const payload: Record<string, unknown> = {};
-  if (updates.title !== undefined) payload.title = updates.title.trim() || "Event";
-  if (updates.description !== undefined) payload.description = updates.description.trim();
-  if (updates.time_of_day !== undefined) payload.time_of_day = updates.time_of_day;
-  if (updates.activity_name !== undefined) payload.activity_name = updates.activity_name;
-  if (updates.items !== undefined) payload.items = updates.items;
+  if (normalized.title !== undefined) payload.title = normalized.title.trim() || "Event";
+  if (normalized.description !== undefined) payload.description = normalized.description.trim();
+  if (normalized.time_of_day !== undefined) payload.time_of_day = normalized.time_of_day;
+  if (normalized.activity_name !== undefined) payload.activity_name = normalized.activity_name;
+  if (normalized.items !== undefined) payload.items = normalized.items;
 
   const supabase = await createClient();
   const { error } = await supabase
@@ -235,6 +248,42 @@ export async function deleteOutfit(tripId: string, outfitId: string) {
   revalidatePath(`/trips/${tripId}`);
 }
 
+export async function syncGearToChecklist(
+  tripId: string,
+  gear: {
+    id: string;
+    item_name: string;
+    category: PackingCategory;
+    subcategory?: string | null;
+  },
+  options?: { activity_name?: string | null; traveler_id?: string | null }
+): Promise<{ added: boolean }> {
+  const trip = await getTripDetails(tripId);
+  if (!trip) throw new Error("Trip not found");
+
+  if (packingItemHasGear(trip.packing_items, gear.id)) {
+    return { added: false };
+  }
+
+  const traveler =
+    options?.traveler_id !== undefined
+      ? trip.travelers.find((t) => t.id === options.traveler_id) ?? null
+      : defaultHumanTraveler(trip.travelers);
+
+  const travelerId = traveler?.id ?? null;
+  const { parent_item_id } = planGearChecklistPlacement(trip.packing_items, gear);
+
+  await addPackingItem(tripId, gear.item_name, travelerId, {
+    category: gear.category,
+    gear_item_id: gear.id,
+    parent_item_id,
+    shared: travelerId === null,
+    activity_name: options?.activity_name ?? null,
+  });
+
+  return { added: true };
+}
+
 export async function addPackingItem(
   tripId: string,
   itemName: string,
@@ -245,6 +294,7 @@ export async function addPackingItem(
     parent_item_id?: string | null;
     gear_item_id?: string | null;
     shared?: boolean;
+    activity_name?: string | null;
   }
 ) {
   const name = itemName.trim();
@@ -274,6 +324,7 @@ export async function addPackingItem(
     traveler_id: travelerId,
     parent_item_id: options?.parent_item_id ?? null,
     gear_item_id: options?.gear_item_id ?? null,
+    activity_name: options?.activity_name ?? null,
     packed: false,
     sort_order: count ?? 0,
   });
@@ -321,6 +372,28 @@ export async function removePackingItem(tripId: string, itemId: string) {
   revalidatePath(`/trips/${tripId}`);
 }
 
+export async function resolvePackingGap(
+  tripId: string,
+  fix: import("@/lib/packing/gap-analysis").PackingGapFix
+) {
+  if (fix.type === "add_gear" && fix.gear_item_id) {
+    const gearItems = await getUserGearItems();
+    const gear = gearItems.find((g) => g.id === fix.gear_item_id);
+    if (!gear) throw new Error("Gear item not found");
+    await syncGearToChecklist(tripId, gear, { activity_name: fix.activity_name });
+    return;
+  }
+
+  const trip = await getTripDetails(tripId);
+  if (!trip) throw new Error("Trip not found");
+  const traveler = defaultHumanTraveler(trip.travelers);
+
+  await addPackingItem(tripId, fix.item_name, traveler?.id ?? null, {
+    category: fix.category,
+    activity_name: fix.activity_name ?? null,
+  });
+}
+
 export async function sendChatMessage(tripId: string, message: string) {
   const user = await getCurrentUser();
   const trip = await getTripDetails(tripId);
@@ -333,6 +406,9 @@ export async function sendChatMessage(tripId: string, message: string) {
       role: m.role as "user" | "assistant",
       content: m.content,
     }));
+
+  const gearItems = await getUserGearItems();
+  const packingGaps = analyzePackingGaps(trip, gearItems);
 
   const tripContext = {
     destination: trip.destination,
@@ -350,6 +426,7 @@ export async function sendChatMessage(tripId: string, message: string) {
       pet_species: t.pet_species,
       pet_size: t.pet_size,
     })),
+    packing_gaps: formatGapsForAi(packingGaps),
   };
 
   if (isDemoMode()) {

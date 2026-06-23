@@ -7,6 +7,7 @@ import { addPackingItem } from "@/actions/packing";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import type { PackingCategory } from "@/lib/types";
+import { CATEGORY_LINE_PLACEHOLDERS } from "@/lib/gear/category-placeholders";
 
 interface CategoryInlineAddProps {
   tripId: string;
@@ -52,7 +53,7 @@ export function CategoryInlineAdd({
         <Input
           value={name}
           onChange={(e) => setName(e.target.value)}
-          placeholder={`e.g. 10 shirts, golf shorts...`}
+          placeholder={CATEGORY_LINE_PLACEHOLDERS[category]}
           disabled={isPending}
           onKeyDown={(e) => {
             if (e.key === "Enter") {
@@ -71,11 +72,11 @@ export function CategoryInlineAdd({
           className="shrink-0 rounded-full"
         >
           <Plus className="mr-1 h-3.5 w-3.5" />
-          Add
+          Add line
         </Button>
       </div>
       <p className="mt-2 text-[11px] text-muted-foreground">
-        Then pick which specific items below each line from My Gear.
+        Adds a generic line to your list — then pick specific items from My Gear under it.
       </p>
     </div>
   );

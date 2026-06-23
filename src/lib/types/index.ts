@@ -122,6 +122,14 @@ export interface PackingItem {
   traveler?: Traveler;
 }
 
+export interface OutfitItem {
+  name: string;
+  gear_item_id?: string | null;
+  category?: PackingCategory | null;
+  /** True when added as "this day only" — not synced to checklist */
+  day_only?: boolean;
+}
+
 export interface Outfit {
   id: string;
   trip_id: string;
@@ -130,7 +138,7 @@ export interface Outfit {
   title: string;
   description: string;
   activity_name: string | null;
-  items: string[];
+  items: OutfitItem[];
   created_at: string;
 }
 

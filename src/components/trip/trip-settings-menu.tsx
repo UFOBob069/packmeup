@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { ImageIcon, Loader2, MoreHorizontal, Trash2 } from "lucide-react";
+import { ImageIcon, Loader2, MoreHorizontal, Printer, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -73,6 +73,12 @@ export function TripSettingsMenu({ tripId, destination }: TripSettingsMenuProps)
           }
         />
         <DropdownMenuContent align="end">
+          <DropdownMenuItem
+            onClick={() => window.open(`/trips/${tripId}/print`, "_blank", "noopener,noreferrer")}
+          >
+            <Printer className="h-4 w-4" />
+            Print / Save PDF
+          </DropdownMenuItem>
           <DropdownMenuItem onClick={handleRefreshCover} disabled={isRefreshingCover}>
             {isRefreshingCover ? (
               <Loader2 className="h-4 w-4 animate-spin" />

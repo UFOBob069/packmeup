@@ -43,6 +43,7 @@ export async function refineWithChat(
     travel_type: string;
     items: Pick<PackingItem, "item_name" | "quantity" | "category" | "shared">[];
     travelers: TravelerContext[];
+    packing_gaps?: string;
   },
   chatHistory: ChatHistoryMessage[] = []
 ): Promise<ChatRefinementResult> {
@@ -83,7 +84,9 @@ Rules:
 
 Current trip: ${tripContext.destination}, mode: ${tripContext.packing_mode}, type: ${tripContext.travel_type}
 Travelers: ${travelerDesc}
-Current items (${tripContext.items.length}): ${JSON.stringify(tripContext.items.slice(0, 60))}`,
+Current items (${tripContext.items.length}): ${JSON.stringify(tripContext.items.slice(0, 60))}
+Packing gap analysis (use when user asks if they're missing anything):
+${tripContext.packing_gaps ?? "No gap data."}`,
         },
         ...chatHistory.slice(-8).map((m) => ({ role: m.role, content: m.content })),
         { role: "user", content: userMessage },
@@ -134,10 +137,24 @@ function getFallbackRefinement(
   tripContext: {
     items: Pick<PackingItem, "item_name" | "quantity" | "category" | "shared">[];
     travelers: TravelerContext[];
+    packing_gaps?: string;
   },
   chatHistory: ChatHistoryMessage[]
 ): ChatRefinementResult {
   const lower = userMessage.toLowerCase();
+  if (
+    lower.includes("missing") ||
+    lower.includes("forget") ||
+    lower.includes("ready") ||
+    lower.includes("gaps")
+  ) {
+    const gaps = tripContext.packing_gaps ?? "No gap data available.";
+    return {
+      message: `Here's what I found:\n\n${gaps}\n\nCheck the Trip readiness panel on your checklist for one-click fixes.`,
+      item_updates: [],
+      suggestions: [],
+    };
+  }
   const combined = [...chatHistory.map((m) => m.content.toLowerCase()), lower].join(" ");
   const updates: ChatRefinementResult["item_updates"] = [];
   const suggestions: PackingItemSuggestion[] = [];
