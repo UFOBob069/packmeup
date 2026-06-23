@@ -363,7 +363,7 @@ export function updateDemoCalendarDayNotes(dayId: string, notes: string): void {
 export function upsertDemoCalendarDay(
   tripId: string,
   tripDate: string,
-  updates: { title?: string; notes?: string }
+  updates: { title?: string; notes?: string; activities?: string[] }
 ): CalendarDay {
   const store = getStore();
   const existing = Array.from(store.calendar_days.values()).find(
@@ -377,6 +377,8 @@ export function upsertDemoCalendarDay(
       title: updates.title ?? existing.title,
       notes:
         updates.notes !== undefined ? updates.notes.trim() || null : (existing.notes ?? null),
+      activities:
+        updates.activities !== undefined ? updates.activities : (existing.activities as string[]),
     };
     store.calendar_days.set(existing.id, day);
     return day;
@@ -388,13 +390,25 @@ export function upsertDemoCalendarDay(
     trip_id: tripId,
     trip_date: tripDate,
     title: updates.title ?? "On the trip",
-    activities: [],
+    activities: updates.activities ?? [],
     weather_summary: null,
     notes: updates.notes?.trim() || null,
     created_at: now,
   };
   store.calendar_days.set(id, day);
   return day;
+}
+
+export function updateDemoCalendarDayActivities(
+  dayId: string,
+  activities: string[]
+): CalendarDay | null {
+  const store = getStore();
+  const day = store.calendar_days.get(dayId);
+  if (!day) return null;
+  const updated = { ...day, activities };
+  store.calendar_days.set(dayId, updated);
+  return updated;
 }
 
 export function updateDemoCalendarDayTitle(dayId: string, title: string): CalendarDay | null {

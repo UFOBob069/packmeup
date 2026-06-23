@@ -23,6 +23,7 @@ import { Button } from "@/components/ui/button";
 import {
   createOutfit,
   deleteOutfit,
+  saveCalendarDayActivities,
   saveCalendarDayTitle,
   updateCalendarDayNotes,
   updateOutfit,
@@ -317,8 +318,11 @@ function OutfitBlock({
 
       <div className="mb-3">
         <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-          Activity tag
+          Event tag
         </label>
+        <p className="mb-1.5 text-[11px] text-muted-foreground">
+          Optional label for this event only — not browser autofill.
+        </p>
         <Input
           value={activityName}
           onChange={(e) => setActivityName(e.target.value)}
@@ -328,16 +332,45 @@ function OutfitBlock({
               saveField({ activity_name: next });
             }
           }}
-          placeholder="e.g. Golf"
-          list={tripActivities.length > 0 ? `activities-${outfit.id}` : undefined}
+          placeholder="e.g. Hike, Golf, Dinner..."
+          autoComplete="off"
+          name={`event-tag-${outfit.id}`}
           className="h-8 text-sm"
         />
         {tripActivities.length > 0 && (
-          <datalist id={`activities-${outfit.id}`}>
-            {tripActivities.map((a) => (
-              <option key={a} value={a} />
-            ))}
-          </datalist>
+          <div className="mt-2">
+            <p className="mb-1 text-[10px] text-muted-foreground">Quick pick:</p>
+            <div className="flex flex-wrap gap-1.5">
+              {tripActivities.map((a) => (
+                <button
+                  key={a}
+                  type="button"
+                  onClick={() => {
+                    setActivityName(a);
+                    saveField({ activity_name: a });
+                  }}
+                  className={cn(
+                    "cursor-pointer rounded-full border px-2.5 py-1 text-xs font-medium transition-colors",
+                    activityName === a
+                      ? "border-primary bg-primary/10 text-primary"
+                      : "bg-muted/40 hover:bg-muted"
+                  )}
+                >
+                  {a}
+                </button>
+              ))}
+              <button
+                type="button"
+                onClick={() => {
+                  setActivityName("");
+                  saveField({ activity_name: null });
+                }}
+                className="cursor-pointer rounded-full border border-dashed px-2.5 py-1 text-xs text-muted-foreground hover:bg-muted/40"
+              >
+                Clear
+              </button>
+            </div>
+          </div>
         )}
       </div>
 
@@ -354,6 +387,140 @@ function OutfitBlock({
           activityName={outfit.activity_name}
         />
       </div>
+    </div>
+  );
+}
+
+function DayActivitiesEditor({
+  tripId,
+  day,
+  editable,
+  suggestions,
+}: {
+  tripId: string;
+  day: CalendarDay;
+  editable: boolean;
+  suggestions: string[];
+}) {
+  const router = useRouter();
+  const initial = (day.activities as string[]) ?? [];
+  const [tags, setTags] = useState(initial);
+  const [draft, setDraft] = useState("");
+  const [, startTransition] = useTransition();
+
+  const persist = (next: string[]) => {
+    setTags(next);
+    startTransition(async () => {
+      await saveCalendarDayActivities(
+        tripId,
+        day.trip_date,
+        next,
+        isPersistedCalendarDay(day) ? day.id : undefined
+      );
+      router.refresh();
+    });
+  };
+
+  const addTag = (name: string) => {
+    const trimmed = name.trim();
+    if (!trimmed || tags.some((t) => t.toLowerCase() === trimmed.toLowerCase())) return;
+    persist([...tags, trimmed]);
+    setDraft("");
+  };
+
+  const removeTag = (name: string) => {
+    persist(tags.filter((t) => t !== name));
+  };
+
+  if (!editable) {
+    if (tags.length === 0) return null;
+    return (
+      <div className="mt-3 flex flex-wrap gap-1.5">
+        {tags.map((activity) => (
+          <ActivityTag key={activity} name={activity} />
+        ))}
+      </div>
+    );
+  }
+
+  const unusedSuggestions = suggestions.filter(
+    (s) => !tags.some((t) => t.toLowerCase() === s.toLowerCase())
+  );
+
+  return (
+    <div className="mt-3 space-y-2">
+      <div>
+        <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+          Day tag
+        </p>
+        <p className="text-[11px] text-muted-foreground">
+          What kind of day is this? Change Golf to Hike here — separate from the title above.
+        </p>
+      </div>
+
+      {tags.length > 0 && (
+        <div className="flex flex-wrap gap-1.5">
+          {tags.map((activity) => (
+            <span key={activity} className="inline-flex items-center gap-1">
+              <ActivityTag name={activity} />
+              <button
+                type="button"
+                onClick={() => removeTag(activity)}
+                className="cursor-pointer rounded-full p-0.5 text-muted-foreground hover:text-destructive"
+                aria-label={`Remove ${activity} tag`}
+              >
+                <Trash2 className="h-3 w-3" />
+              </button>
+            </span>
+          ))}
+        </div>
+      )}
+
+      <div className="flex gap-1.5">
+        <Input
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          placeholder="e.g. Hike, Golf, Beach..."
+          autoComplete="off"
+          name={`day-tag-${day.id}`}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              addTag(draft);
+            }
+          }}
+          className="h-8 flex-1 text-sm"
+        />
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          disabled={!draft.trim()}
+          onClick={() => addTag(draft)}
+          className="h-8 shrink-0 cursor-pointer rounded-full px-3"
+        >
+          <Plus className="mr-1 h-3.5 w-3.5" />
+          Add tag
+        </Button>
+      </div>
+
+      {unusedSuggestions.length > 0 && (
+        <div>
+          <p className="mb-1 text-[10px] text-muted-foreground">From your trip:</p>
+          <div className="flex flex-wrap gap-1.5">
+            {unusedSuggestions.map((s) => (
+              <button
+                key={s}
+                type="button"
+                onClick={() => addTag(s)}
+                className="cursor-pointer rounded-full border bg-muted/40 px-2.5 py-1 text-xs font-medium transition-colors hover:bg-muted"
+              >
+                {s}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -564,13 +731,12 @@ export function DayPlanner({
                         />
                       </div>
 
-                      {dayActivities.length > 0 && (
-                        <div className="mt-3 flex flex-wrap gap-1.5">
-                          {dayActivities.map((activity) => (
-                            <ActivityTag key={activity} name={activity} />
-                          ))}
-                        </div>
-                      )}
+                      <DayActivitiesEditor
+                        tripId={tripId}
+                        day={day}
+                        editable={editable}
+                        suggestions={tripActivities}
+                      />
 
                       <div className="mt-4 space-y-3">
                         <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">

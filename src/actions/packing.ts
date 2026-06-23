@@ -13,6 +13,7 @@ import {
   toggleDemoItemPacked,
   updateDemoCalendarDayNotes,
   updateDemoCalendarDayTitle,
+  updateDemoCalendarDayActivities,
   updateDemoItemNotes,
   updateDemoOutfit,
   upsertDemoCalendarDay,
@@ -150,16 +151,83 @@ export async function saveCalendarDayTitle(
       .eq("trip_id", tripId);
     if (error) throw new Error(error.message);
   } else {
-    const { error } = await supabase.from("calendar_days").upsert(
-      {
+    const { data: existing } = await supabase
+      .from("calendar_days")
+      .select("id")
+      .eq("trip_id", tripId)
+      .eq("trip_date", tripDate)
+      .maybeSingle();
+
+    if (existing) {
+      const { error } = await supabase
+        .from("calendar_days")
+        .update({ title: trimmed })
+        .eq("id", existing.id);
+      if (error) throw new Error(error.message);
+    } else {
+      const { error } = await supabase.from("calendar_days").insert({
         trip_id: tripId,
         trip_date: tripDate,
         title: trimmed,
         activities: [],
-      },
-      { onConflict: "trip_id,trip_date" }
-    );
+      });
+      if (error) throw new Error(error.message);
+    }
+  }
+
+  revalidatePath(`/trips/${tripId}`);
+}
+
+export async function saveCalendarDayActivities(
+  tripId: string,
+  tripDate: string,
+  activities: string[],
+  dayId?: string
+) {
+  const cleaned = [...new Set(activities.map((a) => a.trim()).filter(Boolean))];
+
+  if (isDemoMode()) {
+    if (dayId && !/^\d{4}-\d{2}-\d{2}$/.test(dayId)) {
+      updateDemoCalendarDayActivities(dayId, cleaned);
+    } else {
+      upsertDemoCalendarDay(tripId, tripDate, { activities: cleaned });
+    }
+    revalidatePath(`/trips/${tripId}`);
+    return;
+  }
+
+  const supabase = await createClient();
+
+  if (dayId && !/^\d{4}-\d{2}-\d{2}$/.test(dayId)) {
+    const { error } = await supabase
+      .from("calendar_days")
+      .update({ activities: cleaned })
+      .eq("id", dayId)
+      .eq("trip_id", tripId);
     if (error) throw new Error(error.message);
+  } else {
+    const { data: existing } = await supabase
+      .from("calendar_days")
+      .select("id, title")
+      .eq("trip_id", tripId)
+      .eq("trip_date", tripDate)
+      .maybeSingle();
+
+    if (existing) {
+      const { error } = await supabase
+        .from("calendar_days")
+        .update({ activities: cleaned })
+        .eq("id", existing.id);
+      if (error) throw new Error(error.message);
+    } else {
+      const { error } = await supabase.from("calendar_days").insert({
+        trip_id: tripId,
+        trip_date: tripDate,
+        title: "On the trip",
+        activities: cleaned,
+      });
+      if (error) throw new Error(error.message);
+    }
   }
 
   revalidatePath(`/trips/${tripId}`);

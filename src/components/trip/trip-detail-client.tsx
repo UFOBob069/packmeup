@@ -8,7 +8,9 @@ import {
   ListChecks,
   CalendarDays,
   MessageCircle,
+  Printer,
 } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PackingChecklist } from "./packing-checklist";
 import { DayPlanner } from "./day-planner";
@@ -97,6 +99,18 @@ export function TripDetailClient({ trip, chatMessages, gearItems }: TripDetailCl
                   className="border-white/20 bg-black/30 text-white"
                 />
               )}
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() =>
+                  window.open(`/trips/${trip.id}/print`, "_blank", "noopener,noreferrer")
+                }
+                className="cursor-pointer border-white/20 bg-black/30 text-white hover:bg-black/40 hover:text-white"
+              >
+                <Printer className="h-4 w-4 sm:mr-1.5" />
+                <span className="hidden sm:inline">Print</span>
+              </Button>
               <InviteDialog
                 tripId={trip.id}
                 destination={trip.destination}

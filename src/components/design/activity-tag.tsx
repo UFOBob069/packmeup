@@ -5,6 +5,7 @@ const activityColors: Record<string, string> = {
   Beach: "bg-sky-blue/20 text-sky-blue border-sky-blue/30",
   Pool: "bg-ocean-teal/15 text-ocean-teal border-ocean-teal/25",
   Hiking: "bg-golf-green/10 text-emerald-700 border-emerald-200 dark:text-golf-green",
+  Hike: "bg-golf-green/10 text-emerald-700 border-emerald-200 dark:text-golf-green",
   Wedding: "bg-purple-100 text-purple-700 border-purple-200 dark:bg-purple-900/20 dark:text-purple-300",
   "Nice Dinners": "bg-warm-sand text-amber-800 border-amber-200 dark:text-warm-sand",
   "Business Meetings": "bg-soft-gray text-foreground border-border",

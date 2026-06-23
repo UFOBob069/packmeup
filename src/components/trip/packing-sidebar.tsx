@@ -6,6 +6,7 @@ import {
   Lightbulb,
   Luggage,
   PawPrint,
+  Printer,
   Sparkles,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -195,6 +196,20 @@ export function PackingSidebar({
             );
           })}
         </div>
+      </section>
+
+      <section className="rounded-2xl border bg-card p-4 shadow-travel-sm">
+        <Button
+          type="button"
+          variant="outline"
+          className="w-full cursor-pointer"
+          onClick={() =>
+            window.open(`/trips/${trip.id}/print`, "_blank", "noopener,noreferrer")
+          }
+        >
+          <Printer className="mr-2 h-4 w-4" />
+          Print / Save PDF
+        </Button>
       </section>
 
       <PackingTimeline milestones={timeline} compact />
