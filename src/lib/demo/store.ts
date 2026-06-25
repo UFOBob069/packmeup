@@ -45,6 +45,32 @@ interface DemoStore {
 
 const globalForDemo = globalThis as unknown as { demoStore?: DemoStore };
 
+function seedDemoGearItems(store: DemoStore) {
+  if (store.gear_items.size > 0) return;
+
+  const now = new Date().toISOString();
+  const sampleGear: Omit<GearItem, "created_at" | "updated_at">[] = [
+    { id: "gear-1", user_id: DEMO_USER.id, item_name: "Blue Nike Polo", category: "clothing", description: null, color: "blue", subcategory: "shirts" },
+    { id: "gear-2", user_id: DEMO_USER.id, item_name: "Pink TravisMathew Polo", category: "clothing", description: null, color: "pink", subcategory: "shirts" },
+    { id: "gear-3", user_id: DEMO_USER.id, item_name: "White Golf Shoes", category: "shoes", description: null, color: "white", subcategory: null },
+    { id: "gear-4", user_id: DEMO_USER.id, item_name: "Anker Charger", category: "electronics", description: "65W USB-C", color: null, subcategory: null },
+    { id: "gear-5", user_id: DEMO_USER.id, item_name: "Andre's Travel Bowl", category: "pet_supplies", description: null, color: null, subcategory: null },
+    { id: "gear-6", user_id: DEMO_USER.id, item_name: "Passport Holder", category: "travel_documents", description: null, color: null, subcategory: null },
+  ];
+
+  sampleGear.forEach((item) => {
+    store.gear_items.set(item.id, { ...item, created_at: now, updated_at: now });
+  });
+}
+
+/** Backfill collections added after an in-memory demo store was first created (e.g. dev HMR). */
+function ensureDemoStoreShape(store: DemoStore) {
+  if (!store.gear_items) {
+    store.gear_items = new Map();
+    seedDemoGearItems(store);
+  }
+}
+
 function getStore(): DemoStore {
   if (!globalForDemo.demoStore) {
     globalForDemo.demoStore = {
@@ -62,6 +88,8 @@ function getStore(): DemoStore {
       currentUserId: DEMO_USER.id,
     };
     seedDemoData(globalForDemo.demoStore);
+  } else {
+    ensureDemoStoreShape(globalForDemo.demoStore);
   }
   return globalForDemo.demoStore;
 }
@@ -185,18 +213,7 @@ function seedDemoData(store: DemoStore) {
     updated_at: now,
   });
 
-  const sampleGear: Omit<GearItem, "created_at" | "updated_at">[] = [
-    { id: "gear-1", user_id: DEMO_USER.id, item_name: "Blue Nike Polo", category: "clothing", description: null, color: "blue", subcategory: "shirts" },
-    { id: "gear-2", user_id: DEMO_USER.id, item_name: "Pink TravisMathew Polo", category: "clothing", description: null, color: "pink", subcategory: "shirts" },
-    { id: "gear-3", user_id: DEMO_USER.id, item_name: "White Golf Shoes", category: "shoes", description: null, color: "white", subcategory: null },
-    { id: "gear-4", user_id: DEMO_USER.id, item_name: "Anker Charger", category: "electronics", description: "65W USB-C", color: null, subcategory: null },
-    { id: "gear-5", user_id: DEMO_USER.id, item_name: "Andre's Travel Bowl", category: "pet_supplies", description: null, color: null, subcategory: null },
-    { id: "gear-6", user_id: DEMO_USER.id, item_name: "Passport Holder", category: "travel_documents", description: null, color: null, subcategory: null },
-  ];
-
-  sampleGear.forEach((item) => {
-    store.gear_items.set(item.id, { ...item, created_at: now, updated_at: now });
-  });
+  seedDemoGearItems(store);
 }
 
 export function getDemoUser(): Profile {
