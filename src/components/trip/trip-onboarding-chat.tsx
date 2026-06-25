@@ -534,11 +534,26 @@ export function TripOnboardingChat({ templateData, userName }: TripOnboardingCha
     <div className="mx-auto max-w-2xl space-y-6 pb-12">
       {/* Progress */}
       <div>
-        <div className="mb-2 flex items-center justify-between text-xs text-muted-foreground">
-          <span>
+        <div className="mb-2 flex items-center justify-between gap-3">
+          {stepIndex > 0 && !isGenerating ? (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={goBack}
+              className="h-8 shrink-0 cursor-pointer rounded-full px-3 text-xs"
+              aria-label="Undo last step"
+            >
+              <ChevronLeft className="mr-1 h-3.5 w-3.5" />
+              Undo
+            </Button>
+          ) : (
+            <span className="h-8 w-16 shrink-0" aria-hidden />
+          )}
+          <span className="text-xs text-muted-foreground">
             Step {stepIndex + 1} of {STEP_ORDER.length}
           </span>
-          <span>{progress}%</span>
+          <span className="text-xs text-muted-foreground">{progress}%</span>
         </div>
         <div className="h-1.5 overflow-hidden rounded-full bg-muted">
           <div
@@ -584,23 +599,9 @@ export function TripOnboardingChat({ templateData, userName }: TripOnboardingCha
           step === "destination" && "relative z-10 overflow-visible"
         )}
       >
-        <div className="mb-5 flex items-start gap-3">
-          {stepIndex > 0 && !isGenerating && (
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon-sm"
-              onClick={goBack}
-              className="mt-0.5 shrink-0"
-              aria-label="Go back"
-            >
-              <ChevronLeft className="h-4 w-4" />
-            </Button>
-          )}
-          <div className="min-w-0 flex-1">
-            <h2 className="text-display text-xl font-semibold">{STEP_PROMPTS[step]}</h2>
-            <p className="mt-1 text-sm text-muted-foreground">{STEP_HINTS[step]}</p>
-          </div>
+        <div className="mb-5">
+          <h2 className="text-display text-xl font-semibold">{STEP_PROMPTS[step]}</h2>
+          <p className="mt-1 text-sm text-muted-foreground">{STEP_HINTS[step]}</p>
         </div>
 
         {generationState === "generating" ? (
