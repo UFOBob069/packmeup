@@ -52,6 +52,22 @@ npm run native:android
 npm run native:ios
 ```
 
+## Build an APK in GitHub (no Android Studio)
+
+1. Open the GitHub repository and go to **Settings → Secrets and variables → Actions**.
+2. Add these repository secrets using the values from `mobile/.env`:
+   - `VITE_SUPABASE_URL`
+   - `VITE_SUPABASE_ANON_KEY`
+3. Go to **Actions → Build Android APK → Run workflow**.
+4. When the build finishes, open it and download the
+   **PackForVacation-Android** artifact.
+5. Unzip the artifact and send `app-debug.apk` to your phone through Drive,
+   email, or another file-sharing service.
+6. Open the APK on Android and allow **Install unknown apps** when prompted.
+
+No Play Console, developer account, USB connection, Java, or Android Studio is
+required for this debug APK.
+
 ### Requirements
 
 - **Android:** Android Studio + SDK
