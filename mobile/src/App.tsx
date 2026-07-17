@@ -9,7 +9,7 @@ import { TripsScreen } from "./screens/TripsScreen";
 
 function LoadingScreen() {
   return (
-    <main className="login-screen">
+    <main className="login-screen loading-screen">
       <div className="brand-mark pulse">
         <Luggage size={30} />
       </div>

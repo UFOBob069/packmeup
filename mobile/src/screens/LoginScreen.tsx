@@ -20,21 +20,51 @@ export function LoginScreen() {
 
   return (
     <main className="login-screen">
-      <div className="brand-mark">
-        <Luggage size={30} />
+      <div className="login-collage" aria-hidden="true">
+        <img
+          className="login-photo login-photo-beach"
+          src="https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=700&q=80"
+          alt=""
+        />
+        <img
+          className="login-photo login-photo-mountain"
+          src="https://images.unsplash.com/photo-1501785888041-af3ef285b470?auto=format&fit=crop&w=700&q=80"
+          alt=""
+        />
+        <img
+          className="login-photo login-photo-city"
+          src="https://images.unsplash.com/photo-1477959858617-67f85cf4f1df?auto=format&fit=crop&w=700&q=80"
+          alt=""
+        />
+        <img
+          className="login-photo login-photo-road"
+          src="https://images.unsplash.com/photo-1500534314209-a25ddb2bd429?auto=format&fit=crop&w=700&q=80"
+          alt=""
+        />
       </div>
-      <p className="eyebrow">
-        <Sparkles size={14} />
-        AI-powered packing
-      </p>
-      <h1>PackForVacation.com</h1>
-      <p className="login-copy">
-        Know exactly what to pack for every traveler, activity, and forecast.
-      </p>
-      <button className="primary-button google-button" onClick={signIn} disabled={loading}>
-        {loading ? "Opening Google…" : "Continue with Google"}
-      </button>
-      {error && <p className="error-message">{error}</p>}
+
+      <div className="login-content">
+        <div className="brand-mark">
+          <Luggage size={27} />
+        </div>
+        <p className="eyebrow">
+          <Sparkles size={14} />
+          AI-powered packing
+        </p>
+        <h1>
+          PackForVacation<span>.com</span>
+        </h1>
+        <p className="login-copy">
+          Dream about the trip. We&apos;ll remember what to pack.
+        </p>
+        <button className="primary-button google-button" onClick={signIn} disabled={loading}>
+          {loading ? "Opening Google…" : "Continue with Google"}
+        </button>
+        {error && <p className="error-message">{error}</p>}
+        <a className="unsplash-credit" href="https://unsplash.com">
+          Travel photos via Unsplash
+        </a>
+      </div>
     </main>
   );
 }

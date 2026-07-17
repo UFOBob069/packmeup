@@ -2,7 +2,7 @@ import Link from "next/link";
 import { ArrowRight, Sparkles, Users, CloudSun, Shirt, PawPrint, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { MarketingShell } from "@/components/layout/shells";
-import { ProductMockup } from "@/components/design/product-mockup";
+import { TravelPhotoCollage } from "@/components/design/travel-photo-collage";
 import { APP_NAME } from "@/lib/constants";
 
 const features = [
@@ -86,7 +86,7 @@ export default function HomePage() {
               </p>
             </div>
             <div className="relative lg:pl-4">
-              <ProductMockup />
+              <TravelPhotoCollage />
             </div>
           </div>
         </div>
