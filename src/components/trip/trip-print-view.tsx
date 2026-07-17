@@ -170,7 +170,7 @@ export function TripPrintView({ trip }: TripPrintViewProps) {
       )}
 
       <footer className="mt-8 border-t border-black/10 pt-4 text-xs text-black/50">
-        Printed from PackMeUp · {format(new Date(), "MMM d, yyyy")}
+        Printed from PackForVacation.com · {format(new Date(), "MMM d, yyyy")}
       </footer>
     </div>
   );

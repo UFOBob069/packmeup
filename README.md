@@ -1,4 +1,4 @@
-# Pack Me Up
+# PackForVacation.com
 
 AI-powered travel packing assistant built with Next.js 15, Supabase, and OpenAI.
 
@@ -96,6 +96,25 @@ supabase/
 4. **Collaborate** — invite partners, check off items in realtime
 5. **Refine** via AI chat ("make this fit in a carry-on")
 6. **Save templates** for future trips
+
+## Mobile Apps (iOS + Android)
+
+Production Capacitor app lives in [`mobile/`](./mobile):
+
+- Bundled React UI (not a hosted WebView)
+- Supabase for auth/data
+- Next.js API route `POST /api/mobile/trips` for AI trip generation
+
+```bash
+cd mobile
+cp .env.example .env
+npm install
+npm run native:sync
+npm run native:android   # Android Studio
+npm run native:ios       # Xcode (macOS)
+```
+
+See [`mobile/README.md`](./mobile/README.md) for OAuth redirect setup and store checklist.
 
 ## License
 

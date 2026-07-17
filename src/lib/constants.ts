@@ -1,6 +1,6 @@
 import type { PackingCategory } from "./types";
 
-export const APP_NAME = "Pack Me Up";
+export const APP_NAME = "PackForVacation.com";
 export const APP_DESCRIPTION =
   "The easiest way to know exactly what to pack — AI lists, outfits, and shared checklists.";
 
@@ -33,6 +33,6 @@ export const CATEGORY_ICONS: Record<PackingCategory, string> = {
 
 export const DEMO_USER = {
   id: "demo-user-001",
-  email: "demo@packmeup.app",
+  email: "demo@packforvacation.com",
   name: "Demo User",
 };

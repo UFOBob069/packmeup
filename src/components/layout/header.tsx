@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Luggage, LayoutGrid, Plus, Layers, Backpack } from "lucide-react";
+import { Luggage, LayoutGrid, Plus, Layers, Backpack, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { APP_NAME } from "@/lib/constants";
 import { ThemeToggle } from "./theme-toggle";
@@ -13,6 +13,7 @@ import type { Profile } from "@/lib/types";
 const navItems = [
   { href: "/dashboard", label: "Packing Lists", icon: LayoutGrid },
   { href: "/gear", label: "My Gear", icon: Backpack },
+  { href: "/group", label: "My Group", icon: Users },
   { href: "/trips/new", label: "Start Packing", icon: Plus, highlight: true },
   { href: "/templates", label: "Templates", icon: Layers },
 ];

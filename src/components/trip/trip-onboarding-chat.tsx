@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { format } from "date-fns";
@@ -20,9 +21,11 @@ import { Badge } from "@/components/ui/badge";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { createTrip } from "@/actions/trips";
+import { saveToMyGroup, syncTravelersToMyGroup } from "@/actions/group";
 import { getDestinationQuestion } from "@/actions/onboarding";
 import { ACTIVITY_OPTIONS } from "@/lib/types";
 import type {
+  GroupMember,
   LaundryAccess,
   OnboardingTraveler,
   PackingMode,
@@ -41,6 +44,10 @@ import {
 } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { fireCelebrationConfetti } from "@/lib/confetti";
+import {
+  groupMemberToTraveler,
+  isTravelerInList,
+} from "@/lib/group/traveler-match";
 
 type GenerationState = "idle" | "generating" | "complete";
 
@@ -154,6 +161,7 @@ const GENERATION_MESSAGES = [
 interface TripOnboardingChatProps {
   templateData?: TripTemplateData;
   userName?: string;
+  groupMembers?: GroupMember[];
 }
 
 function GenerationProgress() {
@@ -217,7 +225,11 @@ function GenerationComplete() {
   );
 }
 
-export function TripOnboardingChat({ templateData, userName }: TripOnboardingChatProps) {
+export function TripOnboardingChat({
+  templateData,
+  userName,
+  groupMembers = [],
+}: TripOnboardingChatProps) {
   const router = useRouter();
   const [step, setStep] = useState<Step>("destination");
   const [generationState, setGenerationState] = useState<GenerationState>("idle");
@@ -407,13 +419,32 @@ export function TripOnboardingChat({ templateData, userName }: TripOnboardingCha
   const addTraveler = () => {
     const entry = buildTravelerEntry(travelerInput);
     if (!entry) return;
+    if (isTravelerInList(entry, data.travelers ?? [])) {
+      setTravelerError(`${entry.name} is already on this trip.`);
+      return;
+    }
     setData((d) => ({ ...d, travelers: [...(d.travelers ?? []), entry] }));
+    startTransition(() => {
+      void saveToMyGroup({
+        name: entry.name,
+        traveler_type: entry.traveler_type,
+        pet_species: entry.pet_species,
+        pet_size: entry.pet_size,
+      });
+    });
     setTravelerInput({
       name: "",
       traveler_type: "adult",
       pet_species: "dog",
       pet_size: "medium",
     });
+    setTravelerError(null);
+  };
+
+  const pickFromGroup = (member: GroupMember) => {
+    const entry = groupMemberToTraveler(member);
+    if (isTravelerInList(entry, data.travelers ?? [])) return;
+    setData((d) => ({ ...d, travelers: [...(d.travelers ?? []), entry] }));
     setTravelerError(null);
   };
 
@@ -449,6 +480,9 @@ export function TripOnboardingChat({ templateData, userName }: TripOnboardingCha
     }
     setTravelerError(null);
     setData((d) => ({ ...d, travelers: valid }));
+    startTransition(() => {
+      void syncTravelersToMyGroup(valid);
+    });
     goToStep("travel_type");
   };
 
@@ -790,6 +824,44 @@ export function TripOnboardingChat({ templateData, userName }: TripOnboardingCha
                     ? `We added you (${userName}) to get started. Add partners, kids, or pets below.`
                     : "Add yourself first, then anyone else joining the trip."}
                 </p>
+                {groupMembers.length > 0 && (
+                  <div className="rounded-xl border bg-muted/15 p-3">
+                    <p className="mb-2 text-xs font-medium text-muted-foreground">
+                      Pick from My Group
+                    </p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {groupMembers
+                        .filter(
+                          (m) =>
+                            !isTravelerInList(
+                              groupMemberToTraveler(m),
+                              data.travelers ?? []
+                            )
+                        )
+                        .map((m) => (
+                          <button
+                            key={m.id}
+                            type="button"
+                            onClick={() => pickFromGroup(m)}
+                            className={cn(
+                              "cursor-pointer rounded-full border bg-background px-3 py-1 text-xs font-medium transition-all",
+                              "hover:scale-[1.02] hover:border-primary/40 hover:bg-primary/5 active:scale-[0.98]"
+                            )}
+                          >
+                            {m.traveler_type === "pet" ? "🐾 " : ""}
+                            {m.name}
+                          </button>
+                        ))}
+                      {groupMembers.every((m) =>
+                        isTravelerInList(groupMemberToTraveler(m), data.travelers ?? [])
+                      ) && (
+                        <span className="text-xs text-muted-foreground">
+                          Everyone from My Group is on this trip.
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                )}
                 <div className="space-y-2">
                   {(data.travelers ?? []).map((t, i) => (
                     <div
@@ -820,7 +892,11 @@ export function TripOnboardingChat({ templateData, userName }: TripOnboardingCha
                 <div className="space-y-2 rounded-xl border p-3">
                   <p className="text-xs font-medium text-muted-foreground">Add another traveler</p>
                   <p className="text-xs text-muted-foreground">
-                    Click Add, or hit Continue to include what you&apos;ve typed.
+                    New people are saved to{" "}
+                    <Link href="/group" className="font-medium text-primary hover:underline">
+                      My Group
+                    </Link>{" "}
+                    for your next trip. Click Add, or hit Continue to include what you&apos;ve typed.
                   </p>
                   <div className="flex flex-wrap gap-2">
                     <Input

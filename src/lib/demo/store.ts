@@ -3,6 +3,7 @@ import type {
   CalendarDay,
   ChatMessage,
   GearItem,
+  GroupMember,
   Outfit,
   PackingItem,
   PackingProgress,
@@ -40,6 +41,7 @@ interface DemoStore {
   templates: Map<string, Template>;
   chat_messages: Map<string, ChatMessage>;
   gear_items: Map<string, GearItem>;
+  group_members: Map<string, GroupMember>;
   currentUserId: string;
 }
 
@@ -63,11 +65,30 @@ function seedDemoGearItems(store: DemoStore) {
   });
 }
 
+function seedDemoGroupMembers(store: DemoStore) {
+  if (store.group_members.size > 0) return;
+
+  const now = new Date().toISOString();
+  const sample: Omit<GroupMember, "created_at" | "updated_at">[] = [
+    { id: "group-1", user_id: DEMO_USER.id, name: "David", traveler_type: "adult", pet_species: null, pet_size: null },
+    { id: "group-2", user_id: DEMO_USER.id, name: "Jen", traveler_type: "adult", pet_species: null, pet_size: null },
+    { id: "group-3", user_id: DEMO_USER.id, name: "Andre", traveler_type: "pet", pet_species: "dog", pet_size: "medium" },
+  ];
+
+  sample.forEach((member) => {
+    store.group_members.set(member.id, { ...member, created_at: now, updated_at: now });
+  });
+}
+
 /** Backfill collections added after an in-memory demo store was first created (e.g. dev HMR). */
 function ensureDemoStoreShape(store: DemoStore) {
   if (!store.gear_items) {
     store.gear_items = new Map();
     seedDemoGearItems(store);
+  }
+  if (!store.group_members) {
+    store.group_members = new Map();
+    seedDemoGroupMembers(store);
   }
 }
 
@@ -85,6 +106,7 @@ function getStore(): DemoStore {
       templates: new Map(),
       chat_messages: new Map(),
       gear_items: new Map(),
+      group_members: new Map(),
       currentUserId: DEMO_USER.id,
     };
     seedDemoData(globalForDemo.demoStore);
@@ -214,6 +236,7 @@ function seedDemoData(store: DemoStore) {
   });
 
   seedDemoGearItems(store);
+  seedDemoGroupMembers(store);
 }
 
 export function getDemoUser(): Profile {
@@ -313,6 +336,15 @@ export async function createDemoTrip(
       pet_size: t.traveler_type === "pet" ? (t.pet_size ?? "medium") : null,
       sort_order: i,
       created_at: now,
+    });
+  });
+
+  data.travelers.forEach((t) => {
+    addDemoGroupMember(userId, {
+      name: t.name,
+      traveler_type: t.traveler_type,
+      pet_species: t.traveler_type === "pet" ? (t.pet_species ?? "dog") : null,
+      pet_size: t.traveler_type === "pet" ? (t.pet_size ?? "medium") : null,
     });
   });
 
@@ -746,4 +778,63 @@ export function deleteDemoGearItem(userId: string, itemId: string) {
   const item = store.gear_items.get(itemId);
   if (!item || item.user_id !== userId) return;
   store.gear_items.delete(itemId);
+}
+
+export function getDemoGroupMembers(userId: string): GroupMember[] {
+  const store = getStore();
+  return Array.from(store.group_members.values())
+    .filter((m) => m.user_id === userId)
+    .sort((a, b) => a.name.localeCompare(b.name));
+}
+
+export function addDemoGroupMember(
+  userId: string,
+  input: Pick<GroupMember, "name" | "traveler_type" | "pet_species" | "pet_size">
+): { member: GroupMember; alreadyExists: boolean } {
+  const store = getStore();
+  const name = input.name.trim();
+  const existing = Array.from(store.group_members.values()).find(
+    (m) =>
+      m.user_id === userId &&
+      m.name.toLowerCase() === name.toLowerCase() &&
+      m.traveler_type === input.traveler_type
+  );
+  if (existing) return { member: existing, alreadyExists: true };
+
+  const now = new Date().toISOString();
+  const member: GroupMember = {
+    id: uuid(),
+    user_id: userId,
+    name,
+    traveler_type: input.traveler_type,
+    pet_species: input.traveler_type === "pet" ? (input.pet_species ?? "dog") : null,
+    pet_size: input.traveler_type === "pet" ? (input.pet_size ?? "medium") : null,
+    created_at: now,
+    updated_at: now,
+  };
+  store.group_members.set(member.id, member);
+  return { member, alreadyExists: false };
+}
+
+export function updateDemoGroupMember(
+  userId: string,
+  memberId: string,
+  updates: Partial<Pick<GroupMember, "name" | "traveler_type" | "pet_species" | "pet_size">>
+) {
+  const store = getStore();
+  const member = store.group_members.get(memberId);
+  if (!member || member.user_id !== userId) return;
+  store.group_members.set(memberId, {
+    ...member,
+    ...updates,
+    name: updates.name?.trim() ?? member.name,
+    updated_at: new Date().toISOString(),
+  });
+}
+
+export function deleteDemoGroupMember(userId: string, memberId: string) {
+  const store = getStore();
+  const member = store.group_members.get(memberId);
+  if (!member || member.user_id !== userId) return;
+  store.group_members.delete(memberId);
 }

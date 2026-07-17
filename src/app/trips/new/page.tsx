@@ -1,6 +1,7 @@
 import { Luggage } from "lucide-react";
 import { AppShell } from "@/components/layout/shells";
 import { TripOnboardingChat } from "@/components/trip/trip-onboarding-chat";
+import { getUserGroupMembers } from "@/actions/group";
 import { getDemoTemplates } from "@/lib/demo/store";
 import { getCurrentUser } from "@/actions/trips";
 import { isDemoMode } from "@/lib/supabase/client";
@@ -16,6 +17,8 @@ export default async function NewTripPage({ searchParams }: NewTripPageProps) {
 
   const params = await searchParams;
   let templateData;
+
+  const groupMembers = user ? await getUserGroupMembers() : [];
 
   if (params.template && user && isDemoMode()) {
     const templates = getDemoTemplates(user.id);
@@ -40,6 +43,7 @@ export default async function NewTripPage({ searchParams }: NewTripPageProps) {
         <TripOnboardingChat
           templateData={templateData}
           userName={user?.name?.split(" ")[0] ?? undefined}
+          groupMembers={groupMembers}
         />
       </div>
     </AppShell>

@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">PackForVacation</string>
+    <string name="title_activity_main">PackForVacation</string>
+    <string name="package_name">com.packforvacation.app</string>
+    <string name="custom_url_scheme">com.packforvacation.app</string>
+</resources>

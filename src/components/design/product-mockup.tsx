@@ -16,7 +16,7 @@ export function ProductMockup() {
             <div className="h-2.5 w-2.5 rounded-full bg-golf-green/80" />
           </div>
           <div className="mx-auto rounded-md bg-background/80 px-3 py-0.5 text-[10px] text-muted-foreground">
-            packmeup.app/trips/scottsdale
+            packforvacation.com/trips/scottsdale
           </div>
         </div>
 

@@ -96,6 +96,17 @@ export interface OnboardingTraveler {
   pet_size?: PetSize;
 }
 
+export interface GroupMember {
+  id: string;
+  user_id: string;
+  name: string;
+  traveler_type: TravelerType;
+  pet_species: PetSpecies | null;
+  pet_size: PetSize | null;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface Activity {
   id: string;
   trip_id: string;

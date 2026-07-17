@@ -15,6 +15,7 @@ import { buildTripSpecialNotes } from "@/lib/trip-notes";
 import { createClient } from "@/lib/supabase/server";
 import { generateTripContent } from "@/lib/ai/packing-generator";
 import { getUserGearItems } from "@/actions/gear";
+import { syncTravelersToMyGroup } from "@/actions/group";
 import { fetchWeather } from "@/lib/weather/weather-service";
 import { fetchDestinationCoverUrl } from "@/lib/unsplash/destination-cover";
 import { getAppUrl } from "@/lib/app-url";
@@ -223,6 +224,8 @@ export async function createTrip(data: TripOnboardingData): Promise<TripWithDeta
       generated.calendar_days.map((d) => ({ ...d, trip_id: trip.id }))
     );
   }
+
+  await syncTravelersToMyGroup(data.travelers);
 
   revalidatePath("/dashboard");
   const details = await getTripDetails(trip.id);

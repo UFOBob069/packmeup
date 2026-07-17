@@ -1,4 +1,4 @@
--- Pack Me Up - Initial Schema
+-- PackForVacation.com - Initial Schema
 
 -- Enable extensions
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
