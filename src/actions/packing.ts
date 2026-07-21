@@ -20,6 +20,8 @@ import {
 } from "@/lib/demo/store";
 import { refineWithChat } from "@/lib/ai/chat-refinement";
 import { createClient } from "@/lib/supabase/server";
+import { getAppUrl } from "@/lib/app-url";
+import { sendTripInviteEmail } from "@/lib/email/send-invite";
 import type { Outfit, OutfitItem, PackingCategory } from "@/lib/types";
 import { serializeOutfitItems } from "@/lib/outfit-items";
 import {
@@ -563,25 +565,57 @@ export async function inviteByEmail(tripId: string, email: string, role: "editor
   const user = await getCurrentUser();
   if (!user) throw new Error("Not authenticated");
 
+  const trimmed = email.trim().toLowerCase();
+  if (!trimmed.includes("@")) throw new Error("Enter a valid email address");
+
   if (isDemoMode()) {
-    return { success: true, message: `Invite sent to ${email}` };
+    return {
+      success: true,
+      message: `Demo invite recorded for ${trimmed}. Share the link to collaborate.`,
+      emailed: false,
+    };
   }
 
   const supabase = await createClient();
-  await supabase.from("trip_invites").insert({
-    trip_id: tripId,
-    email,
+  const trip = await getTripDetails(tripId);
+  if (!trip) throw new Error("Trip not found");
+  if (trip.owner_id !== user.id) throw new Error("Only the trip owner can send invites");
+
+  const { error } = await supabase.from("trip_invites").upsert(
+    {
+      trip_id: tripId,
+      email: trimmed,
+      role,
+      invited_by: user.id,
+      accepted_at: null,
+    },
+    { onConflict: "trip_id,email" }
+  );
+  if (error) throw new Error(error.message);
+
+  const shareLink = `${getAppUrl()}/trips/join/${trip.share_token}`;
+  const emailed = await sendTripInviteEmail({
+    to: trimmed,
+    destination: trip.destination,
+    inviterName: user.name?.split(" ")[0] || "A traveler",
     role,
-    invited_by: user.id,
+    shareLink,
+    startDate: trip.start_date,
+    endDate: trip.end_date,
   });
 
-  return { success: true, message: `Invite sent to ${email}` };
+  return {
+    success: true,
+    emailed: emailed.sent,
+    message: emailed.sent
+      ? `Invite emailed to ${trimmed}`
+      : `Invite saved for ${trimmed}. Copy the share link — email delivery needs RESEND_API_KEY.`,
+  };
 }
 
 export async function getShareLink(tripId: string) {
   const trip = await getTripDetails(tripId);
   if (!trip) throw new Error("Trip not found");
 
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
-  return `${baseUrl}/trips/join/${trip.share_token}`;
+  return `${getAppUrl()}/trips/join/${trip.share_token}`;
 }

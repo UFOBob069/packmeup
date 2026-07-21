@@ -42,6 +42,23 @@ export function Header({ variant = "app", user = null }: HeaderProps) {
             </span>
           </Link>
 
+          {isLanding && (
+            <nav className="hidden items-center gap-1 md:flex">
+              {[
+                { href: "/#features", label: "Features" },
+                { href: "/#for-travel-brands", label: "For Travel Brands" },
+              ].map(({ href, label }) => (
+                <Link
+                  key={href}
+                  href={href}
+                  className="rounded-full px-4 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground"
+                >
+                  {label}
+                </Link>
+              ))}
+            </nav>
+          )}
+
           {!isLanding && (
             <nav className="hidden items-center gap-1 md:flex">
               {navItems.map(({ href, label, icon: Icon, highlight }) => (

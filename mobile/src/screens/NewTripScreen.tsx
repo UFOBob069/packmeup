@@ -3,7 +3,17 @@ import { ArrowLeft, Sparkles } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../lib/auth";
 import { apiUrl, supabase } from "../lib/supabase";
-import type { GroupMember } from "../types";
+import type { GroupMember, TravelerType } from "../types";
+
+type PetSpecies = "dog" | "cat" | "other";
+type PetSize = "small" | "medium" | "large";
+
+interface DraftTraveler {
+  name: string;
+  traveler_type: TravelerType;
+  pet_species?: PetSpecies;
+  pet_size?: PetSize;
+}
 
 export function NewTripScreen() {
   const navigate = useNavigate();
@@ -11,8 +21,11 @@ export function NewTripScreen() {
   const [destination, setDestination] = useState("");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
-  const [travelerNames, setTravelerNames] = useState<string[]>([]);
+  const [travelers, setTravelers] = useState<DraftTraveler[]>([]);
   const [travelerDraft, setTravelerDraft] = useState("");
+  const [draftType, setDraftType] = useState<TravelerType>("adult");
+  const [draftSpecies, setDraftSpecies] = useState<PetSpecies>("dog");
+  const [draftSize, setDraftSize] = useState<PetSize>("medium");
   const [activities, setActivities] = useState("");
   const [notes, setNotes] = useState("");
   const [group, setGroup] = useState<GroupMember[]>([]);
@@ -26,24 +39,50 @@ export function NewTripScreen() {
     ]).then(([groupResult, profileResult]) => {
       setGroup((groupResult.data ?? []) as GroupMember[]);
       const name = profileResult.data?.name?.split(" ")[0];
-      if (name) setTravelerNames([name]);
+      if (name) {
+        setTravelers([{ name, traveler_type: "adult" }]);
+      }
     });
   }, []);
 
   const selected = useMemo(
-    () => new Set(travelerNames.map((name) => name.toLowerCase())),
-    [travelerNames]
+    () => new Set(travelers.map((traveler) => traveler.name.toLowerCase())),
+    [travelers]
   );
 
-  const addTraveler = (name: string) => {
-    const trimmed = name.trim();
+  const addTraveler = (input: DraftTraveler) => {
+    const trimmed = input.name.trim();
     if (!trimmed || selected.has(trimmed.toLowerCase())) return;
-    setTravelerNames((current) => [...current, trimmed]);
+    setTravelers((current) => [
+      ...current,
+      {
+        name: trimmed,
+        traveler_type: input.traveler_type,
+        pet_species: input.traveler_type === "pet" ? input.pet_species ?? "dog" : undefined,
+        pet_size: input.traveler_type === "pet" ? input.pet_size ?? "medium" : undefined,
+      },
+    ]);
     setTravelerDraft("");
+    setDraftType("adult");
+  };
+
+  const toggleGroupMember = (member: GroupMember) => {
+    if (selected.has(member.name.toLowerCase())) {
+      setTravelers((current) =>
+        current.filter((traveler) => traveler.name.toLowerCase() !== member.name.toLowerCase())
+      );
+      return;
+    }
+    addTraveler({
+      name: member.name,
+      traveler_type: member.traveler_type,
+      pet_species: member.pet_species ?? undefined,
+      pet_size: member.pet_size ?? undefined,
+    });
   };
 
   const createTrip = async () => {
-    if (!session || !destination.trim() || !startDate || !endDate || !travelerNames.length) {
+    if (!session || !destination.trim() || !startDate || !endDate || !travelers.length) {
       setError("Add a destination, dates, and at least one traveler.");
       return;
     }
@@ -60,15 +99,12 @@ export function NewTripScreen() {
         destination: destination.trim(),
         start_date: startDate,
         end_date: endDate,
-        travelers: travelerNames.map((name) => {
-          const saved = group.find((member) => member.name.toLowerCase() === name.toLowerCase());
-          return {
-            name,
-            traveler_type: saved?.traveler_type ?? "adult",
-            pet_species: saved?.pet_species ?? undefined,
-            pet_size: saved?.pet_size ?? undefined,
-          };
-        }),
+        travelers: travelers.map((traveler) => ({
+          name: traveler.name,
+          traveler_type: traveler.traveler_type,
+          pet_species: traveler.traveler_type === "pet" ? traveler.pet_species : undefined,
+          pet_size: traveler.traveler_type === "pet" ? traveler.pet_size : undefined,
+        })),
         travel_type: "checked_bag",
         laundry_access: "limited",
         style_preference: "casual",
@@ -142,13 +178,7 @@ export function NewTripScreen() {
                   type="button"
                   key={member.id}
                   className={`choice-pill ${selected.has(member.name.toLowerCase()) ? "selected" : ""}`}
-                  onClick={() =>
-                    selected.has(member.name.toLowerCase())
-                      ? setTravelerNames((current) =>
-                          current.filter((name) => name.toLowerCase() !== member.name.toLowerCase())
-                        )
-                      : addTraveler(member.name)
-                  }
+                  onClick={() => toggleGroupMember(member)}
                 >
                   {member.traveler_type === "pet" ? "🐾 " : ""}
                   {member.name}
@@ -156,31 +186,97 @@ export function NewTripScreen() {
               ))}
             </div>
           )}
-          <div className="inline-input">
-            <input
-              value={travelerDraft}
-              onChange={(event) => setTravelerDraft(event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key === "Enter") {
-                  event.preventDefault();
-                  addTraveler(travelerDraft);
+          <div className="traveler-draft">
+            <div className="inline-input">
+              <input
+                value={travelerDraft}
+                onChange={(event) => setTravelerDraft(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") {
+                    event.preventDefault();
+                    addTraveler({
+                      name: travelerDraft,
+                      traveler_type: draftType,
+                      pet_species: draftSpecies,
+                      pet_size: draftSize,
+                    });
+                  }
+                }}
+                placeholder={draftType === "pet" ? "Pet name" : "Add a person"}
+              />
+              <button
+                type="button"
+                onClick={() =>
+                  addTraveler({
+                    name: travelerDraft,
+                    traveler_type: draftType,
+                    pet_species: draftSpecies,
+                    pet_size: draftSize,
+                  })
                 }
-              }}
-              placeholder="Add a person"
-            />
-            <button type="button" onClick={() => addTraveler(travelerDraft)}>
-              Add
-            </button>
+              >
+                Add
+              </button>
+            </div>
+            <div className="form-grid traveler-type-grid">
+              <label>
+                Type
+                <select
+                  value={draftType}
+                  onChange={(event) => setDraftType(event.target.value as TravelerType)}
+                >
+                  <option value="adult">Adult</option>
+                  <option value="child">Child</option>
+                  <option value="infant">Infant</option>
+                  <option value="pet">Pet</option>
+                </select>
+              </label>
+              {draftType === "pet" && (
+                <>
+                  <label>
+                    Species
+                    <select
+                      value={draftSpecies}
+                      onChange={(event) => setDraftSpecies(event.target.value as PetSpecies)}
+                    >
+                      <option value="dog">Dog</option>
+                      <option value="cat">Cat</option>
+                      <option value="other">Other</option>
+                    </select>
+                  </label>
+                  <label>
+                    Size
+                    <select
+                      value={draftSize}
+                      onChange={(event) => setDraftSize(event.target.value as PetSize)}
+                    >
+                      <option value="small">Small</option>
+                      <option value="medium">Medium</option>
+                      <option value="large">Large</option>
+                    </select>
+                  </label>
+                </>
+              )}
+            </div>
           </div>
           <div className="pill-list">
-            {travelerNames.map((name) => (
+            {travelers.map((traveler) => (
               <button
                 type="button"
                 className="selected-name"
-                key={name}
-                onClick={() => setTravelerNames((current) => current.filter((item) => item !== name))}
+                key={traveler.name}
+                onClick={() =>
+                  setTravelers((current) =>
+                    current.filter((item) => item.name !== traveler.name)
+                  )
+                }
               >
-                {name} ×
+                {traveler.traveler_type === "pet" ? "🐾 " : ""}
+                {traveler.name}
+                {traveler.traveler_type === "pet" && traveler.pet_species
+                  ? ` · ${traveler.pet_species}/${traveler.pet_size ?? "medium"}`
+                  : ""}{" "}
+                ×
               </button>
             ))}
           </div>

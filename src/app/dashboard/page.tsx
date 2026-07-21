@@ -33,7 +33,7 @@ export default async function DashboardPage() {
       const details = await getTripDetails(t.id);
       const isUpcoming = t.end_date >= now;
       let weather = (details?.weather_data ?? t.weather_data) as WeatherData | null;
-      if (isUpcoming && !weather?.daily?.length) {
+      if (isUpcoming) {
         weather = await ensureTripWeather(t);
       }
       return {

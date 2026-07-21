@@ -14,6 +14,7 @@ import type {
   TripMember,
   TripOnboardingData,
   TripWithDetails,
+  TripWorkspaceItem,
   WeatherData,
 } from "@/lib/types";
 import { DEMO_USER } from "@/lib/constants";
@@ -42,6 +43,7 @@ interface DemoStore {
   chat_messages: Map<string, ChatMessage>;
   gear_items: Map<string, GearItem>;
   group_members: Map<string, GroupMember>;
+  workspace_items: Map<string, TripWorkspaceItem>;
   currentUserId: string;
 }
 
@@ -90,6 +92,9 @@ function ensureDemoStoreShape(store: DemoStore) {
     store.group_members = new Map();
     seedDemoGroupMembers(store);
   }
+  if (!store.workspace_items) {
+    store.workspace_items = new Map();
+  }
 }
 
 function getStore(): DemoStore {
@@ -107,6 +112,7 @@ function getStore(): DemoStore {
       chat_messages: new Map(),
       gear_items: new Map(),
       group_members: new Map(),
+      workspace_items: new Map(),
       currentUserId: DEMO_USER.id,
     };
     seedDemoData(globalForDemo.demoStore);
@@ -270,6 +276,9 @@ export function getDemoTripWithDetails(tripId: string): TripWithDetails | null {
       .sort((a, b) => a.sort_order - b.sort_order),
     outfits: Array.from(store.outfits.values()).filter((o) => o.trip_id === tripId),
     calendar_days: Array.from(store.calendar_days.values()).filter((c) => c.trip_id === tripId),
+    workspace_items: Array.from(store.workspace_items.values())
+      .filter((item) => item.trip_id === tripId)
+      .sort((a, b) => a.sort_order - b.sort_order),
     members: Array.from(store.trip_members.values()).filter((m) => m.trip_id === tripId),
   };
 }
@@ -380,6 +389,10 @@ export async function createDemoTrip(
     const id = uuid();
     store.calendar_days.set(id, { ...day, id, trip_id: tripId, created_at: now });
   });
+
+  if (trip.special_notes) {
+    addDemoWorkspaceItem(tripId, "arrival", "Trip and arrival notes", trip.special_notes);
+  }
 
   return getDemoTripWithDetails(tripId)!;
 }
@@ -837,4 +850,73 @@ export function deleteDemoGroupMember(userId: string, memberId: string) {
   const member = store.group_members.get(memberId);
   if (!member || member.user_id !== userId) return;
   store.group_members.delete(memberId);
+}
+
+export function getDemoTripByShareToken(token: string): Trip | null {
+  const store = getStore();
+  return Array.from(store.trips.values()).find((trip) => trip.share_token === token) ?? null;
+}
+
+export function joinDemoTripByShareToken(token: string, userId: string): string | null {
+  const store = getStore();
+  const trip = getDemoTripByShareToken(token);
+  if (!trip) return null;
+  if (trip.owner_id === userId) return trip.id;
+
+  const existing = Array.from(store.trip_members.values()).find(
+    (member) => member.trip_id === trip.id && member.user_id === userId
+  );
+  if (!existing) {
+    const id = uuid();
+    store.trip_members.set(id, {
+      id,
+      trip_id: trip.id,
+      user_id: userId,
+      role: "editor",
+      created_at: new Date().toISOString(),
+    });
+  }
+  return trip.id;
+}
+
+export function addDemoWorkspaceItem(
+  tripId: string,
+  kind: TripWorkspaceItem["kind"],
+  title: string,
+  details?: string | null
+): TripWorkspaceItem {
+  const store = getStore();
+  const now = new Date().toISOString();
+  const sortOrder = Array.from(store.workspace_items.values()).filter(
+    (item) => item.trip_id === tripId && item.kind === kind
+  ).length;
+  const item: TripWorkspaceItem = {
+    id: uuid(),
+    trip_id: tripId,
+    kind,
+    title: title.trim(),
+    details: details?.trim() || null,
+    completed: false,
+    sort_order: sortOrder,
+    created_at: now,
+    updated_at: now,
+  };
+  store.workspace_items.set(item.id, item);
+  return item;
+}
+
+export function toggleDemoWorkspaceItem(itemId: string, completed: boolean) {
+  const store = getStore();
+  const item = store.workspace_items.get(itemId);
+  if (!item) return;
+  store.workspace_items.set(itemId, {
+    ...item,
+    completed,
+    updated_at: new Date().toISOString(),
+  });
+}
+
+export function deleteDemoWorkspaceItem(itemId: string) {
+  const store = getStore();
+  store.workspace_items.delete(itemId);
 }

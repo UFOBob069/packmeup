@@ -15,6 +15,9 @@ interface LibraryScreenProps {
   kind: "gear" | "group";
 }
 
+type PetSpecies = "dog" | "cat" | "other";
+type PetSize = "small" | "medium" | "large";
+
 export function LibraryScreen({ kind }: LibraryScreenProps) {
   const { session } = useAuth();
   const [gear, setGear] = useState<GearItem[]>([]);
@@ -22,6 +25,8 @@ export function LibraryScreen({ kind }: LibraryScreenProps) {
   const [name, setName] = useState("");
   const [category, setCategory] = useState<PackingCategory>("clothing");
   const [travelerType, setTravelerType] = useState<TravelerType>("adult");
+  const [petSpecies, setPetSpecies] = useState<PetSpecies>("dog");
+  const [petSize, setPetSize] = useState<PetSize>("medium");
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
@@ -48,14 +53,19 @@ export function LibraryScreen({ kind }: LibraryScreenProps) {
         ? await supabase
             .from("gear_items")
             .insert({ user_id: session.user.id, item_name: trimmed, category })
-        : await supabase
-            .from("group_members")
-            .insert({ user_id: session.user.id, name: trimmed, traveler_type: travelerType });
+        : await supabase.from("group_members").insert({
+            user_id: session.user.id,
+            name: trimmed,
+            traveler_type: travelerType,
+            pet_species: travelerType === "pet" ? petSpecies : null,
+            pet_size: travelerType === "pet" ? petSize : null,
+          });
     if (insertError) {
       setError(insertError.message);
       return;
     }
     setName("");
+    setTravelerType("adult");
     await load();
   };
 
@@ -76,7 +86,10 @@ export function LibraryScreen({ kind }: LibraryScreenProps) {
       : group.map((member) => ({
           id: member.id,
           name: member.name,
-          detail: member.traveler_type,
+          detail:
+            member.traveler_type === "pet"
+              ? `pet · ${member.pet_species ?? "dog"}/${member.pet_size ?? "medium"}`
+              : member.traveler_type,
         }));
 
   return (
@@ -94,7 +107,7 @@ export function LibraryScreen({ kind }: LibraryScreenProps) {
           value={name}
           onChange={(event) => setName(event.target.value)}
           onKeyDown={(event) => event.key === "Enter" && void add()}
-          placeholder={kind === "gear" ? "Add gear" : "Add a person"}
+          placeholder={kind === "gear" ? "Add gear" : travelerType === "pet" ? "Pet name" : "Add a person"}
         />
         {kind === "gear" ? (
           <select
@@ -108,15 +121,37 @@ export function LibraryScreen({ kind }: LibraryScreenProps) {
             ))}
           </select>
         ) : (
-          <select
-            value={travelerType}
-            onChange={(event) => setTravelerType(event.target.value as TravelerType)}
-          >
-            <option value="adult">Adult</option>
-            <option value="child">Child</option>
-            <option value="infant">Infant</option>
-            <option value="pet">Pet</option>
-          </select>
+          <>
+            <select
+              value={travelerType}
+              onChange={(event) => setTravelerType(event.target.value as TravelerType)}
+            >
+              <option value="adult">Adult</option>
+              <option value="child">Child</option>
+              <option value="infant">Infant</option>
+              <option value="pet">Pet</option>
+            </select>
+            {travelerType === "pet" && (
+              <>
+                <select
+                  value={petSpecies}
+                  onChange={(event) => setPetSpecies(event.target.value as PetSpecies)}
+                >
+                  <option value="dog">Dog</option>
+                  <option value="cat">Cat</option>
+                  <option value="other">Other</option>
+                </select>
+                <select
+                  value={petSize}
+                  onChange={(event) => setPetSize(event.target.value as PetSize)}
+                >
+                  <option value="small">Small</option>
+                  <option value="medium">Medium</option>
+                  <option value="large">Large</option>
+                </select>
+              </>
+            )}
+          </>
         )}
         <button className="icon-button primary-icon" onClick={() => void add()}>
           <Plus size={19} />

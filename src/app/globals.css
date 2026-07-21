@@ -197,6 +197,33 @@
   .animate-float {
     animation: float 4s ease-in-out infinite;
   }
+  @keyframes fade-up {
+    from { opacity: 0; transform: translateY(18px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .animate-fade-up {
+    animation: fade-up 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+  .animate-delay-100 { animation-delay: 100ms; }
+  .animate-delay-200 { animation-delay: 200ms; }
+  .animate-delay-300 { animation-delay: 300ms; }
+  .animate-delay-500 { animation-delay: 500ms; }
+  .animate-delay-700 { animation-delay: 700ms; }
+  @keyframes toast-in {
+    0%, 45% { opacity: 0; transform: translateY(10px) scale(0.97); }
+    60% { opacity: 1; transform: translateY(-2px) scale(1.01); }
+    100% { opacity: 1; transform: translateY(0) scale(1); }
+  }
+  .animate-toast-in {
+    animation: toast-in 2.2s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .animate-float,
+    .animate-fade-up,
+    .animate-toast-in {
+      animation: none;
+    }
+  }
 }
 
 @media print {

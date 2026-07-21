@@ -30,7 +30,7 @@ interface PackingSidebarProps {
   daysUntil: number;
   timeline: TimelineMilestone[];
   gearItems: GearItem[];
-  onOptimize: () => void;
+  onOptimize?: () => void;
   className?: string;
 }
 
@@ -165,10 +165,12 @@ export function PackingSidebar({
             </p>
           )}
         </div>
-        <Button onClick={onOptimize} className="mt-4 w-full" size="sm">
-          <Sparkles className="mr-2 h-4 w-4" />
-          Optimize my list
-        </Button>
+        {onOptimize && (
+          <Button onClick={onOptimize} className="mt-4 w-full" size="sm">
+            <Sparkles className="mr-2 h-4 w-4" />
+            Optimize my list
+          </Button>
+        )}
       </section>
 
       <section className="rounded-2xl border bg-card p-4 shadow-travel-sm">

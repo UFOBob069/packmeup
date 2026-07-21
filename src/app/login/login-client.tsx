@@ -9,14 +9,18 @@ import { signInWithGoogle } from "@/actions/trips";
 import { APP_NAME } from "@/lib/constants";
 import { isDemoMode } from "@/lib/supabase/client";
 
-export function LoginClient() {
+interface LoginClientProps {
+  nextPath?: string;
+}
+
+export function LoginClient({ nextPath = "/dashboard" }: LoginClientProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const demoMode = isDemoMode();
 
   const handleGoogle = () => {
     startTransition(async () => {
-      const result = await signInWithGoogle();
+      const result = await signInWithGoogle(nextPath);
       if (result.url) {
         if (result.url.startsWith("http")) {
           window.location.href = result.url;
@@ -74,7 +78,7 @@ export function LoginClient() {
               <Button
                 className="h-12 w-full rounded-full text-base"
                 size="lg"
-                onClick={() => router.push("/dashboard")}
+                onClick={() => router.push(nextPath)}
               >
                 Continue to demo
                 <ArrowRight className="ml-2 h-4 w-4" />

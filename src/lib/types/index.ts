@@ -164,6 +164,18 @@ export interface CalendarDay {
   created_at: string;
 }
 
+export interface TripWorkspaceItem {
+  id: string;
+  trip_id: string;
+  kind: "grocery" | "arrival" | "reminder";
+  title: string;
+  details: string | null;
+  completed: boolean;
+  sort_order: number;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface Template {
   id: string;
   user_id: string;
@@ -243,6 +255,7 @@ export interface TripWithDetails extends Trip {
   packing_items: PackingItem[];
   outfits: Outfit[];
   calendar_days: CalendarDay[];
+  workspace_items?: TripWorkspaceItem[];
   members: TripMember[];
 }
 

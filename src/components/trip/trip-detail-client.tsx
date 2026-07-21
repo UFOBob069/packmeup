@@ -7,6 +7,7 @@ import {
   Luggage,
   ListChecks,
   CalendarDays,
+  ClipboardCheck,
   MessageCircle,
   Printer,
 } from "lucide-react";
@@ -18,12 +19,13 @@ import { AiChat } from "./ai-chat";
 import { InviteDialog } from "./invite-dialog";
 import { TripSettingsMenu } from "./trip-settings-menu";
 import { RealtimePacking } from "./realtime-packing";
+import { TripPrepWorkspace } from "./trip-prep-workspace";
 import { PackingSidebar } from "./packing-sidebar";
 import { TravelerPackingFilters } from "./packing-traveler-filters";
 import { CountdownWidget } from "@/components/design/countdown-widget";
 import { ActivityTag } from "@/components/design/activity-tag";
 import { DestinationCover } from "./destination-cover";
-import type { ChatMessage, GearItem, TripWithDetails, WeatherData } from "@/lib/types";
+import type { ChatMessage, GearItem, MemberRole, TripWithDetails, WeatherData } from "@/lib/types";
 import { calculateProgress } from "@/lib/demo/store";
 import { generatePackingTimeline } from "@/lib/design-system";
 
@@ -31,15 +33,26 @@ interface TripDetailClientProps {
   trip: TripWithDetails;
   chatMessages: ChatMessage[];
   gearItems: GearItem[];
+  canEdit?: boolean;
+  canManage?: boolean;
+  memberRole?: MemberRole;
 }
 
 const tabItems = [
   { value: "pack", label: "Checklist", icon: ListChecks },
   { value: "days", label: "By Day", icon: CalendarDays },
+  { value: "prep", label: "Trip Prep", icon: ClipboardCheck },
   { value: "concierge", label: "Packing Help", icon: MessageCircle },
 ];
 
-export function TripDetailClient({ trip, chatMessages, gearItems }: TripDetailClientProps) {
+export function TripDetailClient({
+  trip,
+  chatMessages,
+  gearItems,
+  canEdit = true,
+  canManage = true,
+  memberRole = "owner",
+}: TripDetailClientProps) {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState("pack");
   const [travelerFilter, setTravelerFilter] = useState("all");
@@ -48,6 +61,9 @@ export function TripDetailClient({ trip, chatMessages, gearItems }: TripDetailCl
   const activities = [...new Set(trip.activities.map((a) => a.activity_name))];
   const timeline = generatePackingTimeline(daysUntil);
   const weather = trip.weather_data as WeatherData | null;
+  const visibleTabs = canEdit
+    ? tabItems
+    : tabItems.filter((tab) => tab.value !== "concierge");
 
   const checklistFilter =
     travelerFilter === "all"
@@ -62,7 +78,7 @@ export function TripDetailClient({ trip, chatMessages, gearItems }: TripDetailCl
     daysUntil,
     timeline,
     gearItems,
-    onOptimize: () => setActiveTab("concierge"),
+    onOptimize: canEdit ? () => setActiveTab("concierge") : undefined,
   };
 
   return (
@@ -88,6 +104,7 @@ export function TripDetailClient({ trip, chatMessages, gearItems }: TripDetailCl
               <p className="mt-1 text-sm text-white/80">
                 {format(parseISO(trip.start_date), "MMM d")} –{" "}
                 {format(parseISO(trip.end_date), "MMM d, yyyy")}
+                {memberRole === "viewer" ? " · View only" : ""}
               </p>
             </div>
             <div className="flex shrink-0 items-center gap-2">
@@ -111,14 +128,18 @@ export function TripDetailClient({ trip, chatMessages, gearItems }: TripDetailCl
                 <Printer className="h-4 w-4 sm:mr-1.5" />
                 <span className="hidden sm:inline">Print</span>
               </Button>
-              <InviteDialog
-                tripId={trip.id}
-                destination={trip.destination}
-                coverImageUrl={trip.cover_image_url}
-                startDate={trip.start_date}
-                endDate={trip.end_date}
-              />
-              <TripSettingsMenu tripId={trip.id} destination={trip.destination} />
+              {canManage && (
+                <>
+                  <InviteDialog
+                    tripId={trip.id}
+                    destination={trip.destination}
+                    coverImageUrl={trip.cover_image_url}
+                    startDate={trip.start_date}
+                    endDate={trip.end_date}
+                  />
+                  <TripSettingsMenu tripId={trip.id} destination={trip.destination} />
+                </>
+              )}
             </div>
           </div>
         </DestinationCover>
@@ -126,7 +147,7 @@ export function TripDetailClient({ trip, chatMessages, gearItems }: TripDetailCl
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-5">
         <TabsList className="flex h-auto w-full flex-wrap justify-start gap-1 rounded-2xl bg-muted/50 p-1.5">
-          {tabItems.map(({ value, label, icon: Icon }) => (
+          {visibleTabs.map(({ value, label, icon: Icon }) => (
             <TabsTrigger
               key={value}
               value={value}
@@ -154,6 +175,7 @@ export function TripDetailClient({ trip, chatMessages, gearItems }: TripDetailCl
                 tripId={trip.id}
                 filterTraveler={checklistFilter ?? null}
                 gearItems={gearItems}
+                readOnly={!canEdit}
               />
 
               <div className="lg:hidden">
@@ -179,30 +201,42 @@ export function TripDetailClient({ trip, chatMessages, gearItems }: TripDetailCl
             outfits={trip.outfits}
             weather={weather}
             gearItems={gearItems}
+            editable={canEdit}
           />
         </TabsContent>
 
-        <TabsContent value="concierge">
-          <div className="grid gap-6 lg:grid-cols-5">
-            <div className="lg:col-span-3">
-              <div className="h-[min(560px,70vh)]">
-                <AiChat tripId={trip.id} initialMessages={chatMessages} />
-              </div>
-            </div>
-            <div className="space-y-4 lg:col-span-2">
-              <div className="rounded-2xl border bg-warm-sand/20 p-5 dark:bg-warm-sand/5">
-                <div className="mb-3 flex items-center gap-2">
-                  <Luggage className="h-4 w-4 text-primary" />
-                  <p className="text-display font-semibold">Your packing expert</p>
-                </div>
-                <p className="text-sm leading-relaxed text-muted-foreground">
-                  Ask me to optimize for carry-on, add gear for an activity, adjust for weather,
-                  or trim what you don&apos;t need.
-                </p>
-              </div>
-            </div>
-          </div>
+        <TabsContent value="prep">
+          <TripPrepWorkspace
+            tripId={trip.id}
+            items={trip.workspace_items ?? []}
+            fallbackArrivalNotes={trip.special_notes}
+            readOnly={!canEdit}
+          />
         </TabsContent>
+
+        {canEdit && (
+          <TabsContent value="concierge">
+            <div className="grid gap-6 lg:grid-cols-5">
+              <div className="lg:col-span-3">
+                <div className="h-[min(560px,70vh)]">
+                  <AiChat tripId={trip.id} initialMessages={chatMessages} />
+                </div>
+              </div>
+              <div className="space-y-4 lg:col-span-2">
+                <div className="rounded-2xl border bg-warm-sand/20 p-5 dark:bg-warm-sand/5">
+                  <div className="mb-3 flex items-center gap-2">
+                    <Luggage className="h-4 w-4 text-primary" />
+                    <p className="text-display font-semibold">Your packing expert</p>
+                  </div>
+                  <p className="text-sm leading-relaxed text-muted-foreground">
+                    Ask me to optimize for carry-on, add gear for an activity, adjust for weather,
+                    or trim what you don&apos;t need.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </TabsContent>
+        )}
       </Tabs>
     </div>
   );

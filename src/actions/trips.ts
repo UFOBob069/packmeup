@@ -5,21 +5,31 @@ import { isDemoMode } from "@/lib/supabase/client";
 import {
   createDemoTrip,
   deleteDemoTrip,
+  getDemoTripByShareToken,
   getDemoTripWithDetails,
   getDemoTrips,
   getDemoUser,
+  joinDemoTripByShareToken,
   saveDemoTemplate,
   updateDemoTripWeather,
 } from "@/lib/demo/store";
 import { buildTripSpecialNotes } from "@/lib/trip-notes";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { generateTripContent } from "@/lib/ai/packing-generator";
 import { getUserGearItems } from "@/actions/gear";
 import { syncTravelersToMyGroup } from "@/actions/group";
 import { fetchWeather } from "@/lib/weather/weather-service";
 import { fetchDestinationCoverUrl } from "@/lib/unsplash/destination-cover";
 import { getAppUrl } from "@/lib/app-url";
-import type { Trip, TripOnboardingData, TripTemplateData, TripWithDetails, WeatherData } from "@/lib/types";
+import type {
+  MemberRole,
+  Trip,
+  TripOnboardingData,
+  TripTemplateData,
+  TripWithDetails,
+  WeatherData,
+} from "@/lib/types";
 
 export async function getCurrentUser() {
   if (isDemoMode()) {
@@ -41,13 +51,23 @@ export async function getCurrentUser() {
   return profile;
 }
 
-/** Fetch weather only when missing, then cache on the trip row. */
+const WEATHER_STALE_MS = 6 * 60 * 60 * 1000;
+
+function isWeatherFresh(weather: WeatherData | null | undefined): boolean {
+  if (!weather?.daily?.length) return false;
+  if (!weather.fetched_at) return false;
+  const fetchedAt = Date.parse(weather.fetched_at);
+  if (Number.isNaN(fetchedAt)) return false;
+  return Date.now() - fetchedAt < WEATHER_STALE_MS;
+}
+
+/** Fetch weather when missing or stale, then cache on the trip row. */
 export async function ensureTripWeather(trip: Trip): Promise<WeatherData | null> {
   const existing = trip.weather_data as WeatherData | null;
-  if (existing?.daily?.length) return existing;
+  if (isWeatherFresh(existing)) return existing;
 
   const weather = await fetchWeather(trip.destination, trip.start_date, trip.end_date);
-  if (!weather) return null;
+  if (!weather) return existing;
 
   if (isDemoMode()) {
     updateDemoTripWeather(trip.id, weather);
@@ -97,13 +117,18 @@ export async function getTripDetails(tripId: string): Promise<TripWithDetails | 
   const { data: trip } = await supabase.from("trips").select("*").eq("id", tripId).single();
   if (!trip) return null;
 
-  const [travelers, activities, packing_items, outfits, calendar_days, members] =
+  const [travelers, activities, packing_items, outfits, calendar_days, workspace_items, members] =
     await Promise.all([
       supabase.from("travelers").select("*").eq("trip_id", tripId).order("sort_order"),
       supabase.from("activities").select("*").eq("trip_id", tripId),
       supabase.from("packing_items").select("*").eq("trip_id", tripId).order("sort_order"),
       supabase.from("outfits").select("*").eq("trip_id", tripId).order("trip_date"),
       supabase.from("calendar_days").select("*").eq("trip_id", tripId).order("trip_date"),
+      supabase
+        .from("trip_workspace_items")
+        .select("*")
+        .eq("trip_id", tripId)
+        .order("sort_order"),
       supabase
         .from("trip_members")
         .select("*, profile:profiles(*)")
@@ -117,6 +142,7 @@ export async function getTripDetails(tripId: string): Promise<TripWithDetails | 
     packing_items: packing_items.data ?? [],
     outfits: outfits.data ?? [],
     calendar_days: calendar_days.data ?? [],
+    workspace_items: workspace_items.data ?? [],
     members: members.data ?? [],
   } as TripWithDetails;
 }
@@ -225,6 +251,19 @@ export async function createTrip(data: TripOnboardingData): Promise<TripWithDeta
     );
   }
 
+  const arrivalNotes = buildTripSpecialNotes(data);
+  if (arrivalNotes) {
+    const { error: workspaceError } = await supabase.from("trip_workspace_items").insert({
+      trip_id: trip.id,
+      kind: "arrival",
+      title: "Trip and arrival notes",
+      details: arrivalNotes,
+    });
+    if (workspaceError && workspaceError.code !== "42P01") {
+      throw new Error(workspaceError.message);
+    }
+  }
+
   await syncTravelersToMyGroup(data.travelers);
 
   revalidatePath("/dashboard");
@@ -279,21 +318,112 @@ export async function saveTemplate(
   revalidatePath("/templates");
 }
 
-export async function signInWithGoogle() {
+export async function signInWithGoogle(nextPath = "/dashboard") {
   if (isDemoMode()) {
-    return { url: "/dashboard" };
+    return { url: nextPath.startsWith("/") ? nextPath : "/dashboard" };
   }
 
+  const safeNext = nextPath.startsWith("/") ? nextPath : "/dashboard";
   const supabase = await createClient();
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: "google",
     options: {
-      redirectTo: `${getAppUrl()}/auth/callback`,
+      redirectTo: `${getAppUrl()}/auth/callback?next=${encodeURIComponent(safeNext)}`,
     },
   });
 
   if (error) throw new Error(error.message);
   return { url: data.url };
+}
+
+export async function getTripPreviewByShareToken(token: string) {
+  if (!token.trim()) return null;
+
+  if (isDemoMode()) {
+    const trip = getDemoTripByShareToken(token);
+    if (!trip) return null;
+    return {
+      id: trip.id,
+      destination: trip.destination,
+      start_date: trip.start_date,
+      end_date: trip.end_date,
+      cover_image_url: trip.cover_image_url ?? null,
+    };
+  }
+
+  try {
+    const admin = createAdminClient();
+    const { data } = await admin
+      .from("trips")
+      .select("id, destination, start_date, end_date, cover_image_url")
+      .eq("share_token", token)
+      .maybeSingle();
+    return data;
+  } catch {
+    return null;
+  }
+}
+
+export async function joinTripByShareToken(token: string): Promise<{ tripId: string }> {
+  const user = await getCurrentUser();
+  if (!user) throw new Error("Not authenticated");
+
+  if (isDemoMode()) {
+    const tripId = joinDemoTripByShareToken(token, user.id);
+    if (!tripId) throw new Error("Invite link is invalid");
+    revalidatePath("/dashboard");
+    revalidatePath(`/trips/${tripId}`);
+    return { tripId };
+  }
+
+  const admin = createAdminClient();
+  const { data: trip } = await admin
+    .from("trips")
+    .select("id, owner_id")
+    .eq("share_token", token)
+    .maybeSingle();
+  if (!trip) throw new Error("Invite link is invalid");
+
+  if (trip.owner_id === user.id) {
+    return { tripId: trip.id };
+  }
+
+  const { data: existing } = await admin
+    .from("trip_members")
+    .select("id, role")
+    .eq("trip_id", trip.id)
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  const { data: invite } = await admin
+    .from("trip_invites")
+    .select("id, role")
+    .eq("trip_id", trip.id)
+    .ilike("email", user.email)
+    .maybeSingle();
+
+  const role: MemberRole =
+    invite?.role === "viewer" || invite?.role === "editor" ? invite.role : "editor";
+
+  if (!existing) {
+    const { error } = await admin.from("trip_members").insert({
+      trip_id: trip.id,
+      user_id: user.id,
+      role,
+    });
+    if (error) throw new Error(error.message);
+  }
+
+  if (invite) {
+    await admin
+      .from("trip_invites")
+      .update({ accepted_at: new Date().toISOString() })
+      .eq("id", invite.id);
+  }
+
+  revalidatePath("/dashboard");
+  revalidatePath(`/trips/${trip.id}`);
+  return { tripId: trip.id };
 }
 
 export async function signOut() {

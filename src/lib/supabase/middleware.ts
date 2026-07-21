@@ -11,6 +11,7 @@ function isDemoModeEnv(): boolean {
 }
 
 function isProtectedPath(pathname: string): boolean {
+  if (pathname.startsWith("/trips/join/")) return false;
   return (
     pathname.startsWith("/dashboard") ||
     pathname.startsWith("/trips") ||
@@ -61,10 +62,11 @@ export async function updateSession(request: NextRequest) {
   }
 
   if (!isDemoModeEnv() && user && pathname === "/login") {
-    const dashboardUrl = request.nextUrl.clone();
-    dashboardUrl.pathname = "/dashboard";
-    dashboardUrl.search = "";
-    return NextResponse.redirect(dashboardUrl);
+    const next = request.nextUrl.searchParams.get("next");
+    const destination = request.nextUrl.clone();
+    destination.pathname = next?.startsWith("/") ? next : "/dashboard";
+    destination.search = "";
+    return NextResponse.redirect(destination);
   }
 
   return supabaseResponse;

@@ -3,29 +3,50 @@ import { AppShell } from "@/components/layout/shells";
 import { TripDetailClient } from "@/components/trip/trip-detail-client";
 import { getChatHistory } from "@/actions/packing";
 import { getUserGearItems } from "@/actions/gear";
-import { getTripDetails, ensureTripWeather } from "@/actions/trips";
+import { getCurrentUser, getTripDetails, ensureTripWeather } from "@/actions/trips";
+import type { MemberRole } from "@/lib/types";
 
 interface TripPageProps {
   params: Promise<{ id: string }>;
 }
 
+function resolveMemberRole(
+  trip: Awaited<ReturnType<typeof getTripDetails>>,
+  userId: string | undefined
+): MemberRole {
+  if (!trip || !userId) return "viewer";
+  if (trip.owner_id === userId) return "owner";
+  const membership = trip.members.find((member) => member.user_id === userId);
+  return membership?.role ?? "viewer";
+}
+
 export default async function TripPage({ params }: TripPageProps) {
   const { id } = await params;
-  const trip = await getTripDetails(id);
+  const [trip, user] = await Promise.all([getTripDetails(id), getCurrentUser()]);
   if (!trip) notFound();
 
   const now = new Date().toISOString().split("T")[0];
-  if (trip.end_date >= now && !trip.weather_data?.daily?.length) {
+  if (trip.end_date >= now) {
     const weather = await ensureTripWeather(trip);
     if (weather) trip.weather_data = weather;
   }
 
   const chatMessages = await getChatHistory(id);
   const gearItems = await getUserGearItems();
+  const role = resolveMemberRole(trip, user?.id);
+  const canEdit = role === "owner" || role === "editor";
+  const canManage = role === "owner";
 
   return (
     <AppShell>
-      <TripDetailClient trip={trip} chatMessages={chatMessages} gearItems={gearItems} />
+      <TripDetailClient
+        trip={trip}
+        chatMessages={chatMessages}
+        gearItems={gearItems}
+        canEdit={canEdit}
+        canManage={canManage}
+        memberRole={role}
+      />
     </AppShell>
   );
 }

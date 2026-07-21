@@ -191,6 +191,19 @@ export async function POST(request: NextRequest) {
     const writeError = writeResults.find((result) => result.error)?.error;
     if (writeError) throw new Error(writeError.message);
 
+    const arrivalNotes = buildTripSpecialNotes(data);
+    if (arrivalNotes) {
+      const { error: workspaceError } = await supabase.from("trip_workspace_items").insert({
+        trip_id: trip.id,
+        kind: "arrival",
+        title: "Trip and arrival notes",
+        details: arrivalNotes,
+      });
+      if (workspaceError && workspaceError.code !== "42P01") {
+        throw new Error(workspaceError.message);
+      }
+    }
+
     for (const traveler of data.travelers) {
       const { data: existing } = await supabase
         .from("group_members")
