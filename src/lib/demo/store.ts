@@ -682,6 +682,9 @@ export function deleteDemoTrip(tripId: string): void {
   for (const [id, o] of store.outfits) if (o.trip_id === tripId) store.outfits.delete(id);
   for (const [id, c] of store.calendar_days) if (c.trip_id === tripId) store.calendar_days.delete(id);
   for (const [id, m] of store.chat_messages) if (m.trip_id === tripId) store.chat_messages.delete(id);
+  for (const [id, item] of store.workspace_items) {
+    if (item.trip_id === tripId) store.workspace_items.delete(id);
+  }
 }
 
 export function calculateProgress(
@@ -919,4 +922,54 @@ export function toggleDemoWorkspaceItem(itemId: string, completed: boolean) {
 export function deleteDemoWorkspaceItem(itemId: string) {
   const store = getStore();
   store.workspace_items.delete(itemId);
+}
+
+export function updateDemoWorkspaceItem(
+  tripId: string,
+  itemId: string,
+  updates: { title?: string; details?: string | null }
+) {
+  const store = getStore();
+  const item = store.workspace_items.get(itemId);
+  if (!item || item.trip_id !== tripId) return;
+
+  const nextTitle =
+    updates.title !== undefined ? updates.title.trim() : item.title;
+  if (!nextTitle) return;
+
+  store.workspace_items.set(itemId, {
+    ...item,
+    title: nextTitle,
+    details:
+      updates.details !== undefined
+        ? updates.details?.trim() || null
+        : item.details,
+    updated_at: new Date().toISOString(),
+  });
+}
+
+export function addDemoTripActivity(tripId: string, activityName: string): Activity {
+  const store = getStore();
+  const existing = Array.from(store.activities.values()).find(
+    (activity) =>
+      activity.trip_id === tripId &&
+      activity.activity_name.toLowerCase() === activityName.trim().toLowerCase()
+  );
+  if (existing) return existing;
+
+  const activity: Activity = {
+    id: uuid(),
+    trip_id: tripId,
+    activity_name: activityName.trim(),
+    created_at: new Date().toISOString(),
+  };
+  store.activities.set(activity.id, activity);
+  return activity;
+}
+
+export function deleteDemoTripActivity(tripId: string, activityId: string) {
+  const store = getStore();
+  const activity = store.activities.get(activityId);
+  if (!activity || activity.trip_id !== tripId) return;
+  store.activities.delete(activityId);
 }

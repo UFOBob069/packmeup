@@ -4,12 +4,15 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { differenceInDays, format, parseISO } from "date-fns";
 import {
+  CloudSun,
+  Compass,
+  Home,
   Luggage,
   ListChecks,
   CalendarDays,
-  ClipboardCheck,
   MessageCircle,
   Printer,
+  ShoppingCart,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -20,6 +23,8 @@ import { InviteDialog } from "./invite-dialog";
 import { TripSettingsMenu } from "./trip-settings-menu";
 import { RealtimePacking } from "./realtime-packing";
 import { TripPrepWorkspace } from "./trip-prep-workspace";
+import { ActivityHub } from "./activity-hub";
+import { WeatherHub } from "./weather-hub";
 import { PackingSidebar } from "./packing-sidebar";
 import { TravelerPackingFilters } from "./packing-traveler-filters";
 import { CountdownWidget } from "@/components/design/countdown-widget";
@@ -41,7 +46,10 @@ interface TripDetailClientProps {
 const tabItems = [
   { value: "pack", label: "Checklist", icon: ListChecks },
   { value: "days", label: "By Day", icon: CalendarDays },
-  { value: "prep", label: "Trip Prep", icon: ClipboardCheck },
+  { value: "activities", label: "Activities", icon: Compass },
+  { value: "groceries", label: "Groceries", icon: ShoppingCart },
+  { value: "check-in", label: "Check-in", icon: Home },
+  { value: "weather", label: "Weather", icon: CloudSun },
   { value: "concierge", label: "Packing Help", icon: MessageCircle },
 ];
 
@@ -201,17 +209,46 @@ export function TripDetailClient({
             outfits={trip.outfits}
             weather={weather}
             gearItems={gearItems}
+            tripActivities={activities}
+            workspaceItems={trip.workspace_items ?? []}
+            fallbackArrivalNotes={trip.special_notes}
             editable={canEdit}
           />
         </TabsContent>
 
-        <TabsContent value="prep">
+        <TabsContent value="activities">
+          <ActivityHub
+            tripId={trip.id}
+            startDate={trip.start_date}
+            endDate={trip.end_date}
+            activities={trip.activities}
+            days={trip.calendar_days}
+            readOnly={!canEdit}
+          />
+        </TabsContent>
+
+        <TabsContent value="groceries">
           <TripPrepWorkspace
             tripId={trip.id}
             items={trip.workspace_items ?? []}
             fallbackArrivalNotes={trip.special_notes}
             readOnly={!canEdit}
+            view="grocery"
           />
+        </TabsContent>
+
+        <TabsContent value="check-in">
+          <TripPrepWorkspace
+            tripId={trip.id}
+            items={trip.workspace_items ?? []}
+            fallbackArrivalNotes={trip.special_notes}
+            readOnly={!canEdit}
+            view="arrival"
+          />
+        </TabsContent>
+
+        <TabsContent value="weather">
+          <WeatherHub destination={trip.destination} weather={weather} />
         </TabsContent>
 
         {canEdit && (

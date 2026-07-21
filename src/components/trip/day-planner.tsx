@@ -4,12 +4,14 @@ import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { eachDayOfInterval, format, parseISO } from "date-fns";
 import {
+  Check,
   CloudRain,
   Home,
   MapPin,
   Moon,
   Plane,
   Plus,
+  ShoppingCart,
   StickyNote,
   Sun,
   CloudSun,
@@ -28,9 +30,16 @@ import {
   updateCalendarDayNotes,
   updateOutfit,
 } from "@/actions/packing";
+import { toggleTripWorkspaceItem } from "@/actions/trip-workspace";
 import { OutfitItemsPicker } from "@/components/trip/outfit-items-picker";
 import { normalizeOutfitItems } from "@/lib/outfit-items";
-import type { CalendarDay, GearItem, Outfit, WeatherData } from "@/lib/types";
+import type {
+  CalendarDay,
+  GearItem,
+  Outfit,
+  TripWorkspaceItem,
+  WeatherData,
+} from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 const TIME_ORDER: Outfit["time_of_day"][] = ["morning", "afternoon", "evening", "all_day"];
@@ -58,6 +67,9 @@ interface DayPlannerProps {
   outfits: Outfit[];
   weather: WeatherData | null;
   gearItems: GearItem[];
+  tripActivities?: string[];
+  workspaceItems?: TripWorkspaceItem[];
+  fallbackArrivalNotes?: string | null;
   editable?: boolean;
 }
 
@@ -138,6 +150,121 @@ function DayWeatherBadge({
   }
 
   return null;
+}
+
+function MasterPlanSummary({
+  tripId,
+  activities,
+  workspaceItems,
+  fallbackArrivalNotes,
+  editable,
+}: {
+  tripId: string;
+  activities: string[];
+  workspaceItems: TripWorkspaceItem[];
+  fallbackArrivalNotes?: string | null;
+  editable: boolean;
+}) {
+  const router = useRouter();
+  const [, startTransition] = useTransition();
+  const groceries = workspaceItems.filter((item) => item.kind === "grocery");
+  const arrivals = workspaceItems.filter((item) => item.kind === "arrival");
+  const reminders = workspaceItems.filter((item) => item.kind === "reminder");
+
+  if (
+    activities.length === 0 &&
+    groceries.length === 0 &&
+    arrivals.length === 0 &&
+    reminders.length === 0
+  ) {
+    return null;
+  }
+
+  return (
+    <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+      <div className="rounded-2xl border bg-card p-4 shadow-travel-sm">
+        <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+          Activity plan
+        </p>
+        <div className="mt-3 flex flex-wrap gap-1.5">
+          {activities.length > 0 ? (
+            activities.map((activity) => <ActivityTag key={activity} name={activity} />)
+          ) : (
+            <p className="text-sm text-muted-foreground">No activities assigned yet.</p>
+          )}
+        </div>
+      </div>
+
+      <div className="rounded-2xl border bg-card p-4 shadow-travel-sm">
+        <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+          <ShoppingCart className="h-3.5 w-3.5" />
+          Groceries
+        </p>
+        <div className="mt-3 space-y-2">
+          {groceries.length > 0 ? (
+            groceries.map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                disabled={!editable}
+                onClick={() =>
+                  startTransition(async () => {
+                    await toggleTripWorkspaceItem(tripId, item.id, !item.completed);
+                    router.refresh();
+                  })
+                }
+                className="flex w-full items-center gap-2 text-left text-sm disabled:cursor-default"
+              >
+                <span
+                  className={cn(
+                    "flex h-4 w-4 shrink-0 items-center justify-center rounded border",
+                    item.completed && "border-primary bg-primary text-primary-foreground"
+                  )}
+                >
+                  {item.completed && <Check className="h-3 w-3" />}
+                </span>
+                <span className={cn(item.completed && "text-muted-foreground line-through")}>
+                  {item.title}
+                </span>
+              </button>
+            ))
+          ) : (
+            <p className="text-sm text-muted-foreground">No groceries added yet.</p>
+          )}
+        </div>
+      </div>
+
+      <div className="rounded-2xl border bg-card p-4 shadow-travel-sm md:col-span-2 xl:col-span-1">
+        <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+          <Home className="h-3.5 w-3.5" />
+          Check-in & reminders
+        </p>
+        <div className="mt-3 space-y-2">
+          {[...arrivals, ...reminders].length > 0 ? (
+            [...arrivals, ...reminders].map((item) => (
+              <div key={item.id}>
+                <p className="text-sm font-medium">{item.title}</p>
+                {item.details && (
+                  <p className="mt-0.5 whitespace-pre-wrap text-xs text-muted-foreground">
+                    {item.details}
+                  </p>
+                )}
+              </div>
+            ))
+          ) : fallbackArrivalNotes ? (
+            <div>
+              <p className="text-sm font-medium">Trip and arrival notes</p>
+              <p className="mt-0.5 whitespace-pre-wrap text-xs text-muted-foreground">
+                {fallbackArrivalNotes}
+              </p>
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">No check-in details added yet.</p>
+          )}
+        </div>
+      </div>
+    </section>
+  );
 }
 
 function DayTitle({
@@ -618,6 +745,9 @@ export function DayPlanner({
   outfits,
   weather,
   gearItems,
+  tripActivities: configuredActivities = [],
+  workspaceItems = [],
+  fallbackArrivalNotes,
   editable = true,
 }: DayPlannerProps) {
   const planningDays = useMemo(
@@ -638,13 +768,13 @@ export function DayPlanner({
   }, [outfits]);
 
   const tripActivities = useMemo(() => {
-    const set = new Set<string>();
+    const set = new Set<string>(configuredActivities);
     planningDays.forEach((d) => (d.activities as string[]).forEach((a) => set.add(a)));
     outfits.forEach((o) => {
       if (o.activity_name) set.add(o.activity_name);
     });
     return Array.from(set);
-  }, [planningDays, outfits]);
+  }, [configuredActivities, planningDays, outfits]);
 
   if (planningDays.length === 0) {
     return (
@@ -667,6 +797,14 @@ export function DayPlanner({
       {weather?.daily && weather.daily.length > 0 && (
         <WeatherPreview location={weather.location ?? destination} days={weather.daily} />
       )}
+
+      <MasterPlanSummary
+        tripId={tripId}
+        activities={tripActivities}
+        workspaceItems={workspaceItems}
+        fallbackArrivalNotes={fallbackArrivalNotes}
+        editable={editable}
+      />
 
       <div className="relative">
         <div className="absolute bottom-0 left-6 top-0 hidden w-0.5 bg-border sm:block" />

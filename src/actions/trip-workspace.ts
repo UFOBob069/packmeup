@@ -6,6 +6,7 @@ import {
   addDemoWorkspaceItem,
   deleteDemoWorkspaceItem,
   toggleDemoWorkspaceItem,
+  updateDemoWorkspaceItem,
 } from "@/lib/demo/store";
 import { createClient } from "@/lib/supabase/server";
 import type { TripWorkspaceItem } from "@/lib/types";
@@ -40,6 +41,39 @@ export async function addTripWorkspaceItem(
     details: details?.trim() || null,
     sort_order: count ?? 0,
   });
+  if (error) throw new Error(error.message);
+  revalidatePath(`/trips/${tripId}`);
+}
+
+export async function updateTripWorkspaceItem(
+  tripId: string,
+  itemId: string,
+  updates: { title?: string; details?: string | null }
+) {
+  if (updates.title !== undefined && !updates.title.trim()) {
+    throw new Error("A title is required");
+  }
+
+  if (isDemoMode()) {
+    updateDemoWorkspaceItem(tripId, itemId, updates);
+    revalidatePath(`/trips/${tripId}`);
+    return;
+  }
+
+  const payload: Record<string, string | null> = {
+    updated_at: new Date().toISOString(),
+  };
+  if (updates.title !== undefined) payload.title = updates.title.trim();
+  if (updates.details !== undefined) {
+    payload.details = updates.details?.trim() || null;
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("trip_workspace_items")
+    .update(payload)
+    .eq("id", itemId)
+    .eq("trip_id", tripId);
   if (error) throw new Error(error.message);
   revalidatePath(`/trips/${tripId}`);
 }

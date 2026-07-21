@@ -20,6 +20,26 @@ function isProtectedPath(pathname: string): boolean {
 }
 
 export async function updateSession(request: NextRequest) {
+  const host = request.nextUrl.hostname;
+  // Browsers fail on FQDN trailing dots (packforvacation.com.) — normalize immediately.
+  if (host.endsWith(".")) {
+    const fixed = request.nextUrl.clone();
+    fixed.hostname = host.replace(/\.+$/, "");
+    return NextResponse.redirect(fixed, 308);
+  }
+
+  // OAuth sometimes falls back to Site URL root with ?code= — send it to the callback route.
+  const authCode = request.nextUrl.searchParams.get("code");
+  if (
+    authCode &&
+    request.nextUrl.pathname === "/" &&
+    !request.nextUrl.pathname.startsWith("/auth/callback")
+  ) {
+    const callback = request.nextUrl.clone();
+    callback.pathname = "/auth/callback";
+    return NextResponse.redirect(callback);
+  }
+
   let supabaseResponse = NextResponse.next({ request });
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;

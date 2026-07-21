@@ -25,19 +25,21 @@ function WeatherIcon({ conditions, className }: { conditions: string; className?
 export function WeatherCard({ day, className, compact }: WeatherCardProps) {
   const date = new Date(day.date + "T12:00:00");
   const dayName = date.toLocaleDateString("en-US", { weekday: "short" });
+  const dateLabel = date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 
   return (
     <div
       className={cn(
         "flex flex-col items-center rounded-xl border bg-card p-3 text-center transition-shadow hover:shadow-travel-sm",
-        compact ? "min-w-[72px]" : "min-w-[88px]",
+        compact ? "min-w-18" : "min-w-22",
         className
       )}
     >
-      <span className="text-xs font-medium text-muted-foreground">{dayName}</span>
+      <span className="text-xs font-semibold">{dayName}</span>
+      <span className="text-[10px] text-muted-foreground">{dateLabel}</span>
       <WeatherIcon
         conditions={day.conditions}
-        className={cn("my-2 text-weather-orange", compact ? "h-5 w-5" : "h-6 w-6")}
+        className={cn("my-1.5 text-weather-orange", compact ? "h-5 w-5" : "h-6 w-6")}
       />
       <span className="text-sm font-semibold">{day.temp_high}°</span>
       <span className="text-xs text-muted-foreground">{day.temp_low}° low</span>
