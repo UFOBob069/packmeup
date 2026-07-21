@@ -69,7 +69,7 @@ export function ActivityHub({
     <div className="space-y-5">
       <div className="rounded-2xl border bg-muted/20 p-5">
         <div className="flex items-start gap-3">
-          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-ocean-teal/15 text-ocean-teal">
             <Sparkles className="h-5 w-5" />
           </span>
           <div>

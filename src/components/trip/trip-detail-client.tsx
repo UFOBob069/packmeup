@@ -44,13 +44,13 @@ interface TripDetailClientProps {
 }
 
 const tabItems = [
-  { value: "pack", label: "Checklist", icon: ListChecks },
-  { value: "days", label: "By Day", icon: CalendarDays },
-  { value: "activities", label: "Activities", icon: Compass },
-  { value: "groceries", label: "Groceries", icon: ShoppingCart },
-  { value: "check-in", label: "Check-in", icon: Home },
-  { value: "weather", label: "Weather", icon: CloudSun },
-  { value: "concierge", label: "Packing Help", icon: MessageCircle },
+  { value: "pack", label: "Checklist", icon: ListChecks, iconClass: "text-golf-green" },
+  { value: "days", label: "By Day", icon: CalendarDays, iconClass: "text-weather-orange" },
+  { value: "activities", label: "Activities", icon: Compass, iconClass: "text-ocean-teal" },
+  { value: "groceries", label: "Groceries", icon: ShoppingCart, iconClass: "text-violet-500 dark:text-violet-400" },
+  { value: "check-in", label: "Check-in", icon: Home, iconClass: "text-rose-500 dark:text-rose-400" },
+  { value: "weather", label: "Weather", icon: CloudSun, iconClass: "text-sky-500 dark:text-sky-400" },
+  { value: "concierge", label: "Packing Help", icon: MessageCircle, iconClass: "text-primary" },
 ];
 
 export function TripDetailClient({
@@ -155,13 +155,13 @@ export function TripDetailClient({
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-5">
         <TabsList className="flex h-auto w-full flex-wrap justify-start gap-1 rounded-2xl bg-muted/50 p-1.5">
-          {visibleTabs.map(({ value, label, icon: Icon }) => (
+          {visibleTabs.map(({ value, label, icon: Icon, iconClass }) => (
             <TabsTrigger
               key={value}
               value={value}
               className="flex-1 rounded-xl px-4 py-2.5 transition-colors hover:bg-background/80 data-active:bg-background data-active:shadow-travel-sm data-active:hover:bg-background sm:flex-none"
             >
-              <Icon className="mr-2 h-4 w-4" />
+              <Icon className={`mr-2 h-4 w-4 ${iconClass}`} />
               {label}
             </TabsTrigger>
           ))}

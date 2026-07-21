@@ -1,5 +1,5 @@
 import { CalendarDays, CloudSun, RefreshCw } from "lucide-react";
-import { WeatherPreview } from "@/components/design/weather-card";
+import { WeatherCalendar } from "@/components/design/weather-card";
 import type { WeatherData } from "@/lib/types";
 
 interface WeatherHubProps {
@@ -27,7 +27,7 @@ export function WeatherHub({ destination, weather }: WeatherHubProps) {
 
       {weather?.daily?.length ? (
         <>
-          <WeatherPreview location={weather.location || destination} days={weather.daily} />
+          <WeatherCalendar location={weather.location || destination} days={weather.daily} />
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="flex items-start gap-3 rounded-2xl border bg-card p-4">
               <CalendarDays className="mt-0.5 h-4 w-4 text-primary" />

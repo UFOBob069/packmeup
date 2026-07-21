@@ -18,7 +18,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { ActivityTag } from "@/components/design/activity-tag";
-import { WeatherPreview } from "@/components/design/weather-card";
+import { WeatherCalendar } from "@/components/design/weather-card";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -795,7 +795,7 @@ export function DayPlanner({
       </div>
 
       {weather?.daily && weather.daily.length > 0 && (
-        <WeatherPreview location={weather.location ?? destination} days={weather.daily} />
+        <WeatherCalendar location={weather.location ?? destination} days={weather.daily} />
       )}
 
       <MasterPlanSummary

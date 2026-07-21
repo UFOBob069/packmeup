@@ -11,11 +11,11 @@ import { TravelerAvatar } from "@/components/design/traveler-avatar";
 import type { Profile } from "@/lib/types";
 
 const navItems = [
-  { href: "/dashboard", label: "Packing Lists", icon: LayoutGrid },
-  { href: "/gear", label: "My Gear", icon: Backpack },
-  { href: "/group", label: "My Group", icon: Users },
+  { href: "/dashboard", label: "Packing Lists", icon: LayoutGrid, iconClass: "text-ocean-teal" },
+  { href: "/gear", label: "My Gear", icon: Backpack, iconClass: "text-weather-orange" },
+  { href: "/group", label: "My Group", icon: Users, iconClass: "text-golf-green" },
   { href: "/trips/new", label: "Start Packing", icon: Plus, highlight: true },
-  { href: "/templates", label: "Templates", icon: Layers },
+  { href: "/templates", label: "Templates", icon: Layers, iconClass: "text-violet-500 dark:text-violet-400" },
 ];
 
 interface HeaderProps {
@@ -61,7 +61,7 @@ export function Header({ variant = "app", user = null }: HeaderProps) {
 
           {!isLanding && (
             <nav className="hidden items-center gap-1 md:flex">
-              {navItems.map(({ href, label, icon: Icon, highlight }) => (
+              {navItems.map(({ href, label, icon: Icon, highlight, iconClass }) => (
                 <Link
                   key={href}
                   href={href}
@@ -74,7 +74,7 @@ export function Header({ variant = "app", user = null }: HeaderProps) {
                         : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"
                   )}
                 >
-                  <Icon className="h-4 w-4" />
+                  <Icon className={cn("h-4 w-4", !highlight && iconClass)} />
                   {label}
                 </Link>
               ))}
@@ -112,7 +112,7 @@ export function Header({ variant = "app", user = null }: HeaderProps) {
       {!isLanding && (
         <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-border/60 bg-background/90 backdrop-blur-xl md:hidden">
           <div className="mx-auto flex max-w-lg items-center justify-around px-2 py-2 pb-[max(0.5rem,env(safe-area-inset-bottom))]">
-            {navItems.map(({ href, label, icon: Icon, highlight }) => (
+            {navItems.map(({ href, label, icon: Icon, highlight, iconClass }) => (
               <Link
                 key={href}
                 href={href}
@@ -131,7 +131,7 @@ export function Header({ variant = "app", user = null }: HeaderProps) {
                     highlight && "bg-primary text-primary-foreground shadow-travel-sm"
                   )}
                 >
-                  <Icon className="h-4 w-4" />
+                  <Icon className={cn("h-4 w-4", !highlight && iconClass)} />
                 </div>
                 {label}
               </Link>

@@ -169,6 +169,12 @@ function EditableWorkspaceItem({
   );
 }
 
+const KIND_CHIP_CLASSES: Record<TripWorkspaceItem["kind"], string> = {
+  grocery: "bg-violet-500/10 text-violet-600 dark:text-violet-400",
+  arrival: "bg-rose-500/10 text-rose-600 dark:text-rose-400",
+  reminder: "bg-weather-orange/15 text-weather-orange",
+};
+
 function ItemSection({
   tripId,
   kind,
@@ -197,7 +203,12 @@ function ItemSection({
   return (
     <section className="rounded-2xl border bg-card p-5 shadow-travel-sm">
       <div className="flex items-start gap-3">
-        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+        <span
+          className={cn(
+            "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl",
+            KIND_CHIP_CLASSES[kind]
+          )}
+        >
           <Icon className="h-5 w-5" />
         </span>
         <div>

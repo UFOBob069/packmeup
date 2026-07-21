@@ -1,12 +1,7 @@
 import { CloudRain, Sun, Wind, Cloud } from "lucide-react";
+import { format, getDay, parseISO } from "date-fns";
 import { cn } from "@/lib/utils";
 import type { WeatherDay } from "@/lib/types";
-
-interface WeatherCardProps {
-  day: WeatherDay;
-  className?: string;
-  compact?: boolean;
-}
 
 function WeatherIcon({ conditions, className }: { conditions: string; className?: string }) {
   const lower = conditions.toLowerCase();
@@ -22,48 +17,92 @@ function WeatherIcon({ conditions, className }: { conditions: string; className?
   return <Cloud className={className} />;
 }
 
-export function WeatherCard({ day, className, compact }: WeatherCardProps) {
-  const date = new Date(day.date + "T12:00:00");
-  const dayName = date.toLocaleDateString("en-US", { weekday: "short" });
-  const dateLabel = date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+const WEEKDAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
+interface MonthGroup {
+  monthLabel: string;
+  /** Cells for the grid: null = leading/trailing padding */
+  cells: (WeatherDay | null)[];
+}
+
+function groupDaysIntoMonths(days: WeatherDay[]): MonthGroup[] {
+  const sorted = [...days].sort((a, b) => a.date.localeCompare(b.date));
+  const groups: MonthGroup[] = [];
+  let current: { key: string; label: string; days: WeatherDay[] } | null = null;
+
+  for (const day of sorted) {
+    const date = parseISO(day.date);
+    const key = format(date, "yyyy-MM");
+    if (!current || current.key !== key) {
+      if (current) {
+        groups.push(buildMonthGroup(current.label, current.days));
+      }
+      current = { key, label: format(date, "MMMM yyyy"), days: [day] };
+    } else {
+      current.days.push(day);
+    }
+  }
+  if (current) {
+    groups.push(buildMonthGroup(current.label, current.days));
+  }
+  return groups;
+}
+
+function buildMonthGroup(monthLabel: string, days: WeatherDay[]): MonthGroup {
+  const leadingBlanks = getDay(parseISO(days[0].date));
+  const cells: (WeatherDay | null)[] = [
+    ...Array.from({ length: leadingBlanks }, () => null),
+    ...days,
+  ];
+  while (cells.length % 7 !== 0) cells.push(null);
+  return { monthLabel, cells };
+}
+
+function WeatherCalendarCell({ day }: { day: WeatherDay | null }) {
+  if (!day) {
+    return <div className="rounded-lg" aria-hidden />;
+  }
+
+  const rainy = day.rain_chance > 30;
   return (
     <div
       className={cn(
-        "flex flex-col items-center rounded-xl border bg-card p-3 text-center transition-shadow hover:shadow-travel-sm",
-        compact ? "min-w-18" : "min-w-22",
-        className
+        "flex min-h-20 flex-col items-center rounded-lg border bg-background p-1.5 text-center sm:p-2",
+        rainy && "bg-sky-blue/5"
       )}
     >
-      <span className="text-xs font-semibold">{dayName}</span>
-      <span className="text-[10px] text-muted-foreground">{dateLabel}</span>
+      <span className="text-[11px] font-semibold sm:text-xs">
+        {format(parseISO(day.date), "d")}
+      </span>
       <WeatherIcon
         conditions={day.conditions}
-        className={cn("my-1.5 text-weather-orange", compact ? "h-5 w-5" : "h-6 w-6")}
+        className="my-1 h-4 w-4 text-weather-orange sm:h-5 sm:w-5"
       />
-      <span className="text-sm font-semibold">{day.temp_high}°</span>
-      <span className="text-xs text-muted-foreground">{day.temp_low}° low</span>
-      {day.rain_chance > 30 && (
-        <span className="mt-1 text-[10px] font-medium text-sky-blue dark:text-sky-blue">
-          {day.rain_chance}% rain
+      <span className="text-[11px] font-semibold leading-tight sm:text-xs">
+        {day.temp_high}°
+      </span>
+      <span className="text-[10px] leading-tight text-muted-foreground">
+        {day.temp_low}°
+      </span>
+      {rainy && (
+        <span className="mt-0.5 text-[9px] font-medium leading-tight text-sky-blue">
+          {day.rain_chance}%
         </span>
       )}
     </div>
   );
 }
 
-interface WeatherPreviewProps {
+interface WeatherCalendarProps {
   location: string;
   days: WeatherDay[];
   className?: string;
-  /** Max days to show; omit to show the full trip forecast */
-  maxDays?: number;
 }
 
-export function WeatherPreview({ location, days, className, maxDays }: WeatherPreviewProps) {
+export function WeatherCalendar({ location, days, className }: WeatherCalendarProps) {
   if (!days.length) return null;
 
-  const visibleDays = maxDays ? days.slice(0, maxDays) : days;
+  const months = groupDaysIntoMonths(days);
 
   return (
     <div className={cn("rounded-2xl border bg-card p-5 shadow-travel-sm", className)}>
@@ -74,17 +113,33 @@ export function WeatherPreview({ location, days, className, maxDays }: WeatherPr
           </p>
           <p className="text-display text-lg font-semibold">{location}</p>
           <p className="text-xs text-muted-foreground">
-            {visibleDays.length} day{visibleDays.length !== 1 ? "s" : ""}
-            {maxDays && days.length > maxDays ? ` · ${days.length} total available` : ""}
+            {days.length} day{days.length !== 1 ? "s" : ""}
           </p>
         </div>
         <Sun className="h-5 w-5 text-sun-yellow" />
       </div>
-      <div className="flex gap-2 overflow-x-auto pb-1">
-        {visibleDays.map((day) => (
-          <WeatherCard key={day.date} day={day} compact />
+
+      <div className="space-y-5">
+        {months.map((month) => (
+          <div key={month.monthLabel}>
+            <p className="text-display mb-2 text-sm font-semibold">{month.monthLabel}</p>
+            <div className="grid grid-cols-7 gap-1 sm:gap-1.5">
+              {WEEKDAY_LABELS.map((label) => (
+                <span
+                  key={label}
+                  className="pb-1 text-center text-[10px] font-semibold uppercase tracking-wider text-muted-foreground sm:text-[11px]"
+                >
+                  {label}
+                </span>
+              ))}
+              {month.cells.map((day, index) => (
+                <WeatherCalendarCell key={day?.date ?? `blank-${index}`} day={day} />
+              ))}
+            </div>
+          </div>
         ))}
       </div>
     </div>
   );
 }
+
