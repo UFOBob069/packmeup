@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { eachDayOfInterval, format, parseISO } from "date-fns";
 import {
@@ -70,6 +70,8 @@ interface DayPlannerProps {
   tripActivities?: string[];
   workspaceItems?: TripWorkspaceItem[];
   fallbackArrivalNotes?: string | null;
+  focusedDate?: string | null;
+  onFocusedDate?: () => void;
   editable?: boolean;
 }
 
@@ -130,7 +132,7 @@ function DayWeatherBadge({
           <Sun className="h-4 w-4 shrink-0 text-weather-orange" />
         )}
         <span className="font-medium">
-          {dayWeather.temp_high}° / {dayWeather.temp_low}°
+          {dayWeather.temp_high}°F / {dayWeather.temp_low}°F
         </span>
         <span className="text-muted-foreground">{dayWeather.conditions}</span>
         {dayWeather.rain_chance > 25 && (
@@ -748,6 +750,8 @@ export function DayPlanner({
   tripActivities: configuredActivities = [],
   workspaceItems = [],
   fallbackArrivalNotes,
+  focusedDate,
+  onFocusedDate,
   editable = true,
 }: DayPlannerProps) {
   const planningDays = useMemo(
@@ -775,6 +779,18 @@ export function DayPlanner({
     });
     return Array.from(set);
   }, [configuredActivities, planningDays, outfits]);
+
+  useEffect(() => {
+    if (!focusedDate) return;
+    const frame = requestAnimationFrame(() => {
+      const target = document.getElementById(`trip-day-${focusedDate}`);
+      if (!target) return;
+      target.scrollIntoView({ behavior: "smooth", block: "start" });
+      target.focus({ preventScroll: true });
+      onFocusedDate?.();
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [focusedDate, onFocusedDate]);
 
   if (planningDays.length === 0) {
     return (
@@ -820,7 +836,12 @@ export function DayPlanner({
             const defaultActivity = dayActivities[0] ?? null;
 
             return (
-              <article key={day.id} className="relative sm:pl-14">
+              <article
+                id={`trip-day-${day.trip_date}`}
+                key={day.id}
+                tabIndex={-1}
+                className="relative scroll-mt-24 rounded-2xl outline-none focus-visible:ring-2 focus-visible:ring-primary sm:pl-14"
+              >
                 <div className="absolute left-4 top-6 hidden h-4 w-4 rounded-full border-2 border-primary bg-background sm:block" />
 
                 <div className="overflow-hidden rounded-2xl border bg-card shadow-travel-sm">

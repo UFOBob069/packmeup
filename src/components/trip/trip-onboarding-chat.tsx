@@ -430,14 +430,30 @@ export function TripOnboardingChat({
         traveler_type: entry.traveler_type,
         pet_species: entry.pet_species,
         pet_size: entry.pet_size,
+      }).catch((cause) => {
+        setTravelerError(
+          cause instanceof Error
+            ? `Added to this trip, but My Group failed: ${cause.message}`
+            : "Added to this trip, but My Group failed to update."
+        );
       });
     });
-    setTravelerInput({
-      name: "",
-      traveler_type: "adult",
-      pet_species: "dog",
-      pet_size: "medium",
-    });
+    if (entry.traveler_type === "pet") {
+      // Keep pet type selected so the next pet is easy to add.
+      setTravelerInput({
+        name: "",
+        traveler_type: "pet",
+        pet_species: entry.pet_species ?? "dog",
+        pet_size: entry.pet_size ?? "medium",
+      });
+    } else {
+      setTravelerInput({
+        name: "",
+        traveler_type: "adult",
+        pet_species: "dog",
+        pet_size: "medium",
+      });
+    }
     setTravelerError(null);
   };
 

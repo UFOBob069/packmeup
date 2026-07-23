@@ -91,12 +91,15 @@ export interface WeatherDay {
   conditions: string;
   rain_chance: number;
   wind_mph: number;
+  source?: "forecast" | "seasonal" | "fallback";
 }
 
 export interface WeatherData {
   location: string;
   daily: WeatherDay[];
   fetched_at: string;
+  units?: "fahrenheit";
+  model?: "forecast+seasonal";
 }
 
 export interface GearItem {

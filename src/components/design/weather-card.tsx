@@ -58,19 +58,20 @@ function buildMonthGroup(monthLabel: string, days: WeatherDay[]): MonthGroup {
   return { monthLabel, cells };
 }
 
-function WeatherCalendarCell({ day }: { day: WeatherDay | null }) {
+function WeatherCalendarCell({
+  day,
+  onSelectDate,
+}: {
+  day: WeatherDay | null;
+  onSelectDate?: (date: string) => void;
+}) {
   if (!day) {
     return <div className="rounded-lg" aria-hidden />;
   }
 
   const rainy = day.rain_chance > 30;
-  return (
-    <div
-      className={cn(
-        "flex min-h-20 flex-col items-center rounded-lg border bg-background p-1.5 text-center sm:p-2",
-        rainy && "bg-sky-blue/5"
-      )}
-    >
+  const content = (
+    <>
       <span className="text-[11px] font-semibold sm:text-xs">
         {format(parseISO(day.date), "d")}
       </span>
@@ -79,41 +80,85 @@ function WeatherCalendarCell({ day }: { day: WeatherDay | null }) {
         className="my-1 h-4 w-4 text-weather-orange sm:h-5 sm:w-5"
       />
       <span className="text-[11px] font-semibold leading-tight sm:text-xs">
-        {day.temp_high}°
+        {day.temp_high}°F
       </span>
       <span className="text-[10px] leading-tight text-muted-foreground">
         {day.temp_low}°
       </span>
-      {rainy && (
+      {day.source === "seasonal" && (
+        <span className="mt-0.5 text-[9px] font-medium leading-tight text-muted-foreground">
+          typical
+        </span>
+      )}
+      {rainy && day.source !== "seasonal" && (
         <span className="mt-0.5 text-[9px] font-medium leading-tight text-sky-blue">
           {day.rain_chance}%
         </span>
       )}
-    </div>
+    </>
   );
+
+  const className = cn(
+    "flex min-h-20 flex-col items-center rounded-lg border bg-background p-1.5 text-center sm:p-2",
+    rainy && day.source !== "seasonal" && "bg-sky-blue/5",
+    day.source === "seasonal" && "border-dashed bg-muted/30",
+    onSelectDate &&
+      "cursor-pointer transition-all hover:-translate-y-0.5 hover:border-primary/50 hover:shadow-travel-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+  );
+
+  if (onSelectDate) {
+    return (
+      <button
+        type="button"
+        onClick={() => onSelectDate(day.date)}
+        className={className}
+        aria-label={`Open ${format(parseISO(day.date), "EEEE, MMMM d")} in By Day`}
+        title="Open in By Day"
+      >
+        {content}
+      </button>
+    );
+  }
+
+  return <div className={className}>{content}</div>;
 }
 
 interface WeatherCalendarProps {
   location: string;
   days: WeatherDay[];
   className?: string;
+  onSelectDate?: (date: string) => void;
 }
 
-export function WeatherCalendar({ location, days, className }: WeatherCalendarProps) {
+export function WeatherCalendar({
+  location,
+  days,
+  className,
+  onSelectDate,
+}: WeatherCalendarProps) {
   if (!days.length) return null;
 
   const months = groupDaysIntoMonths(days);
+  const hasSeasonal = days.some((d) => d.source === "seasonal");
+  const hasForecast = days.some((d) => d.source === "forecast" || !d.source);
 
   return (
     <div className={cn("rounded-2xl border bg-card p-5 shadow-travel-sm", className)}>
       <div className="mb-4 flex items-center justify-between">
         <div>
           <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-            Trip forecast
+            {hasSeasonal && !hasForecast
+              ? "Typical weather"
+              : hasSeasonal
+                ? "Forecast + typical"
+                : "Trip forecast"}
           </p>
           <p className="text-display text-lg font-semibold">{location}</p>
           <p className="text-xs text-muted-foreground">
             {days.length} day{days.length !== 1 ? "s" : ""}
+            {hasSeasonal
+              ? " · Days past the ~16-day forecast use recent-year averages (°F)"
+              : ""}
           </p>
         </div>
         <Sun className="h-5 w-5 text-sun-yellow" />
@@ -133,7 +178,11 @@ export function WeatherCalendar({ location, days, className }: WeatherCalendarPr
                 </span>
               ))}
               {month.cells.map((day, index) => (
-                <WeatherCalendarCell key={day?.date ?? `blank-${index}`} day={day} />
+                <WeatherCalendarCell
+                  key={day?.date ?? `blank-${index}`}
+                  day={day}
+                  onSelectDate={onSelectDate}
+                />
               ))}
             </div>
           </div>

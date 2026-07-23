@@ -815,7 +815,19 @@ export function addDemoGroupMember(
       m.name.toLowerCase() === name.toLowerCase() &&
       m.traveler_type === input.traveler_type
   );
-  if (existing) return { member: existing, alreadyExists: true };
+  if (existing) {
+    if (input.traveler_type === "pet") {
+      const updated: GroupMember = {
+        ...existing,
+        pet_species: input.pet_species ?? existing.pet_species ?? "dog",
+        pet_size: input.pet_size ?? existing.pet_size ?? "medium",
+        updated_at: new Date().toISOString(),
+      };
+      store.group_members.set(existing.id, updated);
+      return { member: updated, alreadyExists: true };
+    }
+    return { member: existing, alreadyExists: true };
+  }
 
   const now = new Date().toISOString();
   const member: GroupMember = {

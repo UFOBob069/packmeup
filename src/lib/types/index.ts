@@ -211,6 +211,10 @@ export interface WeatherData {
   location: string;
   daily: WeatherDay[];
   fetched_at: string;
+  /** Always fahrenheit for app display; missing = legacy cache that should refresh */
+  units?: "fahrenheit";
+  /** forecast+seasonal hybrid; missing = legacy cache that should refresh */
+  model?: "forecast+seasonal";
 }
 
 export interface WeatherDay {
@@ -220,6 +224,8 @@ export interface WeatherDay {
   conditions: string;
   rain_chance: number;
   wind_mph: number;
+  /** Live forecast (~16 days), seasonal typical, or generic fallback */
+  source?: "forecast" | "seasonal" | "fallback";
 }
 
 export interface TripOnboardingData {

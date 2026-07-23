@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import { useRouter } from "next/navigation";
 import { differenceInDays, format, parseISO } from "date-fns";
 import {
@@ -25,6 +25,7 @@ import { RealtimePacking } from "./realtime-packing";
 import { TripPrepWorkspace } from "./trip-prep-workspace";
 import { ActivityHub } from "./activity-hub";
 import { WeatherHub } from "./weather-hub";
+import { JoinedTripToast } from "./joined-trip-toast";
 import { PackingSidebar } from "./packing-sidebar";
 import { TravelerPackingFilters } from "./packing-traveler-filters";
 import { CountdownWidget } from "@/components/design/countdown-widget";
@@ -64,6 +65,7 @@ export function TripDetailClient({
   const router = useRouter();
   const [activeTab, setActiveTab] = useState("pack");
   const [travelerFilter, setTravelerFilter] = useState("all");
+  const [focusedDay, setFocusedDay] = useState<string | null>(null);
   const progress = calculateProgress(trip.packing_items, trip.travelers);
   const daysUntil = differenceInDays(parseISO(trip.start_date), new Date());
   const activities = [...new Set(trip.activities.map((a) => a.activity_name))];
@@ -91,6 +93,9 @@ export function TripDetailClient({
 
   return (
     <div className="space-y-5">
+      <Suspense fallback={null}>
+        <JoinedTripToast destination={trip.destination} />
+      </Suspense>
       <RealtimePacking tripId={trip.id} onUpdate={() => router.refresh()} />
 
       <div className="overflow-hidden rounded-2xl border bg-card shadow-travel-sm">
@@ -212,6 +217,8 @@ export function TripDetailClient({
             tripActivities={activities}
             workspaceItems={trip.workspace_items ?? []}
             fallbackArrivalNotes={trip.special_notes}
+            focusedDate={focusedDay}
+            onFocusedDate={() => setFocusedDay(null)}
             editable={canEdit}
           />
         </TabsContent>
@@ -248,7 +255,14 @@ export function TripDetailClient({
         </TabsContent>
 
         <TabsContent value="weather">
-          <WeatherHub destination={trip.destination} weather={weather} />
+          <WeatherHub
+            destination={trip.destination}
+            weather={weather}
+            onSelectDate={(date) => {
+              setFocusedDay(date);
+              setActiveTab("days");
+            }}
+          />
         </TabsContent>
 
         {canEdit && (

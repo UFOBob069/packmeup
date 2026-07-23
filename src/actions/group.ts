@@ -68,6 +68,27 @@ export async function saveToMyGroup(input: {
     .maybeSingle();
 
   if (existing) {
+    // Refresh pet details if this traveler already exists as a pet.
+    if (
+      input.traveler_type === "pet" &&
+      (existing.pet_species !== pet_species || existing.pet_size !== pet_size)
+    ) {
+      const { data: updated, error: updateError } = await supabase
+        .from("group_members")
+        .update({
+          pet_species,
+          pet_size,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", existing.id)
+        .eq("user_id", user.id)
+        .select()
+        .single();
+      if (updateError) throw new Error(updateError.message);
+      revalidatePath("/group");
+      revalidatePath("/trips/new");
+      return { member: (updated ?? existing) as GroupMember, alreadyExists: true };
+    }
     return { member: existing as GroupMember, alreadyExists: true };
   }
 

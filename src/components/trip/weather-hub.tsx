@@ -5,9 +5,10 @@ import type { WeatherData } from "@/lib/types";
 interface WeatherHubProps {
   destination: string;
   weather: WeatherData | null;
+  onSelectDate?: (date: string) => void;
 }
 
-export function WeatherHub({ destination, weather }: WeatherHubProps) {
+export function WeatherHub({ destination, weather, onSelectDate }: WeatherHubProps) {
   return (
     <div className="space-y-5">
       <div className="rounded-2xl border bg-muted/20 p-5">
@@ -18,8 +19,9 @@ export function WeatherHub({ destination, weather }: WeatherHubProps) {
           <div>
             <h2 className="text-display text-lg font-semibold">Weather</h2>
             <p className="mt-1 text-sm text-muted-foreground">
-              The forecast updates automatically and flows into each day, packing
-              suggestions, and outfit planning.
+              Live forecast for the next ~16 days; farther trip dates use typical
+              temperatures for that time of year (°F). No weather API key needed.
+              Click any date to open it in By Day.
             </p>
           </div>
         </div>
@@ -27,14 +29,18 @@ export function WeatherHub({ destination, weather }: WeatherHubProps) {
 
       {weather?.daily?.length ? (
         <>
-          <WeatherCalendar location={weather.location || destination} days={weather.daily} />
+          <WeatherCalendar
+            location={weather.location || destination}
+            days={weather.daily}
+            onSelectDate={onSelectDate}
+          />
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="flex items-start gap-3 rounded-2xl border bg-card p-4">
               <CalendarDays className="mt-0.5 h-4 w-4 text-primary" />
               <div>
                 <p className="text-sm font-semibold">Feeds your master itinerary</p>
                 <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-                  Each forecast is matched to its full date in By Day.
+                  Each day&apos;s temps are matched to that date in By Day.
                 </p>
               </div>
             </div>
@@ -59,9 +65,10 @@ export function WeatherHub({ destination, weather }: WeatherHubProps) {
       ) : (
         <div className="rounded-2xl border border-dashed bg-card p-10 text-center">
           <CloudSun className="mx-auto h-8 w-8 text-muted-foreground" />
-          <p className="mt-3 font-medium">Forecast not available yet</p>
+          <p className="mt-3 font-medium">Weather not available yet</p>
           <p className="mt-1 text-sm text-muted-foreground">
-            Forecasts appear as your trip dates come into range.
+            We&apos;ll fill in live forecast and seasonal averages once the trip
+            destination is set.
           </p>
         </div>
       )}

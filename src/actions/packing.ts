@@ -22,6 +22,11 @@ import { refineWithChat } from "@/lib/ai/chat-refinement";
 import { createClient } from "@/lib/supabase/server";
 import { getAppUrl } from "@/lib/app-url";
 import { sendTripInviteEmail } from "@/lib/email/send-invite";
+import {
+  inviteShareDescription,
+  inviteShareMessage,
+  inviteShareTitle,
+} from "@/lib/invite-share";
 import type { Outfit, OutfitItem, PackingCategory } from "@/lib/types";
 import { serializeOutfitItems } from "@/lib/outfit-items";
 import {
@@ -594,14 +599,16 @@ export async function inviteByEmail(tripId: string, email: string, role: "editor
   if (error) throw new Error(error.message);
 
   const shareLink = `${getAppUrl()}/trips/join/${trip.share_token}`;
+  const inviterName = user.name?.split(" ")[0] || "A traveler";
   const emailed = await sendTripInviteEmail({
     to: trimmed,
     destination: trip.destination,
-    inviterName: user.name?.split(" ")[0] || "A traveler",
+    inviterName,
     role,
     shareLink,
     startDate: trip.start_date,
     endDate: trip.end_date,
+    coverImageUrl: trip.cover_image_url ?? null,
   });
 
   return {
@@ -609,13 +616,46 @@ export async function inviteByEmail(tripId: string, email: string, role: "editor
     emailed: emailed.sent,
     message: emailed.sent
       ? `Invite emailed to ${trimmed}`
-      : `Invite saved for ${trimmed}. Copy the share link — email delivery needs RESEND_API_KEY.`,
+      : `Invite saved for ${trimmed}. Copy or text the share link below.`,
   };
 }
 
-export async function getShareLink(tripId: string) {
+export async function getShareInvite(tripId: string) {
+  const user = await getCurrentUser();
+  if (!user) throw new Error("Not authenticated");
+
   const trip = await getTripDetails(tripId);
   if (!trip) throw new Error("Trip not found");
 
-  return `${getAppUrl()}/trips/join/${trip.share_token}`;
+  const inviterName = user.name?.split(" ")[0] || "A traveler";
+  const shareLink = `${getAppUrl()}/trips/join/${trip.share_token}`;
+
+  return {
+    shareLink,
+    inviterName,
+    destination: trip.destination,
+    startDate: trip.start_date,
+    endDate: trip.end_date,
+    coverImageUrl: trip.cover_image_url ?? null,
+    title: inviteShareTitle({ inviterName, destination: trip.destination }),
+    text: inviteShareDescription({
+      inviterName,
+      destination: trip.destination,
+      startDate: trip.start_date,
+      endDate: trip.end_date,
+    }),
+    message: inviteShareMessage({
+      inviterName,
+      destination: trip.destination,
+      startDate: trip.start_date,
+      endDate: trip.end_date,
+      shareLink,
+    }),
+  };
+}
+
+/** @deprecated Prefer getShareInvite for share text + link */
+export async function getShareLink(tripId: string) {
+  const invite = await getShareInvite(tripId);
+  return invite.shareLink;
 }

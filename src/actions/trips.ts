@@ -55,6 +55,8 @@ const WEATHER_STALE_MS = 6 * 60 * 60 * 1000;
 
 function isWeatherFresh(weather: WeatherData | null | undefined): boolean {
   if (!weather?.daily?.length) return false;
+  // Older caches used Celsius or failed far-future requests entirely — force refresh.
+  if (weather.units !== "fahrenheit" || weather.model !== "forecast+seasonal") return false;
   if (!weather.fetched_at) return false;
   const fetchedAt = Date.parse(weather.fetched_at);
   if (Number.isNaN(fetchedAt)) return false;
@@ -342,12 +344,14 @@ export async function getTripPreviewByShareToken(token: string) {
   if (isDemoMode()) {
     const trip = getDemoTripByShareToken(token);
     if (!trip) return null;
+    const owner = getDemoUser();
     return {
       id: trip.id,
       destination: trip.destination,
       start_date: trip.start_date,
       end_date: trip.end_date,
       cover_image_url: trip.cover_image_url ?? null,
+      inviter_name: owner.name?.split(" ")[0] || "A traveler",
     };
   }
 
@@ -355,10 +359,25 @@ export async function getTripPreviewByShareToken(token: string) {
     const admin = createAdminClient();
     const { data } = await admin
       .from("trips")
-      .select("id, destination, start_date, end_date, cover_image_url")
+      .select("id, destination, start_date, end_date, cover_image_url, owner_id")
       .eq("share_token", token)
       .maybeSingle();
-    return data;
+    if (!data) return null;
+
+    const { data: owner } = await admin
+      .from("profiles")
+      .select("name")
+      .eq("id", data.owner_id)
+      .maybeSingle();
+
+    return {
+      id: data.id,
+      destination: data.destination,
+      start_date: data.start_date,
+      end_date: data.end_date,
+      cover_image_url: data.cover_image_url ?? null,
+      inviter_name: owner?.name?.split(" ")[0] || "A traveler",
+    };
   } catch {
     return null;
   }

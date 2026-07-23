@@ -19,6 +19,9 @@ const fraunces = Fraunces({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL(
+    process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "") || "https://packforvacation.com"
+  ),
   title: {
     default: APP_NAME,
     template: `%s | ${APP_NAME}`,

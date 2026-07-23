@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { format, parseISO } from "date-fns";
-import { Copy, Mail, Link2 } from "lucide-react";
+import { Copy, Mail, Link2, MessageSquareShare } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -20,7 +20,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { inviteByEmail, getShareLink } from "@/actions/packing";
+import { inviteByEmail, getShareInvite } from "@/actions/packing";
 import { DestinationCover } from "./destination-cover";
 import { toast } from "sonner";
 
@@ -32,6 +32,13 @@ interface InviteDialogProps {
   endDate: string;
 }
 
+interface ShareInvitePayload {
+  shareLink: string;
+  title: string;
+  text: string;
+  message: string;
+}
+
 export function InviteDialog({
   tripId,
   destination,
@@ -41,13 +48,18 @@ export function InviteDialog({
 }: InviteDialogProps) {
   const [email, setEmail] = useState("");
   const [role, setRole] = useState<"editor" | "viewer">("editor");
-  const [shareLink, setShareLink] = useState("");
+  const [invite, setInvite] = useState<ShareInvitePayload | null>(null);
   const [isPending, startTransition] = useTransition();
 
-  const loadShareLink = () => {
+  const loadShareInvite = () => {
     startTransition(async () => {
-      const link = await getShareLink(tripId);
-      setShareLink(link);
+      const result = await getShareInvite(tripId);
+      setInvite({
+        shareLink: result.shareLink,
+        title: result.title,
+        text: result.text,
+        message: result.message,
+      });
     });
   };
 
@@ -60,14 +72,42 @@ export function InviteDialog({
     });
   };
 
-  const copyLink = () => {
-    navigator.clipboard.writeText(shareLink);
-    toast.success("Link copied!");
+  const copyLink = async () => {
+    if (!invite) return;
+    await navigator.clipboard.writeText(invite.message);
+    toast.success("Invite message copied — paste it into a text or chat");
+  };
+
+  const shareInvite = async () => {
+    if (!invite) return;
+
+    if (typeof navigator !== "undefined" && "share" in navigator) {
+      try {
+        await navigator.share({
+          title: invite.title,
+          text: invite.text,
+          url: invite.shareLink,
+        });
+        return;
+      } catch (error) {
+        if (error instanceof DOMException && error.name === "AbortError") return;
+      }
+    }
+
+    await copyLink();
   };
 
   return (
-    <Dialog onOpenChange={(open) => open && loadShareLink()}>
-      <DialogTrigger render={<Button variant="outline" size="sm" className="border-white/20 bg-black/30 text-white hover:bg-black/40 hover:text-white" />}>
+    <Dialog onOpenChange={(open) => open && loadShareInvite()}>
+      <DialogTrigger
+        render={
+          <Button
+            variant="outline"
+            size="sm"
+            className="border-white/20 bg-black/30 text-white hover:bg-black/40 hover:text-white"
+          />
+        }
+      >
         <Link2 className="mr-2 h-4 w-4" />
         Invite
       </DialogTrigger>
@@ -93,13 +133,37 @@ export function InviteDialog({
             <DialogTitle>Invite Collaborators</DialogTitle>
           </DialogHeader>
           <div className="space-y-2">
-            <Label>Share Link</Label>
+            <Label>Share invite</Label>
+            <p className="text-xs text-muted-foreground">
+              Texts and chats get your invite message. One link works for everyone in a group
+              text — each person signs in and joins. Link previews show this destination card.
+            </p>
+            <div className="rounded-xl border bg-muted/30 p-3 text-sm leading-relaxed whitespace-pre-wrap">
+              {invite?.message ?? "Loading invite…"}
+            </div>
             <div className="flex gap-2">
-              <Input value={shareLink} readOnly placeholder="Loading..." />
-              <Button variant="outline" size="icon" onClick={copyLink} disabled={!shareLink}>
+              <Button
+                type="button"
+                variant="outline"
+                className="flex-1"
+                onClick={() => void shareInvite()}
+                disabled={!invite || isPending}
+              >
+                <MessageSquareShare className="mr-2 h-4 w-4" />
+                Share / Text
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                onClick={() => void copyLink()}
+                disabled={!invite || isPending}
+                aria-label="Copy invite message"
+              >
                 <Copy className="h-4 w-4" />
               </Button>
             </div>
+            <Input value={invite?.shareLink ?? ""} readOnly placeholder="Loading link…" />
           </div>
           <div className="relative">
             <div className="absolute inset-0 flex items-center">
