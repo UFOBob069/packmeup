@@ -178,6 +178,54 @@ export async function getTripDetails(tripId: string): Promise<TripWithDetails | 
         .eq("trip_id", tripId),
     ]);
 
+  let memberRows = (members.data ?? []) as TripWithDetails["members"];
+
+  // Fill missing collaborator profiles (RLS may hide others until migration 012 is applied).
+  const needsProfiles = memberRows.some((m) => !m.profile?.name);
+  const ownerOnRoster = memberRows.some((m) => m.user_id === trip.owner_id);
+  if (needsProfiles || !ownerOnRoster) {
+    try {
+      const admin = createAdminClient();
+      const ids = [
+        ...new Set([
+          ...memberRows.map((m) => m.user_id),
+          trip.owner_id as string,
+        ]),
+      ];
+      const { data: profiles } = await admin.from("profiles").select("*").in("id", ids);
+      const byId = new Map((profiles ?? []).map((p) => [p.id, p]));
+
+      memberRows = memberRows.map((m) => ({
+        ...m,
+        profile: m.profile?.name ? m.profile : byId.get(m.user_id) ?? m.profile,
+      }));
+
+      if (!ownerOnRoster) {
+        const ownerProfile = byId.get(trip.owner_id);
+        if (ownerProfile) {
+          memberRows = [
+            {
+              id: `owner-${trip.owner_id}`,
+              trip_id: tripId,
+              user_id: trip.owner_id,
+              role: "owner",
+              created_at: trip.created_at,
+              profile: ownerProfile,
+            },
+            ...memberRows,
+          ];
+        }
+      }
+    } catch {
+      // Keep whatever RLS returned.
+    }
+  }
+
+  memberRows = [...memberRows].sort((a, b) => {
+    const rank = (role: string) => (role === "owner" ? 0 : role === "editor" ? 1 : 2);
+    return rank(a.role) - rank(b.role) || (a.profile?.name ?? "").localeCompare(b.profile?.name ?? "");
+  });
+
   return {
     ...trip,
     travelers: travelers.data ?? [],
@@ -186,7 +234,7 @@ export async function getTripDetails(tripId: string): Promise<TripWithDetails | 
     outfits: outfits.data ?? [],
     calendar_days: calendar_days.data ?? [],
     workspace_items: workspace_items.data ?? [],
-    members: members.data ?? [],
+    members: memberRows,
   } as TripWithDetails;
 }
 

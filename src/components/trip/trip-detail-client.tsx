@@ -141,17 +141,17 @@ export function TripDetailClient({
                 <Printer className="h-4 w-4 sm:mr-1.5" />
                 <span className="hidden sm:inline">Print</span>
               </Button>
+              <InviteDialog
+                tripId={trip.id}
+                destination={trip.destination}
+                coverImageUrl={trip.cover_image_url}
+                startDate={trip.start_date}
+                endDate={trip.end_date}
+                members={trip.members}
+                canInvite={canManage}
+              />
               {canManage && (
-                <>
-                  <InviteDialog
-                    tripId={trip.id}
-                    destination={trip.destination}
-                    coverImageUrl={trip.cover_image_url}
-                    startDate={trip.start_date}
-                    endDate={trip.end_date}
-                  />
-                  <TripSettingsMenu tripId={trip.id} destination={trip.destination} />
-                </>
+                <TripSettingsMenu tripId={trip.id} destination={trip.destination} />
               )}
             </div>
           </div>
@@ -215,8 +215,6 @@ export function TripDetailClient({
             weather={weather}
             gearItems={gearItems}
             tripActivities={activities}
-            workspaceItems={trip.workspace_items ?? []}
-            fallbackArrivalNotes={trip.special_notes}
             focusedDate={focusedDay}
             onFocusedDate={() => setFocusedDay(null)}
             editable={canEdit}

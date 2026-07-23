@@ -89,5 +89,13 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(destination);
   }
 
+  // Signed-in visitors hitting the marketing home go straight to their trips.
+  if (user && pathname === "/") {
+    const dashboard = request.nextUrl.clone();
+    dashboard.pathname = "/dashboard";
+    dashboard.search = "";
+    return NextResponse.redirect(dashboard);
+  }
+
   return supabaseResponse;
 }

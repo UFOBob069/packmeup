@@ -179,7 +179,7 @@ export function OutfitItemsPicker({
             <div>
               <p className="mb-1.5 flex items-center gap-1.5 text-xs font-medium text-foreground">
                 <Backpack className="h-3.5 w-3.5 text-primary" />
-                Pick from My Gear
+                Pick from your closet
                 {filterSubcategory && (
                   <span className="font-normal text-muted-foreground">
                     · {subcategoryLabel(filterSubcategory)}
@@ -209,24 +209,24 @@ export function OutfitItemsPicker({
             </div>
           ) : gearItems.length > 0 ? (
             <p className="text-xs text-muted-foreground">
-              No matching saved items — add a generic item below or on{" "}
+              No matching saved items — add a generic item below or in{" "}
               <Link href="/gear" className="font-medium text-primary hover:underline">
-                My Gear
+                your closet
               </Link>
               .
             </p>
           ) : (
             <p className="text-xs text-muted-foreground">
-              No saved gear yet.{" "}
+              Nothing saved yet.{" "}
               <Link href="/gear" className="font-medium text-primary hover:underline">
-                Add to My Gear
+                Add to your closet
               </Link>
             </p>
           )}
 
           <div className="border-t border-border/60 pt-2.5">
             <p className="mb-1.5 text-xs font-medium text-muted-foreground">
-              Not in My Gear? Add a generic item
+              Not in your closet? Add an item
             </p>
             <div className="flex flex-wrap gap-1.5">
               <select
@@ -263,7 +263,7 @@ export function OutfitItemsPicker({
                 onClick={() => addGeneric(draft)}
                 disabled={isPending || !draft.trim()}
                 className="h-8 shrink-0 rounded-full px-3"
-                title="Day plan only — not added to checklist or My Gear"
+                title="Day plan only — not added to checklist or closet"
               >
                 This day only
               </Button>
@@ -274,16 +274,16 @@ export function OutfitItemsPicker({
                 onClick={() => addNewToGear(draft)}
                 disabled={isPending || !draft.trim()}
                 className="h-8 shrink-0 rounded-full px-3"
-                title="Save to My Gear, day plan, and packing checklist"
+                title="Save to your closet, day plan, and packing checklist"
               >
                 <Plus className="mr-1 h-3.5 w-3.5" />
-                Save to Gear
+                Save to closet
               </Button>
             </div>
             <p className="mt-1 text-[10px] text-muted-foreground">
               <span className="font-medium text-foreground/80">This day only</span> — not on your
-              checklist. <span className="font-medium text-foreground/80">Save to Gear</span> —
-              checklist + My Gear.
+              checklist. <span className="font-medium text-foreground/80">Save to closet</span> —
+              checklist + closet.
             </p>
           </div>
         </div>

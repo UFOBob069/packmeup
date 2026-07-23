@@ -4,21 +4,25 @@ import { useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { eachDayOfInterval, format, parseISO } from "date-fns";
 import {
+  Backpack,
   Check,
+  ChevronDown,
   CloudRain,
+  Footprints,
   Home,
   MapPin,
   Moon,
+  Pencil,
   Plane,
   Plus,
-  ShoppingCart,
+  Shirt,
+  Sparkles,
   StickyNote,
   Sun,
   CloudSun,
   Trash2,
 } from "lucide-react";
 import { ActivityTag } from "@/components/design/activity-tag";
-import { WeatherCalendar } from "@/components/design/weather-card";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -30,15 +34,16 @@ import {
   updateCalendarDayNotes,
   updateOutfit,
 } from "@/actions/packing";
-import { toggleTripWorkspaceItem } from "@/actions/trip-workspace";
 import { OutfitItemsPicker } from "@/components/trip/outfit-items-picker";
 import { normalizeOutfitItems } from "@/lib/outfit-items";
 import type {
   CalendarDay,
   GearItem,
   Outfit,
-  TripWorkspaceItem,
+  OutfitItem,
+  PackingCategory,
   WeatherData,
+  WeatherDay,
 } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -58,6 +63,8 @@ const timeIcons = {
   all_day: CloudSun,
 };
 
+type DayMode = "collapsed" | "view" | "edit";
+
 interface DayPlannerProps {
   tripId: string;
   startDate: string;
@@ -68,8 +75,6 @@ interface DayPlannerProps {
   weather: WeatherData | null;
   gearItems: GearItem[];
   tripActivities?: string[];
-  workspaceItems?: TripWorkspaceItem[];
-  fallbackArrivalNotes?: string | null;
   focusedDate?: string | null;
   onFocusedDate?: () => void;
   editable?: boolean;
@@ -84,14 +89,12 @@ function buildPlanningDays(
     start: parseISO(startDate),
     end: parseISO(endDate),
   });
-
   const byDate = new Map(calendarDays.map((d) => [d.trip_date, d]));
 
   return range.map((date, i) => {
     const tripDate = format(date, "yyyy-MM-dd");
     const existing = byDate.get(tripDate);
     if (existing) return existing;
-
     const isFirst = i === 0;
     const isLast = i === range.length - 1;
     return {
@@ -111,176 +114,68 @@ function isPersistedCalendarDay(day: CalendarDay): boolean {
   return Boolean(day.trip_id && day.id && !/^\d{4}-\d{2}-\d{2}$/.test(day.id));
 }
 
-function DayWeatherBadge({
-  tripDate,
-  weather,
-  summary,
-}: {
-  tripDate: string;
-  weather: WeatherData | null;
-  summary: string | null;
-}) {
-  const dayWeather = weather?.daily.find((d) => d.date === tripDate);
-
-  if (dayWeather) {
-    const rainy = dayWeather.rain_chance > 40;
-    return (
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-xl bg-sky-blue/10 px-3 py-2 text-sm">
-        {rainy ? (
-          <CloudRain className="h-4 w-4 shrink-0 text-sky-blue" />
-        ) : (
-          <Sun className="h-4 w-4 shrink-0 text-weather-orange" />
-        )}
-        <span className="font-medium">
-          {dayWeather.temp_high}°F / {dayWeather.temp_low}°F
-        </span>
-        <span className="text-muted-foreground">{dayWeather.conditions}</span>
-        {dayWeather.rain_chance > 25 && (
-          <span className="text-xs font-medium text-sky-blue">{dayWeather.rain_chance}% rain</span>
-        )}
-      </div>
-    );
-  }
-
-  if (summary) {
-    return (
-      <p className="flex items-center gap-1.5 rounded-xl bg-muted/50 px-3 py-2 text-sm text-muted-foreground">
-        <Sun className="h-3.5 w-3.5 shrink-0 text-sun-yellow" />
-        {summary}
-      </p>
-    );
-  }
-
-  return null;
+function outfitItemIcon(category?: PackingCategory | null) {
+  if (category === "shoes") return Footprints;
+  if (category === "activity_gear") return Backpack;
+  if (category === "clothing") return Shirt;
+  return Check;
 }
 
-function MasterPlanSummary({
-  tripId,
-  activities,
-  workspaceItems,
-  fallbackArrivalNotes,
-  editable,
-}: {
-  tripId: string;
-  activities: string[];
-  workspaceItems: TripWorkspaceItem[];
-  fallbackArrivalNotes?: string | null;
-  editable: boolean;
-}) {
-  const router = useRouter();
-  const [, startTransition] = useTransition();
-  const groceries = workspaceItems.filter((item) => item.kind === "grocery");
-  const arrivals = workspaceItems.filter((item) => item.kind === "arrival");
-  const reminders = workspaceItems.filter((item) => item.kind === "reminder");
+function getDayWeather(tripDate: string, weather: WeatherData | null): WeatherDay | null {
+  return weather?.daily.find((d) => d.date === tripDate) ?? null;
+}
 
-  if (
-    activities.length === 0 &&
-    groceries.length === 0 &&
-    arrivals.length === 0 &&
-    reminders.length === 0
-  ) {
-    return null;
+function uniqueOutfitItems(outfits: Outfit[]): OutfitItem[] {
+  const seen = new Set<string>();
+  const items: OutfitItem[] = [];
+  for (const outfit of outfits) {
+    for (const item of normalizeOutfitItems(outfit.items)) {
+      const key = item.name.toLowerCase();
+      if (seen.has(key)) continue;
+      seen.add(key);
+      items.push(item);
+    }
   }
+  return items;
+}
 
+function dayAiTips(weather: WeatherDay | null): string[] {
+  if (!weather) return [];
+  const tips: string[] = [];
+  if (weather.rain_chance >= 40 || /rain|shower|drizzle|thunder/i.test(weather.conditions)) {
+    tips.push("Rain jacket");
+    tips.push("Waterproof shoes");
+  }
+  if (weather.temp_high >= 85) {
+    tips.push("Cooling towel");
+    tips.push("Extra water");
+  }
+  if (weather.temp_low <= 55) tips.push("Light evening layer");
+  return [...new Set(tips)].slice(0, 3);
+}
+
+function WeatherLine({ day }: { day: WeatherDay | null }) {
+  if (!day) return null;
+  const rainy =
+    day.rain_chance >= 45 || /rain|shower|drizzle|thunder/i.test(day.conditions);
+  const Icon = rainy ? CloudRain : Sun;
   return (
-    <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-      <div className="rounded-2xl border bg-card p-4 shadow-travel-sm">
-        <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-          Activity plan
-        </p>
-        <div className="mt-3 flex flex-wrap gap-1.5">
-          {activities.length > 0 ? (
-            activities.map((activity) => <ActivityTag key={activity} name={activity} />)
-          ) : (
-            <p className="text-sm text-muted-foreground">No activities assigned yet.</p>
-          )}
-        </div>
-      </div>
-
-      <div className="rounded-2xl border bg-card p-4 shadow-travel-sm">
-        <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-          <ShoppingCart className="h-3.5 w-3.5" />
-          Groceries
-        </p>
-        <div className="mt-3 space-y-2">
-          {groceries.length > 0 ? (
-            groceries.map((item) => (
-              <button
-                key={item.id}
-                type="button"
-                disabled={!editable}
-                onClick={() =>
-                  startTransition(async () => {
-                    await toggleTripWorkspaceItem(tripId, item.id, !item.completed);
-                    router.refresh();
-                  })
-                }
-                className="flex w-full items-center gap-2 text-left text-sm disabled:cursor-default"
-              >
-                <span
-                  className={cn(
-                    "flex h-4 w-4 shrink-0 items-center justify-center rounded border",
-                    item.completed && "border-primary bg-primary text-primary-foreground"
-                  )}
-                >
-                  {item.completed && <Check className="h-3 w-3" />}
-                </span>
-                <span className={cn(item.completed && "text-muted-foreground line-through")}>
-                  {item.title}
-                </span>
-              </button>
-            ))
-          ) : (
-            <p className="text-sm text-muted-foreground">No groceries added yet.</p>
-          )}
-        </div>
-      </div>
-
-      <div className="rounded-2xl border bg-card p-4 shadow-travel-sm md:col-span-2 xl:col-span-1">
-        <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-          <Home className="h-3.5 w-3.5" />
-          Check-in & reminders
-        </p>
-        <div className="mt-3 space-y-2">
-          {[...arrivals, ...reminders].length > 0 ? (
-            [...arrivals, ...reminders].map((item) => (
-              <div key={item.id}>
-                <p className="text-sm font-medium">{item.title}</p>
-                {item.details && (
-                  <p className="mt-0.5 whitespace-pre-wrap text-xs text-muted-foreground">
-                    {item.details}
-                  </p>
-                )}
-              </div>
-            ))
-          ) : fallbackArrivalNotes ? (
-            <div>
-              <p className="text-sm font-medium">Trip and arrival notes</p>
-              <p className="mt-0.5 whitespace-pre-wrap text-xs text-muted-foreground">
-                {fallbackArrivalNotes}
-              </p>
-            </div>
-          ) : (
-            <p className="text-sm text-muted-foreground">No check-in details added yet.</p>
-          )}
-        </div>
-      </div>
-    </section>
+    <p className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-sm text-muted-foreground">
+      <Icon className={cn("h-4 w-4", rainy ? "text-sky-blue" : "text-weather-orange")} />
+      <span className="font-medium text-foreground">
+        {day.temp_high}° / {day.temp_low}°
+      </span>
+      <span>{day.conditions.replace(/^Typical ·\s*/i, "")}</span>
+    </p>
   );
 }
 
-function DayTitle({
-  tripId,
-  day,
-  editable,
-}: {
-  tripId: string;
-  day: CalendarDay;
-  editable: boolean;
-}) {
+function DayTitleEditor({ tripId, day }: { tripId: string; day: CalendarDay }) {
   const router = useRouter();
   const [title, setTitle] = useState(day.title);
   const [, startTransition] = useTransition();
+
+  useEffect(() => setTitle(day.title), [day.title]);
 
   const save = () => {
     const trimmed = title.trim();
@@ -296,37 +191,29 @@ function DayTitle({
     });
   };
 
-  if (!editable) {
-    return <h3 className="text-display text-lg font-semibold">{day.title}</h3>;
-  }
-
   return (
     <Input
       value={title}
       onChange={(e) => setTitle(e.target.value)}
       onBlur={save}
       onKeyDown={(e) => {
-        if (e.key === "Enter") {
-          e.currentTarget.blur();
-        }
+        if (e.key === "Enter") e.currentTarget.blur();
       }}
-      className="text-display h-auto border-transparent bg-transparent px-0 text-lg font-semibold shadow-none focus-visible:border-border focus-visible:bg-background focus-visible:px-3"
+      className="text-display h-auto border-transparent bg-transparent px-0 text-xl font-semibold shadow-none focus-visible:border-border focus-visible:bg-background focus-visible:px-3"
       aria-label="Day title"
     />
   );
 }
 
-function OutfitBlock({
+function OutfitEditBlock({
   tripId,
   outfit,
   gearItems,
-  editable,
   tripActivities,
 }: {
   tripId: string;
   outfit: Outfit;
   gearItems: GearItem[];
-  editable: boolean;
   tripActivities: string[];
 }) {
   const router = useRouter();
@@ -335,9 +222,14 @@ function OutfitBlock({
   const [activityName, setActivityName] = useState(outfit.activity_name ?? "");
   const [timeOfDay, setTimeOfDay] = useState(outfit.time_of_day);
   const [, startTransition] = useTransition();
-
   const TimeIcon = timeIcons[outfit.time_of_day] ?? CloudSun;
-  const filterHint = outfit.activity_name ?? outfit.title;
+
+  useEffect(() => {
+    setTitle(outfit.title);
+    setDescription(outfit.description);
+    setActivityName(outfit.activity_name ?? "");
+    setTimeOfDay(outfit.time_of_day);
+  }, [outfit]);
 
   const saveField = (updates: Parameters<typeof updateOutfit>[2]) => {
     startTransition(async () => {
@@ -346,48 +238,8 @@ function OutfitBlock({
     });
   };
 
-  const handleDelete = () => {
-    startTransition(async () => {
-      await deleteOutfit(tripId, outfit.id);
-      router.refresh();
-    });
-  };
-
-  if (!editable) {
-    const items = normalizeOutfitItems(outfit.items);
-    return (
-      <div className="rounded-xl border bg-background/80 p-4">
-        <div className="mb-2 flex flex-wrap items-start justify-between gap-2">
-          <div>
-            <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
-              <TimeIcon className="h-3.5 w-3.5" />
-              {outfit.time_of_day.replace("_", " ")}
-            </div>
-            <p className="text-display mt-0.5 font-semibold">{outfit.title}</p>
-          </div>
-          {outfit.activity_name && <ActivityTag name={outfit.activity_name} />}
-        </div>
-        {outfit.description && (
-          <p className="mb-3 text-sm text-muted-foreground">{outfit.description}</p>
-        )}
-        {items.length > 0 && (
-          <div className="flex flex-wrap gap-2">
-            {items.map((item, i) => (
-              <span
-                key={i}
-                className="rounded-full border bg-muted/40 px-2.5 py-1 text-xs font-medium"
-              >
-                {item.name}
-              </span>
-            ))}
-          </div>
-        )}
-      </div>
-    );
-  }
-
   return (
-    <div className="rounded-xl border bg-background/80 p-4">
+    <div className="rounded-xl border bg-background p-4">
       <div className="mb-3 flex flex-wrap items-start justify-between gap-2">
         <div className="min-w-0 flex-1 space-y-2">
           <div className="flex flex-wrap items-center gap-2">
@@ -399,7 +251,7 @@ function OutfitBlock({
                 setTimeOfDay(value);
                 saveField({ time_of_day: value });
               }}
-              className="h-7 cursor-pointer rounded-lg border border-muted-foreground/20 bg-background px-2 text-xs font-medium uppercase tracking-wider"
+              className="h-7 cursor-pointer rounded-lg border bg-background px-2 text-xs font-medium uppercase tracking-wider"
             >
               {TIME_ORDER.map((t) => (
                 <option key={t} value={t}>
@@ -412,9 +264,7 @@ function OutfitBlock({
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             onBlur={() => {
-              if (title.trim() && title !== outfit.title) {
-                saveField({ title });
-              }
+              if (title.trim() && title !== outfit.title) saveField({ title });
             }}
             placeholder="Event name"
             className="text-display h-8 font-semibold"
@@ -424,8 +274,13 @@ function OutfitBlock({
           type="button"
           variant="ghost"
           size="icon-sm"
-          onClick={handleDelete}
-          className="shrink-0 cursor-pointer text-muted-foreground hover:text-destructive"
+          onClick={() =>
+            startTransition(async () => {
+              await deleteOutfit(tripId, outfit.id);
+              router.refresh();
+            })
+          }
+          className="text-muted-foreground hover:text-destructive"
           aria-label="Delete event"
         >
           <Trash2 className="h-4 w-4" />
@@ -436,83 +291,61 @@ function OutfitBlock({
         value={description}
         onChange={(e) => setDescription(e.target.value)}
         onBlur={() => {
-          if (description !== outfit.description) {
-            saveField({ description });
-          }
+          if (description !== outfit.description) saveField({ description });
         }}
-        placeholder="What are you doing? e.g. Golf shirt and shorts for a day on the course."
+        placeholder="Tee time, address, who you're with…"
         rows={2}
         className="mb-3 resize-none text-sm"
       />
 
-      <div className="mb-3">
-        <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+      <div className="mb-3 space-y-1.5">
+        <label className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
           Event tag
         </label>
-        <p className="mb-1.5 text-[11px] text-muted-foreground">
-          Optional label for this event only — not browser autofill.
-        </p>
         <Input
           value={activityName}
           onChange={(e) => setActivityName(e.target.value)}
           onBlur={() => {
             const next = activityName.trim() || null;
-            if (next !== outfit.activity_name) {
-              saveField({ activity_name: next });
-            }
+            if (next !== outfit.activity_name) saveField({ activity_name: next });
           }}
-          placeholder="e.g. Hike, Golf, Dinner..."
-          autoComplete="off"
-          name={`event-tag-${outfit.id}`}
+          placeholder="e.g. Golf, Hike, Dinner…"
           className="h-8 text-sm"
         />
         {tripActivities.length > 0 && (
-          <div className="mt-2">
-            <p className="mb-1 text-[10px] text-muted-foreground">Quick pick:</p>
-            <div className="flex flex-wrap gap-1.5">
-              {tripActivities.map((a) => (
-                <button
-                  key={a}
-                  type="button"
-                  onClick={() => {
-                    setActivityName(a);
-                    saveField({ activity_name: a });
-                  }}
-                  className={cn(
-                    "cursor-pointer rounded-full border px-2.5 py-1 text-xs font-medium transition-colors",
-                    activityName === a
-                      ? "border-primary bg-primary/10 text-primary"
-                      : "bg-muted/40 hover:bg-muted"
-                  )}
-                >
-                  {a}
-                </button>
-              ))}
+          <div className="flex flex-wrap gap-1.5 pt-1">
+            {tripActivities.map((a) => (
               <button
+                key={a}
                 type="button"
                 onClick={() => {
-                  setActivityName("");
-                  saveField({ activity_name: null });
+                  setActivityName(a);
+                  saveField({ activity_name: a });
                 }}
-                className="cursor-pointer rounded-full border border-dashed px-2.5 py-1 text-xs text-muted-foreground hover:bg-muted/40"
+                className={cn(
+                  "rounded-full border px-2.5 py-1 text-xs font-medium",
+                  activityName === a
+                    ? "border-primary bg-primary/10 text-primary"
+                    : "bg-muted/40 hover:bg-muted"
+                )}
               >
-                Clear
+                {a}
               </button>
-            </div>
+            ))}
           </div>
         )}
       </div>
 
       <div>
         <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-          What to wear / bring
+          From your closet
         </p>
         <OutfitItemsPicker
           tripId={tripId}
           outfitId={outfit.id}
           items={outfit.items}
           gearItems={gearItems}
-          filterHint={filterHint}
+          filterHint={outfit.activity_name ?? outfit.title}
           activityName={outfit.activity_name}
         />
       </div>
@@ -523,19 +356,18 @@ function OutfitBlock({
 function DayActivitiesEditor({
   tripId,
   day,
-  editable,
   suggestions,
 }: {
   tripId: string;
   day: CalendarDay;
-  editable: boolean;
   suggestions: string[];
 }) {
   const router = useRouter();
-  const initial = (day.activities as string[]) ?? [];
-  const [tags, setTags] = useState(initial);
+  const [tags, setTags] = useState((day.activities as string[]) ?? []);
   const [draft, setDraft] = useState("");
   const [, startTransition] = useTransition();
+
+  useEffect(() => setTags((day.activities as string[]) ?? []), [day.activities]);
 
   const persist = (next: string[]) => {
     setTags(next);
@@ -550,43 +382,15 @@ function DayActivitiesEditor({
     });
   };
 
-  const addTag = (name: string) => {
-    const trimmed = name.trim();
-    if (!trimmed || tags.some((t) => t.toLowerCase() === trimmed.toLowerCase())) return;
-    persist([...tags, trimmed]);
-    setDraft("");
-  };
-
-  const removeTag = (name: string) => {
-    persist(tags.filter((t) => t !== name));
-  };
-
-  if (!editable) {
-    if (tags.length === 0) return null;
-    return (
-      <div className="mt-3 flex flex-wrap gap-1.5">
-        {tags.map((activity) => (
-          <ActivityTag key={activity} name={activity} />
-        ))}
-      </div>
-    );
-  }
-
-  const unusedSuggestions = suggestions.filter(
+  const unused = suggestions.filter(
     (s) => !tags.some((t) => t.toLowerCase() === s.toLowerCase())
   );
 
   return (
-    <div className="mt-3 space-y-2">
-      <div>
-        <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-          Day tag
-        </p>
-        <p className="text-[11px] text-muted-foreground">
-          What kind of day is this? Change Golf to Hike here — separate from the title above.
-        </p>
-      </div>
-
+    <div className="space-y-2">
+      <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+        Day tags
+      </p>
       {tags.length > 0 && (
         <div className="flex flex-wrap gap-1.5">
           {tags.map((activity) => (
@@ -594,9 +398,9 @@ function DayActivitiesEditor({
               <ActivityTag name={activity} />
               <button
                 type="button"
-                onClick={() => removeTag(activity)}
-                className="cursor-pointer rounded-full p-0.5 text-muted-foreground hover:text-destructive"
-                aria-label={`Remove ${activity} tag`}
+                onClick={() => persist(tags.filter((t) => t !== activity))}
+                className="rounded-full p-0.5 text-muted-foreground hover:text-destructive"
+                aria-label={`Remove ${activity}`}
               >
                 <Trash2 className="h-3 w-3" />
               </button>
@@ -604,71 +408,127 @@ function DayActivitiesEditor({
           ))}
         </div>
       )}
-
       <div className="flex gap-1.5">
         <Input
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
-          placeholder="e.g. Hike, Golf, Beach..."
-          autoComplete="off"
-          name={`day-tag-${day.id}`}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") {
-              e.preventDefault();
-              addTag(draft);
-            }
-          }}
+          placeholder="e.g. Golf, Beach…"
           className="h-8 flex-1 text-sm"
+          onKeyDown={(e) => {
+            if (e.key !== "Enter") return;
+            e.preventDefault();
+            const trimmed = draft.trim();
+            if (!trimmed || tags.some((t) => t.toLowerCase() === trimmed.toLowerCase())) return;
+            persist([...tags, trimmed]);
+            setDraft("");
+          }}
         />
         <Button
           type="button"
           size="sm"
           variant="outline"
           disabled={!draft.trim()}
-          onClick={() => addTag(draft)}
-          className="h-8 shrink-0 cursor-pointer rounded-full px-3"
+          onClick={() => {
+            const trimmed = draft.trim();
+            if (!trimmed) return;
+            persist([...tags, trimmed]);
+            setDraft("");
+          }}
+          className="h-8 rounded-full"
         >
           <Plus className="mr-1 h-3.5 w-3.5" />
-          Add tag
+          Add
         </Button>
       </div>
-
-      {unusedSuggestions.length > 0 && (
-        <div>
-          <p className="mb-1 text-[10px] text-muted-foreground">From your trip:</p>
-          <div className="flex flex-wrap gap-1.5">
-            {unusedSuggestions.map((s) => (
-              <button
-                key={s}
-                type="button"
-                onClick={() => addTag(s)}
-                className="cursor-pointer rounded-full border bg-muted/40 px-2.5 py-1 text-xs font-medium transition-colors hover:bg-muted"
-              >
-                {s}
-              </button>
-            ))}
-          </div>
+      {unused.length > 0 && (
+        <div className="flex flex-wrap gap-1.5">
+          {unused.map((s) => (
+            <button
+              key={s}
+              type="button"
+              onClick={() => persist([...tags, s])}
+              className="rounded-full border bg-muted/40 px-2.5 py-1 text-xs font-medium hover:bg-muted"
+            >
+              {s}
+            </button>
+          ))}
         </div>
       )}
     </div>
   );
 }
 
-function DayNotes({
+function EventViewCard({ outfit }: { outfit: Outfit }) {
+  const TimeIcon = timeIcons[outfit.time_of_day] ?? CloudSun;
+  return (
+    <div className="rounded-2xl border bg-card p-4">
+      <div className="flex items-start gap-3">
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+          <TimeIcon className="h-5 w-5" />
+        </span>
+        <div className="min-w-0">
+          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+            {TIME_LABELS[outfit.time_of_day]}
+          </p>
+          <p className="text-display font-semibold">{outfit.title}</p>
+          {outfit.activity_name && (
+            <p className="mt-0.5 text-sm text-muted-foreground">{outfit.activity_name}</p>
+          )}
+          {outfit.description && (
+            <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground">
+              {outfit.description}
+            </p>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function DayCard({
   tripId,
   day,
-  canSave,
+  index,
+  total,
+  outfits,
+  weather,
+  gearItems,
+  tripActivities,
+  mode,
+  canEdit,
+  onModeChange,
 }: {
   tripId: string;
   day: CalendarDay;
-  canSave: boolean;
+  index: number;
+  total: number;
+  outfits: Outfit[];
+  weather: WeatherData | null;
+  gearItems: GearItem[];
+  tripActivities: string[];
+  mode: DayMode;
+  canEdit: boolean;
+  onModeChange: (mode: DayMode) => void;
 }) {
   const router = useRouter();
-  const [notes, setNotes] = useState(day.notes ?? "");
   const [, startTransition] = useTransition();
+  const [notes, setNotes] = useState(day.notes ?? "");
 
-  const save = () => {
-    if (!canSave || notes === (day.notes ?? "")) return;
+  useEffect(() => setNotes(day.notes ?? ""), [day.notes]);
+
+  const isFirst = index === 0;
+  const isLast = index === total - 1;
+  const DayIcon = isFirst ? Plane : isLast ? Home : MapPin;
+  const eventLabel = isFirst ? "Arrival" : isLast ? "Departure" : null;
+  const weatherDay = getDayWeather(day.trip_date, weather);
+  const dayActivities = (day.activities as string[]) ?? [];
+  const planLabel = [eventLabel, ...dayActivities].filter(Boolean).join(" + ") || day.title;
+  const items = uniqueOutfitItems(outfits);
+  const tips = dayAiTips(weatherDay);
+  const defaultActivity = dayActivities[0] ?? null;
+
+  const saveNotes = () => {
+    if (!canEdit || notes === (day.notes ?? "")) return;
     startTransition(async () => {
       await updateCalendarDayNotes(
         tripId,
@@ -680,61 +540,283 @@ function DayNotes({
     });
   };
 
+  if (mode === "collapsed") {
+    return (
+      <article
+        id={`trip-day-${day.trip_date}`}
+        tabIndex={-1}
+        className="scroll-mt-24 outline-none focus-visible:ring-2 focus-visible:ring-primary"
+      >
+        <button
+          type="button"
+          onClick={() => onModeChange("view")}
+          className="flex w-full items-start gap-4 rounded-2xl border bg-card p-4 text-left shadow-travel-sm transition hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-travel focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary sm:p-5"
+        >
+          <span
+            className={cn(
+              "mt-0.5 flex h-11 w-11 shrink-0 items-center justify-center rounded-xl",
+              isFirst && "bg-primary/15 text-primary",
+              isLast && "bg-ocean-teal/15 text-ocean-teal",
+              !isFirst && !isLast && "bg-muted text-muted-foreground"
+            )}
+          >
+            <DayIcon className="h-5 w-5" />
+          </span>
+          <div className="min-w-0 flex-1">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-display text-lg font-semibold">
+                  {format(parseISO(day.trip_date), "EEEE")}
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  {format(parseISO(day.trip_date), "MMM d")}
+                </p>
+              </div>
+              <ChevronDown className="mt-1 h-4 w-4 shrink-0 text-muted-foreground" />
+            </div>
+            <div className="mt-2">
+              <WeatherLine day={weatherDay} />
+            </div>
+            <p className="mt-2 text-sm font-medium">{planLabel}</p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              {[
+                outfits.length > 0 &&
+                  `${outfits.length} event${outfits.length === 1 ? "" : "s"}`,
+                items.length > 0 && `${items.length} to pack`,
+                tips.length > 0 && `${tips.length} suggestion${tips.length === 1 ? "" : "s"}`,
+                day.notes && "Notes",
+              ]
+                .filter(Boolean)
+                .join(" · ") || "Tap to open"}
+            </p>
+          </div>
+        </button>
+      </article>
+    );
+  }
+
   return (
-    <div className="mt-4 space-y-2">
-      <p className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wider text-muted-foreground">
-        <StickyNote className="h-3.5 w-3.5" />
-        Day notes
-      </p>
-      <Textarea
-        placeholder="Reservations, meet-up times, reminders for this day..."
-        value={notes}
-        onChange={(e) => setNotes(e.target.value)}
-        onBlur={save}
-        rows={2}
-        className="resize-none text-sm"
-        disabled={!canSave}
-      />
-    </div>
+    <article
+      id={`trip-day-${day.trip_date}`}
+      tabIndex={-1}
+      className="scroll-mt-24 overflow-hidden rounded-2xl border bg-card shadow-travel-sm outline-none focus-visible:ring-2 focus-visible:ring-primary"
+    >
+      <div className="flex items-start justify-between gap-3 border-b bg-muted/20 px-5 py-4">
+        <div className="min-w-0">
+          <button
+            type="button"
+            onClick={() => onModeChange("collapsed")}
+            className="group flex items-center gap-2 text-left"
+          >
+            <p className="text-display text-xl font-semibold">
+              {format(parseISO(day.trip_date), "EEEE")}
+            </p>
+            <ChevronDown className="h-4 w-4 rotate-180 text-muted-foreground transition group-hover:text-foreground" />
+          </button>
+          <p className="text-sm text-muted-foreground">
+            {format(parseISO(day.trip_date), "MMMM d")}
+            {eventLabel ? ` · ${eventLabel}` : ""}
+          </p>
+        </div>
+        <div className="flex shrink-0 items-center gap-2">
+          {canEdit && mode === "view" && (
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={() => onModeChange("edit")}
+              className="rounded-full"
+            >
+              <Pencil className="mr-1.5 h-3.5 w-3.5" />
+              Edit day
+            </Button>
+          )}
+          {canEdit && mode === "edit" && (
+            <Button
+              type="button"
+              size="sm"
+              onClick={() => onModeChange("view")}
+              className="rounded-full"
+            >
+              Done
+            </Button>
+          )}
+        </div>
+      </div>
+
+      <div className="space-y-6 p-5 sm:p-6">
+        {mode === "view" ? (
+          <>
+            <div className="space-y-2">
+              <h3 className="text-display text-lg font-semibold">{day.title}</h3>
+              <WeatherLine day={weatherDay} />
+              {(eventLabel || dayActivities.length > 0) && (
+                <p className="text-sm font-medium text-foreground/90">
+                  {[eventLabel, ...dayActivities].filter(Boolean).join(" + ")}
+                </p>
+              )}
+            </div>
+
+            {outfits.length > 0 && (
+              <section className="space-y-3">
+                <h4 className="text-display text-sm font-semibold">Today&apos;s plans</h4>
+                <div className="space-y-3">
+                  {outfits.map((outfit) => (
+                    <EventViewCard key={outfit.id} outfit={outfit} />
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {items.length > 0 && (
+              <section className="space-y-3">
+                <h4 className="text-display text-sm font-semibold">Today&apos;s outfit</h4>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  {items.map((item, i) => {
+                    const Icon = outfitItemIcon(item.category);
+                    return (
+                      <div
+                        key={`${item.name}-${i}`}
+                        className="flex items-center gap-3 rounded-2xl border bg-muted/20 px-3 py-3"
+                      >
+                        <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-background text-primary shadow-travel-sm">
+                          <Icon className="h-5 w-5" />
+                        </span>
+                        <p className="text-sm font-medium leading-snug">{item.name}</p>
+                      </div>
+                    );
+                  })}
+                </div>
+              </section>
+            )}
+
+            {items.length > 0 && (
+              <section className="space-y-3">
+                <h4 className="text-display text-sm font-semibold">Pack today</h4>
+                <ul className="space-y-2">
+                  {items.map((item, i) => (
+                    <li
+                      key={`${item.name}-pack-${i}`}
+                      className="flex items-center gap-3 rounded-xl border px-3 py-2.5 text-sm"
+                    >
+                      <span className="flex h-5 w-5 items-center justify-center rounded border border-muted-foreground/25">
+                        <Check className="h-3 w-3 text-golf-green opacity-40" />
+                      </span>
+                      {item.name}
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            )}
+
+            <AiTips tips={tips} />
+
+            {day.notes && (
+              <section className="space-y-2">
+                <h4 className="flex items-center gap-1.5 text-display text-sm font-semibold">
+                  <StickyNote className="h-3.5 w-3.5" />
+                  Notes
+                </h4>
+                <p className="whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground">
+                  {day.notes}
+                </p>
+              </section>
+            )}
+
+            {!outfits.length && !items.length && !day.notes && tips.length === 0 && (
+              <p className="text-sm text-muted-foreground">
+                Nothing planned for this day yet
+                {canEdit ? " — tap Edit day to add events and what to wear." : "."}
+              </p>
+            )}
+          </>
+        ) : (
+          <>
+            <DayTitleEditor tripId={tripId} day={day} />
+            <WeatherLine day={weatherDay} />
+            <DayActivitiesEditor tripId={tripId} day={day} suggestions={tripActivities} />
+
+            <section className="space-y-3">
+              <div className="flex items-center justify-between gap-2">
+                <h4 className="text-display text-sm font-semibold">Events</h4>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  className="rounded-full"
+                  onClick={() =>
+                    startTransition(async () => {
+                      await createOutfit(tripId, {
+                        trip_date: day.trip_date,
+                        time_of_day: "all_day",
+                        title: defaultActivity ? `${defaultActivity} event` : "New event",
+                        activity_name: defaultActivity,
+                        items: [],
+                      });
+                      router.refresh();
+                    })
+                  }
+                >
+                  <Plus className="mr-1.5 h-3.5 w-3.5" />
+                  Add event
+                </Button>
+              </div>
+              {outfits.length > 0 ? (
+                outfits.map((outfit) => (
+                  <OutfitEditBlock
+                    key={outfit.id}
+                    tripId={tripId}
+                    outfit={outfit}
+                    gearItems={gearItems}
+                    tripActivities={tripActivities}
+                  />
+                ))
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  Add an event to plan what to wear and bring.
+                </p>
+              )}
+            </section>
+
+            <section className="space-y-2">
+              <p className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                <StickyNote className="h-3.5 w-3.5" />
+                Notes
+              </p>
+              <Textarea
+                placeholder="Reservations, meet-up times, reminders…"
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                onBlur={saveNotes}
+                rows={3}
+                className="resize-none text-sm"
+              />
+            </section>
+
+            <AiTips tips={tips} />
+          </>
+        )}
+      </div>
+    </article>
   );
 }
 
-function AddEventButton({
-  tripId,
-  tripDate,
-  defaultActivity,
-}: {
-  tripId: string;
-  tripDate: string;
-  defaultActivity?: string | null;
-}) {
-  const router = useRouter();
-  const [, startTransition] = useTransition();
-
-  const handleAdd = () => {
-    startTransition(async () => {
-      await createOutfit(tripId, {
-        trip_date: tripDate,
-        time_of_day: "all_day",
-        title: defaultActivity ? `${defaultActivity} event` : "New event",
-        activity_name: defaultActivity ?? null,
-        items: [],
-      });
-      router.refresh();
-    });
-  };
-
+function AiTips({ tips }: { tips: string[] }) {
+  if (tips.length === 0) return null;
   return (
-    <Button
-      type="button"
-      variant="outline"
-      size="sm"
-      onClick={handleAdd}
-      className="mt-3 cursor-pointer rounded-full"
-    >
-      <Plus className="mr-1.5 h-3.5 w-3.5" />
-      Add event
-    </Button>
+    <section className="rounded-2xl border border-primary/15 bg-primary/5 p-4">
+      <div className="flex items-center gap-2">
+        <Sparkles className="h-4 w-4 text-primary" />
+        <h4 className="text-sm font-semibold">Suggestions for this day</h4>
+      </div>
+      <ul className="mt-3 space-y-1.5">
+        {tips.map((tip) => (
+          <li key={tip} className="text-sm text-muted-foreground">
+            + {tip}
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 }
 
@@ -742,14 +824,12 @@ export function DayPlanner({
   tripId,
   startDate,
   endDate,
-  destination,
+  destination: _destination,
   days,
   outfits,
   weather,
   gearItems,
   tripActivities: configuredActivities = [],
-  workspaceItems = [],
-  fallbackArrivalNotes,
   focusedDate,
   onFocusedDate,
   editable = true,
@@ -780,8 +860,15 @@ export function DayPlanner({
     return Array.from(set);
   }, [configuredActivities, planningDays, outfits]);
 
+  const [dayModes, setDayModes] = useState<Record<string, DayMode>>({});
+
+  const getMode = (date: string): DayMode => dayModes[date] ?? "collapsed";
+  const setMode = (date: string, mode: DayMode) =>
+    setDayModes((prev) => ({ ...prev, [date]: mode }));
+
   useEffect(() => {
     if (!focusedDate) return;
+    setMode(focusedDate, "view");
     const frame = requestAnimationFrame(() => {
       const target = document.getElementById(`trip-day-${focusedDate}`);
       if (!target) return;
@@ -795,149 +882,38 @@ export function DayPlanner({
   if (planningDays.length === 0) {
     return (
       <p className="py-12 text-center text-sm text-muted-foreground">
-        Your daily plan will appear here once your packing list is built.
+        Your daily plan will appear here once your trip dates are set.
       </p>
     );
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       <div className="rounded-2xl border bg-muted/20 p-5">
-        <p className="text-display text-lg font-semibold">What you&apos;re doing each day</p>
+        <p className="text-display text-lg font-semibold">By day</p>
         <p className="mt-1 text-sm text-muted-foreground">
-          Edit day names, add events, and pick gear for each day. Your checklist tracks
-          what&apos;s packed — this is how you&apos;ll use it day by day.
+          A clean look at each day of the trip. Tap a day to open it — edit only when you need
+          to change plans.
         </p>
       </div>
 
-      {weather?.daily && weather.daily.length > 0 && (
-        <WeatherCalendar location={weather.location ?? destination} days={weather.daily} />
-      )}
-
-      <MasterPlanSummary
-        tripId={tripId}
-        activities={tripActivities}
-        workspaceItems={workspaceItems}
-        fallbackArrivalNotes={fallbackArrivalNotes}
-        editable={editable}
-      />
-
-      <div className="relative">
-        <div className="absolute bottom-0 left-6 top-0 hidden w-0.5 bg-border sm:block" />
-
-        <div className="space-y-5">
-          {planningDays.map((day, i) => {
-            const isFirst = i === 0;
-            const isLast = i === planningDays.length - 1;
-            const DayIcon = isFirst ? Plane : isLast ? Home : MapPin;
-            const dayOutfits = outfitsByDate[day.trip_date] ?? [];
-            const eventLabel = isFirst ? "Arrival" : isLast ? "Departure" : null;
-            const dayActivities = day.activities as string[];
-            const defaultActivity = dayActivities[0] ?? null;
-
-            return (
-              <article
-                id={`trip-day-${day.trip_date}`}
-                key={day.id}
-                tabIndex={-1}
-                className="relative scroll-mt-24 rounded-2xl outline-none focus-visible:ring-2 focus-visible:ring-primary sm:pl-14"
-              >
-                <div className="absolute left-4 top-6 hidden h-4 w-4 rounded-full border-2 border-primary bg-background sm:block" />
-
-                <div className="overflow-hidden rounded-2xl border bg-card shadow-travel-sm">
-                  <div className="flex flex-col lg:flex-row">
-                    <div className="flex shrink-0 flex-row items-center gap-4 border-b bg-muted/30 p-5 lg:w-40 lg:flex-col lg:items-start lg:border-b-0 lg:border-r">
-                      <div
-                        className={cn(
-                          "flex h-10 w-10 items-center justify-center rounded-xl",
-                          isFirst && "bg-primary/15",
-                          isLast && "bg-ocean-teal/15",
-                          !isFirst && !isLast && "bg-muted"
-                        )}
-                      >
-                        <DayIcon
-                          className={cn(
-                            "h-5 w-5",
-                            isFirst && "text-primary",
-                            isLast && "text-ocean-teal",
-                            !isFirst && !isLast && "text-muted-foreground"
-                          )}
-                        />
-                      </div>
-                      <div>
-                        <p className="text-display font-semibold">
-                          {format(parseISO(day.trip_date), "EEE")}
-                        </p>
-                        <p className="text-sm text-muted-foreground">
-                          {format(parseISO(day.trip_date), "MMM d")}
-                        </p>
-                        {eventLabel && (
-                          <span className="mt-2 inline-block rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-primary">
-                            {eventLabel}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-
-                    <div className="min-w-0 flex-1 p-5">
-                      <DayTitle tripId={tripId} day={day} editable={editable} />
-
-                      <div className="mt-3">
-                        <DayWeatherBadge
-                          tripDate={day.trip_date}
-                          weather={weather}
-                          summary={day.weather_summary}
-                        />
-                      </div>
-
-                      <DayActivitiesEditor
-                        tripId={tripId}
-                        day={day}
-                        editable={editable}
-                        suggestions={tripActivities}
-                      />
-
-                      <div className="mt-4 space-y-3">
-                        <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                          Events & outfits
-                        </p>
-                        {dayOutfits.length > 0 ? (
-                          dayOutfits.map((outfit) => (
-                            <OutfitBlock
-                              key={outfit.id}
-                              tripId={tripId}
-                              outfit={outfit}
-                              gearItems={gearItems}
-                              editable={editable}
-                              tripActivities={tripActivities}
-                            />
-                          ))
-                        ) : (
-                          <p className="text-sm text-muted-foreground">
-                            No events yet — add one to plan what to wear or bring.
-                          </p>
-                        )}
-                        {editable && (
-                          <AddEventButton
-                            tripId={tripId}
-                            tripDate={day.trip_date}
-                            defaultActivity={defaultActivity}
-                          />
-                        )}
-                      </div>
-
-                      <DayNotes
-                        tripId={tripId}
-                        day={day}
-                        canSave={editable}
-                      />
-                    </div>
-                  </div>
-                </div>
-              </article>
-            );
-          })}
-        </div>
+      <div className="space-y-3">
+        {planningDays.map((day, i) => (
+          <DayCard
+            key={day.id}
+            tripId={tripId}
+            day={day}
+            index={i}
+            total={planningDays.length}
+            outfits={outfitsByDate[day.trip_date] ?? []}
+            weather={weather}
+            gearItems={gearItems}
+            tripActivities={tripActivities}
+            mode={getMode(day.trip_date)}
+            canEdit={editable}
+            onModeChange={(mode) => setMode(day.trip_date, mode)}
+          />
+        ))}
       </div>
     </div>
   );
