@@ -31,6 +31,43 @@ import type {
   WeatherData,
 } from "@/lib/types";
 
+async function ensureProfileForAuthUser(authUser: {
+  id: string;
+  email?: string | null;
+  user_metadata?: Record<string, unknown> | null;
+}) {
+  const meta = authUser.user_metadata ?? {};
+  const email =
+    authUser.email ||
+    (typeof meta.email === "string" ? meta.email : null) ||
+    (typeof meta.email_address === "string" ? meta.email_address : null);
+  if (!email) return null;
+
+  const name =
+    (typeof meta.full_name === "string" && meta.full_name) ||
+    (typeof meta.name === "string" && meta.name) ||
+    email.split("@")[0];
+  const avatar_url =
+    (typeof meta.avatar_url === "string" && meta.avatar_url) ||
+    (typeof meta.picture === "string" && meta.picture) ||
+    null;
+
+  try {
+    const admin = createAdminClient();
+    const { data } = await admin
+      .from("profiles")
+      .upsert(
+        { id: authUser.id, email, name, avatar_url },
+        { onConflict: "id" }
+      )
+      .select("*")
+      .maybeSingle();
+    return data;
+  } catch {
+    return null;
+  }
+}
+
 export async function getCurrentUser() {
   if (isDemoMode()) {
     return getDemoUser();
@@ -46,9 +83,12 @@ export async function getCurrentUser() {
     .from("profiles")
     .select("*")
     .eq("id", user.id)
-    .single();
+    .maybeSingle();
 
-  return profile;
+  if (profile) return profile;
+
+  // New Google signups can race the profile trigger — create one before join/FK inserts.
+  return ensureProfileForAuthUser(user);
 }
 
 const WEATHER_STALE_MS = 6 * 60 * 60 * 1000;
@@ -56,7 +96,7 @@ const WEATHER_STALE_MS = 6 * 60 * 60 * 1000;
 function isWeatherFresh(weather: WeatherData | null | undefined): boolean {
   if (!weather?.daily?.length) return false;
   // Older caches / failed geocode fillers — force refresh until we have real data.
-  if (weather.units !== "fahrenheit" || weather.model !== "forecast+seasonal-v2") return false;
+  if (weather.units !== "fahrenheit" || weather.model !== "forecast+seasonal-v3") return false;
   if (weather.daily.every((d) => d.source === "fallback")) return false;
   if (!weather.fetched_at) return false;
   const fetchedAt = Date.parse(weather.fetched_at);
@@ -391,8 +431,6 @@ export async function joinTripByShareToken(token: string): Promise<{ tripId: str
   if (isDemoMode()) {
     const tripId = joinDemoTripByShareToken(token, user.id);
     if (!tripId) throw new Error("Invite link is invalid");
-    revalidatePath("/dashboard");
-    revalidatePath(`/trips/${tripId}`);
     return { tripId };
   }
 
@@ -415,23 +453,33 @@ export async function joinTripByShareToken(token: string): Promise<{ tripId: str
     .eq("user_id", user.id)
     .maybeSingle();
 
-  const { data: invite } = await admin
-    .from("trip_invites")
-    .select("id, role")
-    .eq("trip_id", trip.id)
-    .ilike("email", user.email)
-    .maybeSingle();
+  let invite: { id: string; role: string } | null = null;
+  if (user.email) {
+    const { data } = await admin
+      .from("trip_invites")
+      .select("id, role")
+      .eq("trip_id", trip.id)
+      .ilike("email", user.email)
+      .maybeSingle();
+    invite = data;
+  }
 
   const role: MemberRole =
     invite?.role === "viewer" || invite?.role === "editor" ? invite.role : "editor";
 
   if (!existing) {
-    const { error } = await admin.from("trip_members").insert({
-      trip_id: trip.id,
-      user_id: user.id,
-      role,
-    });
-    if (error) throw new Error(error.message);
+    const { error } = await admin.from("trip_members").upsert(
+      {
+        trip_id: trip.id,
+        user_id: user.id,
+        role,
+      },
+      { onConflict: "trip_id,user_id", ignoreDuplicates: true }
+    );
+    // Unique race from double OAuth redirect — already a member is success.
+    if (error && !/duplicate|unique/i.test(error.message)) {
+      throw new Error(error.message);
+    }
   }
 
   if (invite) {
@@ -441,8 +489,8 @@ export async function joinTripByShareToken(token: string): Promise<{ tripId: str
       .eq("id", invite.id);
   }
 
-  revalidatePath("/dashboard");
-  revalidatePath(`/trips/${trip.id}`);
+  // Do not revalidatePath here — join often runs during RSC render after OAuth,
+  // and revalidatePath during render 500s the invite page.
   return { tripId: trip.id };
 }
 

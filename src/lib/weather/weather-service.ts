@@ -175,6 +175,44 @@ async function fetchForecastRange(
   });
 }
 
+function isWetWeatherCode(code: number | null | undefined): boolean {
+  if (code == null || Number.isNaN(code)) return false;
+  // WMO: drizzle/rain/snow/showers/thunder are 51+
+  return code >= 51;
+}
+
+function mostCommonCode(counts: Map<number, number>): number | null {
+  let best: number | null = null;
+  let bestCount = 0;
+  for (const [code, count] of counts) {
+    if (count > bestCount) {
+      best = code;
+      bestCount = count;
+    }
+  }
+  return best;
+}
+
+/** Prefer a packing-friendly “typical” sky — don’t let one drizzle day force rain icons. */
+function typicalConditionsLabel(
+  codeCounts: Map<number, number>,
+  wetDays: number,
+  sampleCount: number
+): string {
+  const wetRatio = sampleCount > 0 ? wetDays / sampleCount : 0;
+  if (wetRatio >= 0.5) return "Typical · Chance of showers";
+
+  const dryCounts = new Map<number, number>();
+  for (const [code, count] of codeCounts) {
+    if (!isWetWeatherCode(code)) dryCounts.set(code, count);
+  }
+  const mode = mostCommonCode(dryCounts.size ? dryCounts : codeCounts);
+  if (mode == null) return "Typical · Mostly sunny";
+  if (mode <= 1) return "Typical · Mostly sunny";
+  if (mode === 2) return "Typical · Partly cloudy";
+  return `Typical · ${weatherCodeToText(mode)}`;
+}
+
 /** Typical highs/lows for calendar dates using recent years (Open-Meteo archive). */
 async function fetchSeasonalAverages(
   geo: GeocodeResult,
@@ -189,7 +227,15 @@ async function fetchSeasonalAverages(
 
   const sums = new Map<
     string,
-    { high: number; low: number; rain: number; wind: number; code: number; count: number }
+    {
+      high: number;
+      low: number;
+      rain: number;
+      wind: number;
+      wetDays: number;
+      count: number;
+      codeCounts: Map<number, number>;
+    }
   >();
 
   for (let yearsAgo = 1; yearsAgo <= CLIMATE_LOOKBACK_YEARS; yearsAgo++) {
@@ -229,21 +275,27 @@ async function fetchSeasonalAverages(
           if (high == null || low == null) return;
           const key = monthDayKey(date);
           const precip = data.daily.precipitation_sum?.[i] ?? 0;
+          const code = data.daily.weathercode?.[i];
           const existing = sums.get(key) ?? {
             high: 0,
             low: 0,
             rain: 0,
             wind: 0,
-            code: 0,
+            wetDays: 0,
             count: 0,
+            codeCounts: new Map<number, number>(),
           };
+          if (typeof code === "number") {
+            existing.codeCounts.set(code, (existing.codeCounts.get(code) ?? 0) + 1);
+          }
           sums.set(key, {
             high: existing.high + high,
             low: existing.low + low,
-            rain: existing.rain + (precip > 0.1 ? 40 : 15),
+            rain: existing.rain + (precip > 0.1 || isWetWeatherCode(code) ? 35 : 12),
             wind: existing.wind + (data.daily.windspeed_10m_max?.[i] ?? 0),
-            code: data.daily.weathercode?.[i] ?? existing.code,
+            wetDays: existing.wetDays + (precip > 0.1 || isWetWeatherCode(code) ? 1 : 0),
             count: existing.count + 1,
+            codeCounts: existing.codeCounts,
           });
         });
       } catch {
@@ -260,7 +312,7 @@ async function fetchSeasonalAverages(
         date,
         temp_high: Math.round(avg.high / avg.count),
         temp_low: Math.round(avg.low / avg.count),
-        conditions: `Typical · ${weatherCodeToText(avg.code)}`,
+        conditions: typicalConditionsLabel(avg.codeCounts, avg.wetDays, avg.count),
         rain_chance: Math.round(avg.rain / avg.count),
         wind_mph: Math.round(avg.wind / avg.count),
         source: "seasonal" as const,
@@ -315,7 +367,7 @@ export async function fetchWeather(
       daily,
       fetched_at: new Date().toISOString(),
       units: "fahrenheit",
-      model: "forecast+seasonal-v2",
+      model: "forecast+seasonal-v3",
     };
   } catch {
     return buildFallbackWeather(destination, startDate, endDate);

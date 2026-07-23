@@ -3,10 +3,31 @@ import { format, getDay, parseISO } from "date-fns";
 import { cn } from "@/lib/utils";
 import type { WeatherDay } from "@/lib/types";
 
-function WeatherIcon({ conditions, className }: { conditions: string; className?: string }) {
+function WeatherIcon({
+  conditions,
+  rainChance = 0,
+  className,
+}: {
+  conditions: string;
+  rainChance?: number;
+  className?: string;
+}) {
   const lower = conditions.toLowerCase();
-  if (lower.includes("rain") || lower.includes("drizzle") || lower.includes("shower")) {
+  // Prefer chance of rain over a single historical “drizzle” label.
+  if (rainChance >= 45 || lower.includes("shower") || lower.includes("thunder")) {
     return <CloudRain className={className} />;
+  }
+  if (
+    rainChance < 35 &&
+    (lower.includes("sun") ||
+      lower.includes("clear") ||
+      lower.includes("mainly clear") ||
+      lower.includes("mostly sunny"))
+  ) {
+    return <Sun className={className} />;
+  }
+  if (lower.includes("rain") || lower.includes("drizzle")) {
+    return rainChance >= 35 ? <CloudRain className={className} /> : <Cloud className={className} />;
   }
   if (lower.includes("clear") || lower.includes("sun")) {
     return <Sun className={className} />;
@@ -77,6 +98,7 @@ function WeatherCalendarCell({
       </span>
       <WeatherIcon
         conditions={day.conditions}
+        rainChance={day.rain_chance}
         className="my-1 h-4 w-4 text-weather-orange sm:h-5 sm:w-5"
       />
       <span className="text-[11px] font-semibold leading-tight sm:text-xs">

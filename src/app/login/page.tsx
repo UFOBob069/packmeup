@@ -7,7 +7,7 @@ interface LoginPageProps {
 }
 
 function extractJoinToken(nextPath: string): string | null {
-  const match = nextPath.match(/^\/trips\/join\/([^/?#]+)/);
+  const match = nextPath.match(/^\/(?:api\/)?trips\/join\/([^/?#]+)/);
   return match?.[1] ?? null;
 }
 

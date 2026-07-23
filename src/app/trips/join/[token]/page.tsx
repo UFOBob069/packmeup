@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect, notFound } from "next/navigation";
-import { format, parseISO } from "date-fns";
 import { ArrowRight, Luggage, Users } from "lucide-react";
 import { MarketingShell } from "@/components/layout/shells";
 import { Button } from "@/components/ui/button";
@@ -9,7 +8,6 @@ import { DestinationCover } from "@/components/trip/destination-cover";
 import {
   getCurrentUser,
   getTripPreviewByShareToken,
-  joinTripByShareToken,
 } from "@/actions/trips";
 import { getAppUrl } from "@/lib/app-url";
 import {
@@ -22,6 +20,7 @@ import { APP_NAME } from "@/lib/constants";
 
 interface JoinTripPageProps {
   params: Promise<{ token: string }>;
+  searchParams: Promise<{ error?: string }>;
 }
 
 export async function generateMetadata({ params }: JoinTripPageProps): Promise<Metadata> {
@@ -73,20 +72,22 @@ export async function generateMetadata({ params }: JoinTripPageProps): Promise<M
   };
 }
 
-export default async function JoinTripPage({ params }: JoinTripPageProps) {
+export default async function JoinTripPage({ params, searchParams }: JoinTripPageProps) {
   const { token } = await params;
+  const { error } = await searchParams;
   const preview = await getTripPreviewByShareToken(token);
   if (!preview) notFound();
 
   const user = await getCurrentUser();
-  if (user) {
-    const result = await joinTripByShareToken(token);
-    redirect(`/trips/${result.tripId}?joined=1`);
+  if (user && error !== "join") {
+    // Finish membership + redirect in a Route Handler (safe after OAuth).
+    redirect(`/api/trips/join/${token}`);
   }
 
   const city = destinationCity(preview.destination);
   const dates = formatInviteDateRange(preview.start_date, preview.end_date);
-  const loginHref = `/login?next=${encodeURIComponent(`/trips/join/${token}`)}`;
+  const loginHref = `/login?next=${encodeURIComponent(`/api/trips/join/${token}`)}`;
+  const retryHref = `/api/trips/join/${token}`;
 
   return (
     <MarketingShell>
@@ -108,6 +109,16 @@ export default async function JoinTripPage({ params }: JoinTripPageProps) {
           </DestinationCover>
 
           <div className="space-y-5 p-6 sm:p-8">
+            {error === "join" ? (
+              <div className="rounded-2xl border border-destructive/30 bg-destructive/5 p-4 text-sm">
+                <p className="font-semibold text-destructive">Couldn&apos;t open this trip</p>
+                <p className="mt-1 text-muted-foreground">
+                  Your account is signed in, but joining failed. Try again — if it keeps failing,
+                  ask the host to resend the link.
+                </p>
+              </div>
+            ) : null}
+
             <div className="flex items-start gap-3">
               <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
                 <Users className="h-5 w-5" />
@@ -117,16 +128,16 @@ export default async function JoinTripPage({ params }: JoinTripPageProps) {
                   {preview.inviter_name} invited you to pack for {city}
                 </p>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  Create a free account or sign in — you’ll land right on this trip’s packing list,
-                  weather, and day plan. Friends who got the same link can each join too.
+                  Create a free account or sign in — you&apos;ll land right on this trip&apos;s packing
+                  list, weather, and day plan. Friends who got the same link can each join too.
                 </p>
               </div>
             </div>
 
             <Button asChild size="lg" className="h-12 w-full rounded-full text-base">
-              <Link href={loginHref}>
+              <Link href={user ? retryHref : loginHref}>
                 <Luggage className="mr-2 h-4 w-4" />
-                Continue to join
+                {user ? "Try joining again" : "Continue to join"}
                 <ArrowRight className="ml-2 h-4 w-4" />
               </Link>
             </Button>

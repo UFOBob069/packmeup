@@ -214,7 +214,7 @@ export interface WeatherData {
   /** Always fahrenheit for app display; missing = legacy cache that should refresh */
   units?: "fahrenheit";
   /** forecast+seasonal hybrid; missing/older = legacy cache that should refresh */
-  model?: "forecast+seasonal" | "forecast+seasonal-v2";
+  model?: "forecast+seasonal" | "forecast+seasonal-v2" | "forecast+seasonal-v3";
 }
 
 export interface WeatherDay {

@@ -1,6 +1,6 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
-import { getAppUrl } from "@/lib/app-url";
+import { getAppUrl, normalizeAppUrl } from "@/lib/app-url";
 
 export async function GET(request: NextRequest) {
   const { searchParams } = request.nextUrl;
@@ -11,8 +11,9 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(new URL("/login?error=auth", request.url));
   }
 
-  const appUrl = getAppUrl();
-  const redirectTo = new URL(next.startsWith("/") ? next : "/dashboard", appUrl);
+  // Prefer the host that handled OAuth (www vs apex) so session cookies stick.
+  const redirectBase = normalizeAppUrl(request.nextUrl.origin) || getAppUrl();
+  const redirectTo = new URL(next.startsWith("/") ? next : "/dashboard", redirectBase);
 
   let response = NextResponse.redirect(redirectTo);
 
