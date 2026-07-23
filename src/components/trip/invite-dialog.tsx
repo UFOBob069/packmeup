@@ -1,16 +1,13 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { format, parseISO } from "date-fns";
 import { Copy, Mail, MessageSquareShare, Share2, XIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   Dialog,
-  DialogClose,
   DialogContent,
-  DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
@@ -21,8 +18,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { inviteByEmail, getShareInvite } from "@/actions/packing";
-import { DestinationCover } from "./destination-cover";
-import { getTravelerColor, getTravelerInitials } from "@/lib/design-system";
+import { getHeaderTravelerColor, getTravelerColor, getTravelerInitials } from "@/lib/design-system";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import type { TripMember } from "@/lib/types";
@@ -68,7 +64,7 @@ function MemberAvatarStack({
     <button
       type="button"
       onClick={onClick}
-      className="flex items-center rounded-full border border-white/25 bg-black/25 py-1 pl-1 pr-2 backdrop-blur-sm transition hover:bg-black/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
+      className="flex cursor-pointer items-center rounded-full border border-white/40 bg-white/20 py-1 pl-1.5 pr-2.5 shadow-sm backdrop-blur-sm transition hover:bg-white/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80"
       aria-label={`View ${members.length} people on this trip`}
       title="People on this trip"
     >
@@ -79,8 +75,8 @@ function MemberAvatarStack({
             <span
               key={member.id}
               className={cn(
-                "flex h-8 w-8 items-center justify-center rounded-full border-2 border-white/90 text-[10px] font-semibold shadow-sm",
-                getTravelerColor(index)
+                "flex h-8 w-8 items-center justify-center rounded-full border-2 border-white text-[11px] font-bold shadow-md",
+                getHeaderTravelerColor(index)
               )}
               title={name}
             >
@@ -89,7 +85,7 @@ function MemberAvatarStack({
           );
         })}
         {extra > 0 ? (
-          <span className="flex h-8 w-8 items-center justify-center rounded-full border-2 border-white/90 bg-slate-800 text-[10px] font-semibold text-white">
+          <span className="flex h-8 w-8 items-center justify-center rounded-full border-2 border-white bg-slate-900 text-[11px] font-bold text-white shadow-md">
             +{extra}
           </span>
         ) : null}
@@ -191,35 +187,28 @@ export function InviteDialog({
       </div>
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent showCloseButton={false} className="overflow-hidden p-0 sm:max-w-md">
-          <div className="relative overflow-hidden rounded-t-lg">
-            <DestinationCover
-              destination={destination}
-              coverImageUrl={coverImageUrl}
-              variant="preview"
-              className="rounded-none"
-            >
-              <p className="text-xs font-medium uppercase tracking-wider text-white/80">
-                Shared packing list
-              </p>
-              <p className="text-display truncate text-lg font-semibold text-white">{destination}</p>
-              <p className="text-xs text-white/75">
-                {format(parseISO(startDate), "MMM d")} – {format(parseISO(endDate), "MMM d, yyyy")}
-              </p>
-            </DestinationCover>
-            <DialogClose
+        <DialogContent
+          showCloseButton={false}
+          className="max-h-[min(90vh,720px)] overflow-y-auto p-0 sm:max-w-md"
+        >
+          <div className="sticky top-0 z-[70] flex items-start justify-between gap-3 border-b bg-background px-5 py-4">
+            <div className="min-w-0">
+              <DialogTitle className="text-display text-lg font-semibold">
+                People on this trip
+              </DialogTitle>
+              <p className="mt-0.5 truncate text-xs text-muted-foreground">{destination}</p>
+            </div>
+            <button
               type="button"
-              className="absolute top-3 right-3 z-50 inline-flex size-9 items-center justify-center rounded-full border border-white/30 bg-black/55 text-white shadow-md backdrop-blur-sm hover:bg-black/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
+              onClick={() => setOpen(false)}
+              className="inline-flex size-9 shrink-0 cursor-pointer items-center justify-center rounded-full border bg-muted/40 text-foreground hover:bg-muted"
               aria-label="Close"
             >
               <XIcon className="size-4" />
-            </DialogClose>
+            </button>
           </div>
-          <div className="space-y-4 p-6 pt-4">
-            <DialogHeader className="p-0">
-              <DialogTitle>People on this trip</DialogTitle>
-            </DialogHeader>
 
+          <div className="space-y-4 p-5">
             <ul className="space-y-2">
               {people.length === 0 ? (
                 <li className="rounded-xl border border-dashed px-3 py-4 text-center text-sm text-muted-foreground">
@@ -265,13 +254,13 @@ export function InviteDialog({
                   <p className="text-xs text-muted-foreground">
                     One link works for everyone in a group text — each person signs in and joins.
                   </p>
-                  <div className="rounded-xl border bg-muted/30 p-3 text-sm leading-relaxed whitespace-pre-wrap">
+                  <div className="rounded-xl border bg-muted/30 p-3 text-sm leading-relaxed whitespace-pre-wrap break-words">
                     {invite?.message ?? "Loading invite…"}
                   </div>
                   <div className="flex gap-2">
                     <Button
                       type="button"
-                      className="flex-1"
+                      className="flex-1 cursor-pointer"
                       onClick={() => void shareInvite()}
                       disabled={!invite || isPending}
                     >
@@ -282,6 +271,7 @@ export function InviteDialog({
                       type="button"
                       variant="outline"
                       size="icon"
+                      className="cursor-pointer"
                       onClick={() => void copyLink()}
                       disabled={!invite || isPending}
                       aria-label="Copy invite message"
@@ -302,9 +292,9 @@ export function InviteDialog({
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="email">Email</Label>
+                  <Label htmlFor="share-email">Email</Label>
                   <Input
-                    id="email"
+                    id="share-email"
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
@@ -323,7 +313,12 @@ export function InviteDialog({
                     </SelectContent>
                   </Select>
                 </div>
-                <Button onClick={handleInvite} disabled={isPending || !email.trim()} className="w-full">
+                <Button
+                  type="button"
+                  onClick={handleInvite}
+                  disabled={isPending || !email.trim()}
+                  className="w-full cursor-pointer"
+                >
                   <Mail className="mr-2 h-4 w-4" />
                   Send Invite
                 </Button>

@@ -8,12 +8,25 @@ export const TRAVELER_COLORS = [
   "bg-sun-yellow/20 text-amber-700 border-sun-yellow/30 dark:text-sun-yellow",
 ] as const;
 
+/** Solid chips for dark hero/header backgrounds (share people stack). */
+export const HEADER_TRAVELER_COLORS = [
+  "bg-sky-100 text-sky-900",
+  "bg-teal-100 text-teal-900",
+  "bg-emerald-100 text-emerald-900",
+  "bg-orange-100 text-orange-900",
+  "bg-amber-100 text-amber-900",
+] as const;
+
 export const PET_COLOR =
   "bg-warm-sand text-amber-800 border-amber-200 dark:bg-warm-sand/30 dark:text-warm-sand dark:border-amber-800/30";
 
 export function getTravelerColor(index: number, isPet?: boolean): string {
   if (isPet) return PET_COLOR;
   return TRAVELER_COLORS[index % TRAVELER_COLORS.length];
+}
+
+export function getHeaderTravelerColor(index: number): string {
+  return HEADER_TRAVELER_COLORS[index % HEADER_TRAVELER_COLORS.length];
 }
 
 export function getTravelerInitials(name: string): string {

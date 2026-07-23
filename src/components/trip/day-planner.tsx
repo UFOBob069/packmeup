@@ -550,7 +550,7 @@ function DayCard({
         <button
           type="button"
           onClick={() => onModeChange("view")}
-          className="flex w-full items-start gap-4 rounded-2xl border bg-card p-4 text-left shadow-travel-sm transition hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-travel focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary sm:p-5"
+          className="flex w-full cursor-pointer items-start gap-4 rounded-2xl border bg-card p-4 text-left shadow-travel-sm transition hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-travel focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary sm:p-5"
         >
           <span
             className={cn(
@@ -606,7 +606,7 @@ function DayCard({
           <button
             type="button"
             onClick={() => onModeChange("collapsed")}
-            className="group flex items-center gap-2 text-left"
+            className="group flex cursor-pointer items-center gap-2 text-left"
           >
             <p className="text-display text-xl font-semibold">
               {format(parseISO(day.trip_date), "EEEE")}
