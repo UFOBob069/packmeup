@@ -157,7 +157,7 @@ export function WeatherCalendar({
           <p className="text-xs text-muted-foreground">
             {days.length} day{days.length !== 1 ? "s" : ""}
             {hasSeasonal
-              ? " · Days past the ~16-day forecast use recent-year averages (°F)"
+              ? " · Farther dates show typical temps for this time of year"
               : ""}
           </p>
         </div>

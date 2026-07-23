@@ -55,8 +55,9 @@ const WEATHER_STALE_MS = 6 * 60 * 60 * 1000;
 
 function isWeatherFresh(weather: WeatherData | null | undefined): boolean {
   if (!weather?.daily?.length) return false;
-  // Older caches used Celsius or failed far-future requests entirely — force refresh.
-  if (weather.units !== "fahrenheit" || weather.model !== "forecast+seasonal") return false;
+  // Older caches / failed geocode fillers — force refresh until we have real data.
+  if (weather.units !== "fahrenheit" || weather.model !== "forecast+seasonal-v2") return false;
+  if (weather.daily.every((d) => d.source === "fallback")) return false;
   if (!weather.fetched_at) return false;
   const fetchedAt = Date.parse(weather.fetched_at);
   if (Number.isNaN(fetchedAt)) return false;

@@ -99,7 +99,7 @@ export interface WeatherData {
   daily: WeatherDay[];
   fetched_at: string;
   units?: "fahrenheit";
-  model?: "forecast+seasonal";
+  model?: "forecast+seasonal" | "forecast+seasonal-v2";
 }
 
 export interface GearItem {

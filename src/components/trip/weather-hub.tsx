@@ -19,9 +19,9 @@ export function WeatherHub({ destination, weather, onSelectDate }: WeatherHubPro
           <div>
             <h2 className="text-display text-lg font-semibold">Weather</h2>
             <p className="mt-1 text-sm text-muted-foreground">
-              Live forecast for the next ~16 days; farther trip dates use typical
-              temperatures for that time of year (°F). No weather API key needed.
-              Click any date to open it in By Day.
+              Near-term dates use the live forecast; farther dates show typical
+              temperatures for that time of year. Click any date to open it in By
+              Day.
             </p>
           </div>
         </div>

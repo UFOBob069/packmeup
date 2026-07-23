@@ -7,24 +7,91 @@ interface GeocodeResult {
   name: string;
 }
 
-/** Open-Meteo free forecast covers roughly the next 16 days — no API key required. */
+interface GeocodeHit {
+  latitude: number;
+  longitude: number;
+  name: string;
+  admin1?: string;
+  country?: string;
+}
+
+/** Open-Meteo free forecast covers roughly the next 16 days. */
 const FORECAST_HORIZON_DAYS = 16;
 const CLIMATE_LOOKBACK_YEARS = 5;
 
-async function geocodeDestination(destination: string): Promise<GeocodeResult | null> {
-  try {
-    const res = await fetch(
-      `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(destination)}&count=1&language=en&format=json`,
-      { next: { revalidate: 86400 } }
-    );
-    const data = await res.json();
-    if (!data.results?.length) return null;
-    const r = data.results[0];
-    return {
+/** Mapbox-style labels ("City, State") often fail Open-Meteo search — try fallbacks. */
+function geocodeQueryCandidates(destination: string): string[] {
+  const trimmed = destination.trim();
+  if (!trimmed) return [];
+
+  const parts = trimmed
+    .split(",")
+    .map((part) => part.trim())
+    .filter(Boolean);
+
+  const candidates = [trimmed];
+  if (parts.length >= 2) {
+    // "Corpus Christi, United States" works; "Corpus Christi, Texas" often does not.
+    candidates.push(`${parts[0]}, ${parts[parts.length - 1]}`);
+    candidates.push(parts[0]);
+  }
+
+  return [...new Set(candidates)];
+}
+
+function scoreGeocodeHit(hit: GeocodeHit, destination: string): number {
+  const haystack = destination.toLowerCase();
+  let score = 0;
+  if (hit.admin1 && haystack.includes(hit.admin1.toLowerCase())) score += 10;
+  if (hit.country && haystack.includes(hit.country.toLowerCase())) score += 5;
+  if (hit.country === "United States" && /\b(usa|u\.s\.a\.|united states)\b/i.test(destination)) {
+    score += 3;
+  }
+  return score;
+}
+
+async function searchGeocode(query: string): Promise<GeocodeHit[]> {
+  const res = await fetch(
+    `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(query)}&count=5&language=en&format=json`,
+    { next: { revalidate: 86400 } }
+  );
+  const data = await res.json();
+  if (!data.results?.length) return [];
+
+  return data.results.map(
+    (r: {
+      latitude: number;
+      longitude: number;
+      name: string;
+      admin1?: string;
+      country?: string;
+    }) => ({
       latitude: r.latitude,
       longitude: r.longitude,
       name: r.name + (r.admin1 ? `, ${r.admin1}` : "") + (r.country ? `, ${r.country}` : ""),
-    };
+      admin1: r.admin1,
+      country: r.country,
+    })
+  );
+}
+
+async function geocodeDestination(destination: string): Promise<GeocodeResult | null> {
+  try {
+    for (const query of geocodeQueryCandidates(destination)) {
+      const hits = await searchGeocode(query);
+      if (!hits.length) continue;
+
+      const best = [...hits].sort(
+        (a, b) => scoreGeocodeHit(b, destination) - scoreGeocodeHit(a, destination)
+      )[0];
+
+      return {
+        latitude: best.latitude,
+        longitude: best.longitude,
+        name: best.name,
+      };
+    }
+    return null;
   } catch {
     return null;
   }
@@ -108,7 +175,7 @@ async function fetchForecastRange(
   });
 }
 
-/** Typical highs/lows for calendar dates using recent years (Open-Meteo archive, no key). */
+/** Typical highs/lows for calendar dates using recent years (Open-Meteo archive). */
 async function fetchSeasonalAverages(
   geo: GeocodeResult,
   dates: string[]
@@ -248,7 +315,7 @@ export async function fetchWeather(
       daily,
       fetched_at: new Date().toISOString(),
       units: "fahrenheit",
-      model: "forecast+seasonal",
+      model: "forecast+seasonal-v2",
     };
   } catch {
     return buildFallbackWeather(destination, startDate, endDate);
@@ -283,6 +350,7 @@ export function buildFallbackWeather(
     daily,
     fetched_at: new Date().toISOString(),
     units: "fahrenheit",
+    // Keep older model so ensureTripWeather retries until geocode/seasonal succeeds.
     model: "forecast+seasonal",
   };
 }
