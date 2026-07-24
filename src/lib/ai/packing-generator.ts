@@ -12,10 +12,13 @@ import type {
 } from "@/lib/types";
 import { STYLE_LABELS } from "@/lib/types";
 import { formatGearForAiPrompt } from "@/lib/gear/format";
+import { structurePackingWithCloset } from "@/lib/packing/structure-hierarchy";
 import { eachDayOfInterval, format, parseISO } from "date-fns";
 
 export interface GeneratedTripContent {
-  packing_items: Omit<PackingItem, "id" | "trip_id" | "created_at" | "updated_at">[];
+  packing_items: Array<
+    Omit<PackingItem, "id" | "trip_id" | "created_at" | "updated_at"> & { id?: string }
+  >;
   outfits: Omit<Outfit, "id" | "trip_id" | "created_at">[];
   calendar_days: Omit<CalendarDay, "id" | "trip_id" | "created_at">[];
 }
@@ -239,6 +242,7 @@ export async function generateTripContent(
   content.packing_items = sanitizePackingAssignments(content.packing_items, data, travelerIds);
   content.packing_items = ensureHumanBasics(content.packing_items, data, travelerIds, days);
   content.packing_items = ensurePetSupplies(content.packing_items, data, travelerIds, days);
+  content.packing_items = structurePackingWithCloset(content.packing_items, gearItems);
   content.calendar_days = ensureCalendarDays(content.calendar_days, data, weather);
   return content;
 }
@@ -268,7 +272,7 @@ ${data.is_multi_destination ? `Multi-destination: Yes${data.additional_destinati
 Destination-specific details: ${data.destination_context || "None"}
 Other notes: ${data.special_notes || "None"}
 Weather: ${weather ? JSON.stringify(weather.daily) : "Unknown"}
-User's saved gear (My Gear) — prefer these specific items over generic suggestions when appropriate:
+User's saved gear (My Gear) — context for what they own (do NOT list these as top-level clothing lines):
 ${myGear}
 
 Return JSON with this exact structure:
@@ -289,7 +293,9 @@ Rules:
 - Include activity-specific gear for human travelers
 - Weather-aware clothing suggestions
 - Blend all selected style preferences into the packing list
-- When My Gear items fit the trip, use those exact item names instead of generic equivalents`;
+- CLOTHING hierarchy: top-level clothing item_name MUST be a major category bucket only — use names like "Shirts & tops", "Shorts", "Swimsuits", "Pants & chinos", "Jackets & layers", "Underwear", "Socks", "Hats", "Dresses". NEVER use brand-specific or closet piece names (e.g. "Blue Nike Polo", "American flag trunks") as top-level clothing lines — those belong under the category later via My Gear
+- For non-clothing categories, specific item names are fine
+- Use My Gear only as context for what categories/quantities make sense; do not copy closet item names into packing_items`;
 
   const response = await openai.chat.completions.create({
     model: "gpt-4o-mini",
@@ -457,13 +463,13 @@ function generateFallbackContent(
     const tops = reduced ? Math.min(qty, 4) : qty;
     const bottoms = reduced ? Math.min(Math.ceil(qty / 2), 3) : Math.ceil(qty / 2);
 
-    addItem("T-Shirts", tops, "clothing", traveler.name, false);
+    addItem("Shirts & tops", tops, "clothing", traveler.name, false);
     addItem("Shorts", bottoms, "clothing", traveler.name, false);
     if (cold) {
-      addItem("Light Jacket", 1, "clothing", traveler.name, false);
-      addItem("Long Pants", 2, "clothing", traveler.name, false);
+      addItem("Jackets & layers", 1, "clothing", traveler.name, false);
+      addItem("Pants & chinos", 2, "clothing", traveler.name, false);
     }
-    if (rainy) addItem("Rain Jacket", 1, "clothing", traveler.name, false);
+    if (rainy) addItem("Jackets & layers", 1, "clothing", traveler.name, false);
 
     addItem("Underwear", tops + 1, "clothing", traveler.name, false);
     addItem("Socks", tops + 1, "clothing", traveler.name, false);
@@ -474,20 +480,21 @@ function generateFallbackContent(
     addItem("Passport/ID", 1, "travel_documents", traveler.name, false);
 
     if (styles.includes("smart_casual") || styles.includes("business")) {
-      addItem("Chinos", 2, "clothing", traveler.name, false);
-      addItem("Polo Shirts", 2, "clothing", traveler.name, false);
+      addItem("Pants & chinos", 2, "clothing", traveler.name, false);
+      addItem("Shirts & tops", 2, "clothing", traveler.name, false);
       addItem("Dress Shoes", 1, "shoes", traveler.name, false);
     }
     if (styles.includes("formal")) {
-      addItem("Formal Outfit", 1, "clothing", traveler.name, false);
+      addItem("Pants & chinos", 1, "clothing", traveler.name, false);
+      addItem("Shirts & tops", 1, "clothing", traveler.name, false);
       addItem("Dress Shoes", 1, "shoes", traveler.name, false);
     }
     if (styles.includes("athletic")) {
-      addItem("Athletic Shorts", 2, "clothing", traveler.name, false);
+      addItem("Shorts", 2, "clothing", traveler.name, false);
       addItem("Running Shoes", 1, "shoes", traveler.name, false);
     }
     if (styles.includes("minimalist")) {
-      addItem("Neutral Layer", 1, "clothing", traveler.name, false);
+      addItem("Jackets & layers", 1, "clothing", traveler.name, false);
     }
   });
 
@@ -496,16 +503,16 @@ function generateFallbackContent(
     const act = activity.toLowerCase();
     if (act.includes("golf")) {
       adults.forEach((t) => {
-        addItem("Golf Polo", 2, "clothing", t.name, false, "Golf");
-        addItem("Golf Shorts", 2, "clothing", t.name, false, "Golf");
+        addItem("Shirts & tops", 2, "clothing", t.name, false, "Golf");
+        addItem("Shorts", 2, "clothing", t.name, false, "Golf");
         addItem("Golf Shoes", 1, "shoes", t.name, false, "Golf");
         addItem("Golf Glove", 1, "activity_gear", t.name, false, "Golf");
-        addItem("Golf Hat", 1, "clothing", t.name, false, "Golf");
+        addItem("Hats", 1, "clothing", t.name, false, "Golf");
       });
     }
     if (act.includes("beach") || act.includes("pool")) {
       adults.forEach((t) => {
-        addItem("Swimsuit", 1, "clothing", t.name, false, activity);
+        addItem("Swimsuits", 1, "clothing", t.name, false, activity);
         addItem("Flip Flops", 1, "shoes", t.name, false, activity);
       });
       addItem("Beach Towel", adults.length, "miscellaneous", null, true, activity);
@@ -513,35 +520,36 @@ function generateFallbackContent(
     if (act.includes("hiking")) {
       adults.forEach((t) => {
         addItem("Hiking Boots", 1, "shoes", t.name, false, "Hiking");
-        addItem("Hiking Pants", 1, "clothing", t.name, false, "Hiking");
+        addItem("Pants & chinos", 1, "clothing", t.name, false, "Hiking");
         addItem("Daypack", 1, "activity_gear", t.name, false, "Hiking");
       });
     }
     if (act.includes("wedding")) {
       adults.forEach((t) => {
-        addItem("Formal Outfit", 1, "clothing", t.name, false, "Wedding");
+        addItem("Pants & chinos", 1, "clothing", t.name, false, "Wedding");
+        addItem("Shirts & tops", 1, "clothing", t.name, false, "Wedding");
         addItem("Dress Shoes", 1, "shoes", t.name, false, "Wedding");
-        addItem("Belt", 1, "clothing", t.name, false, "Wedding");
       });
     }
     if (act.includes("ski")) {
       adults.forEach((t) => {
-        addItem("Ski Jacket", 1, "clothing", t.name, false, "Skiing");
-        addItem("Ski Pants", 1, "clothing", t.name, false, "Skiing");
-        addItem("Thermal Base Layers", 2, "clothing", t.name, false, "Skiing");
+        addItem("Jackets & layers", 1, "clothing", t.name, false, "Skiing");
+        addItem("Pants & chinos", 1, "clothing", t.name, false, "Skiing");
+        addItem("Underwear", 2, "clothing", t.name, false, "Skiing");
         addItem("Ski Goggles", 1, "activity_gear", t.name, false, "Skiing");
       });
     }
     if (act.includes("gym") || act.includes("running")) {
       adults.forEach((t) => {
-        addItem("Athletic Shorts", 2, "clothing", t.name, false, activity);
+        addItem("Shorts", 2, "clothing", t.name, false, activity);
         addItem("Running Shoes", 1, "shoes", t.name, false, activity);
-        addItem("Workout Top", 2, "clothing", t.name, false, activity);
+        addItem("Shirts & tops", 2, "clothing", t.name, false, activity);
       });
     }
     if (act.includes("dinner")) {
       adults.forEach((t) => {
-        addItem("Nice Dinner Outfit", 1, "clothing", t.name, false, "Nice Dinners");
+        addItem("Shirts & tops", 1, "clothing", t.name, false, "Nice Dinners");
+        addItem("Pants & chinos", 1, "clothing", t.name, false, "Nice Dinners");
       });
     }
   });

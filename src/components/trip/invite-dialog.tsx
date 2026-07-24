@@ -168,10 +168,11 @@ export function InviteDialog({
             type="button"
             size="sm"
             onClick={openDialog}
-            className="bg-white text-slate-900 shadow-travel-sm hover:bg-white/90"
+            className="h-9 cursor-pointer bg-white px-3 text-slate-900 shadow-travel-sm hover:bg-white/90 sm:h-8"
           >
-            <Share2 className="mr-1.5 h-4 w-4" />
-            Share
+            <Share2 className="h-4 w-4 sm:mr-1.5" />
+            <span className="hidden sm:inline">Share</span>
+            <span className="sr-only sm:hidden">Share</span>
           </Button>
         ) : people.length === 0 ? (
           <Button
@@ -189,9 +190,9 @@ export function InviteDialog({
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent
           showCloseButton={false}
-          className="max-h-[min(90vh,720px)] overflow-y-auto p-0 sm:max-w-md"
+          className="flex max-h-[min(85dvh,640px)] w-full max-w-[calc(100%-1.5rem)] flex-col gap-0 overflow-hidden p-0 sm:max-w-md"
         >
-          <div className="sticky top-0 z-[70] flex items-start justify-between gap-3 border-b bg-background px-5 py-4">
+          <div className="flex shrink-0 items-start justify-between gap-3 border-b bg-background px-4 py-3 sm:px-5 sm:py-4">
             <div className="min-w-0">
               <DialogTitle className="text-display text-lg font-semibold">
                 People on this trip
@@ -208,7 +209,7 @@ export function InviteDialog({
             </button>
           </div>
 
-          <div className="space-y-4 p-5">
+          <div className="min-h-0 flex-1 space-y-3 overflow-y-auto overflow-x-hidden overscroll-contain px-4 py-4 sm:space-y-4 sm:px-5 sm:py-5">
             <ul className="space-y-2">
               {people.length === 0 ? (
                 <li className="rounded-xl border border-dashed px-3 py-4 text-center text-sm text-muted-foreground">
@@ -220,7 +221,7 @@ export function InviteDialog({
                   return (
                     <li
                       key={member.id}
-                      className="flex items-center gap-3 rounded-xl border bg-muted/20 px-3 py-2.5"
+                      className="flex min-w-0 items-center gap-3 rounded-xl border bg-muted/20 px-3 py-2.5"
                     >
                       <div
                         className={cn(
@@ -249,29 +250,29 @@ export function InviteDialog({
 
             {canInvite ? (
               <>
-                <div className="space-y-2 border-t pt-4">
+                <div className="min-w-0 space-y-2 border-t pt-3 sm:pt-4">
                   <Label>Invite more people</Label>
                   <p className="text-xs text-muted-foreground">
                     One link works for everyone in a group text — each person signs in and joins.
                   </p>
-                  <div className="rounded-xl border bg-muted/30 p-3 text-sm leading-relaxed whitespace-pre-wrap break-words">
+                  <div className="max-h-28 overflow-y-auto rounded-xl border bg-muted/30 p-3 text-sm leading-relaxed break-all whitespace-pre-wrap">
                     {invite?.message ?? "Loading invite…"}
                   </div>
-                  <div className="flex gap-2">
+                  <div className="flex min-w-0 gap-2">
                     <Button
                       type="button"
-                      className="flex-1 cursor-pointer"
+                      className="min-w-0 flex-1 cursor-pointer"
                       onClick={() => void shareInvite()}
                       disabled={!invite || isPending}
                     >
-                      <MessageSquareShare className="mr-2 h-4 w-4" />
+                      <MessageSquareShare className="mr-2 h-4 w-4 shrink-0" />
                       Share / Text
                     </Button>
                     <Button
                       type="button"
                       variant="outline"
                       size="icon"
-                      className="cursor-pointer"
+                      className="shrink-0 cursor-pointer"
                       onClick={() => void copyLink()}
                       disabled={!invite || isPending}
                       aria-label="Copy invite message"
@@ -279,7 +280,12 @@ export function InviteDialog({
                       <Copy className="h-4 w-4" />
                     </Button>
                   </div>
-                  <Input value={invite?.shareLink ?? ""} readOnly placeholder="Loading link…" />
+                  <Input
+                    value={invite?.shareLink ?? ""}
+                    readOnly
+                    placeholder="Loading link…"
+                    className="min-w-0 overflow-hidden text-ellipsis font-mono text-xs"
+                  />
                 </div>
                 <div className="relative">
                   <div className="absolute inset-0 flex items-center">
@@ -291,27 +297,30 @@ export function InviteDialog({
                     </span>
                   </div>
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="share-email">Email</Label>
-                  <Input
-                    id="share-email"
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="partner@email.com"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Role</Label>
-                  <Select value={role} onValueChange={(v) => setRole(v as "editor" | "viewer")}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="editor">Editor — can edit lists</SelectItem>
-                      <SelectItem value="viewer">Viewer — read only</SelectItem>
-                    </SelectContent>
-                  </Select>
+                <div className="grid min-w-0 gap-3 sm:grid-cols-[1fr_auto]">
+                  <div className="min-w-0 space-y-2">
+                    <Label htmlFor="share-email">Email</Label>
+                    <Input
+                      id="share-email"
+                      type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      placeholder="partner@email.com"
+                      className="min-w-0"
+                    />
+                  </div>
+                  <div className="space-y-2 sm:w-36">
+                    <Label>Role</Label>
+                    <Select value={role} onValueChange={(v) => setRole(v as "editor" | "viewer")}>
+                      <SelectTrigger className="w-full">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="editor">Editor — can edit lists</SelectItem>
+                        <SelectItem value="viewer">Viewer — read only</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
                 <Button
                   type="button"

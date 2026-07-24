@@ -3,7 +3,7 @@
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Backpack, Plus, X } from "lucide-react";
+import { Plus, X } from "lucide-react";
 import { getOrCreateGearItem } from "@/actions/gear";
 import { addPackingItem, removePackingItem } from "@/actions/packing";
 import { Input } from "@/components/ui/input";
@@ -117,33 +117,33 @@ export function PackingItemSublist({
   if (readOnly && children.length === 0) return null;
 
   return (
-    <div className="ml-9 mt-2 border-l-2 border-primary/15 pl-3">
-      <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+    <div className="mt-3 space-y-2 border-t border-dashed border-border/70 pt-3">
+      <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
         Which ones?
       </p>
 
       {children.length > 0 && (
-        <ul className="mb-3 flex flex-wrap gap-1.5">
+        <ul className="space-y-1.5">
           {children.map((child) => {
             const gear = child.gear_item_id ? gearById[child.gear_item_id] : null;
             return (
               <li
                 key={child.id}
                 className={cn(
-                  "group inline-flex max-w-full items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium",
+                  "flex min-h-10 items-center gap-2 rounded-xl border px-3 py-2 text-sm font-medium",
                   gearPillClassName(gear?.color)
                 )}
               >
-                <span className="truncate">{child.item_name}</span>
+                <span className="min-w-0 flex-1 truncate">{child.item_name}</span>
                 {!readOnly && (
                   <button
                     type="button"
                     onClick={() => removeChild(child.id)}
                     disabled={isPending}
-                    className="shrink-0 cursor-pointer rounded-full p-0.5 opacity-60 transition-opacity hover:opacity-100"
+                    className="inline-flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-full text-muted-foreground hover:bg-background/80 hover:text-destructive"
                     aria-label={`Remove ${child.item_name}`}
                   >
-                    <X className="h-3 w-3" />
+                    <X className="h-3.5 w-3.5" />
                   </button>
                 )}
               </li>
@@ -153,89 +153,83 @@ export function PackingItemSublist({
       )}
 
       {!readOnly && (
-        <div className="space-y-2.5 rounded-xl border bg-muted/20 p-2.5">
+        <div className="space-y-2">
           {availableGear.length > 0 ? (
-            <div>
-              <p className="mb-1.5 flex items-center gap-1.5 text-xs font-medium text-foreground">
-                <Backpack className="h-3.5 w-3.5 text-primary" />
-                Pick from My Gear
-                {parentSubcategory && (
-                  <span className="font-normal text-muted-foreground">
-                    · {subcategoryLabel(parentSubcategory)}
+            <ul className="space-y-1.5">
+              {availableGear.map((gear) => (
+                <li
+                  key={gear.id}
+                  className="flex min-h-11 items-center gap-3 rounded-xl border bg-background px-3 py-2"
+                >
+                  <span className="min-w-0 flex-1 truncate text-sm font-medium">
+                    {gear.item_name}
                   </span>
-                )}
-              </p>
-              <div className="flex flex-wrap gap-1.5">
-                {availableGear.map((gear) => (
-                  <button
-                    key={gear.id}
+                  <Button
                     type="button"
+                    size="sm"
+                    variant="outline"
                     disabled={isPending}
                     onClick={() => addFromGear(gear)}
-                    className={cn(
-                      "cursor-pointer rounded-full border px-2.5 py-1 text-xs font-medium transition-all",
-                      "hover:scale-[1.02] hover:shadow-sm active:scale-[0.98]",
-                      gearPillClassName(gear.color)
-                    )}
+                    className="h-8 shrink-0 cursor-pointer rounded-full border-primary/30 px-3 text-primary hover:bg-primary/5 hover:text-primary"
                   >
-                    {gear.item_name}
-                  </button>
-                ))}
-              </div>
-            </div>
+                    <Plus className="mr-1 h-3.5 w-3.5" />
+                    Add
+                  </Button>
+                </li>
+              ))}
+            </ul>
           ) : categoryGear.length > 0 ? (
             <p className="text-xs text-muted-foreground">
               All matching {subcategoryLabel(parentSubcategory).toLowerCase()} are already listed.
             </p>
           ) : parentSubcategory ? (
             <p className="text-xs text-muted-foreground">
-              No saved {subcategoryLabel(parentSubcategory).toLowerCase()} in My Gear yet. Add
+              No saved {subcategoryLabel(parentSubcategory).toLowerCase()} in your closet yet. Add
               below or on the{" "}
               <Link href="/gear" className="font-medium text-primary hover:underline">
-                My Gear page
+                closet page
               </Link>
               .
             </p>
           ) : (
             <p className="text-xs text-muted-foreground">
-              No saved items in this category yet.{" "}
+              Nothing saved in this category yet.{" "}
               <Link href="/gear" className="font-medium text-primary hover:underline">
-                Add to My Gear
+                Add to your closet
               </Link>
             </p>
           )}
 
-          <div className="border-t border-border/60 pt-2.5">
-            <p className="mb-1.5 text-xs font-medium text-muted-foreground">Or add something new</p>
-            <div className="flex gap-1.5">
-              <Input
-                value={draft}
-                onChange={(e) => setDraft(e.target.value)}
-                placeholder="e.g. orange v neck..."
-                disabled={isPending}
-                autoComplete="off"
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    e.preventDefault();
-                    addNewItem(draft);
-                  }
-                }}
-                className="h-8 flex-1 border-muted-foreground/20 bg-background text-sm"
-              />
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                onClick={() => addNewItem(draft)}
-                disabled={isPending || !draft.trim()}
-                className="h-8 shrink-0 rounded-full px-3"
-              >
-                <Plus className="mr-1 h-3.5 w-3.5" />
-                Add
-              </Button>
-            </div>
-            <p className="mt-1 text-[10px] text-muted-foreground">New items are saved to My Gear automatically.</p>
+          <div className="flex min-h-11 items-center gap-2 rounded-xl border border-dashed bg-muted/20 p-2">
+            <Input
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              placeholder="e.g. orange v neck..."
+              disabled={isPending}
+              autoComplete="off"
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  addNewItem(draft);
+                }
+              }}
+              className="h-8 min-w-0 flex-1 border-0 bg-transparent shadow-none focus-visible:ring-0"
+            />
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={() => addNewItem(draft)}
+              disabled={isPending || !draft.trim()}
+              className="h-8 shrink-0 cursor-pointer rounded-full border-primary/30 px-3 text-primary hover:bg-primary/5"
+            >
+              <Plus className="mr-1 h-3.5 w-3.5" />
+              Add
+            </Button>
           </div>
+          <p className="text-[10px] text-muted-foreground">
+            New items are saved to your closet automatically.
+          </p>
         </div>
       )}
 

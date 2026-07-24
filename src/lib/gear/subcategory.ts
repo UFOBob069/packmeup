@@ -29,7 +29,13 @@ export const SUBCATEGORY_LABELS: Record<ClothingSubcategory, string> = {
 const INFER_RULES: { subcategory: ClothingSubcategory; patterns: RegExp[] }[] = [
   {
     subcategory: "swimsuits",
-    patterns: [/\bswimsuits?\b/, /\bbikinis?\b/, /\bswim\s*trunks?\b/],
+    patterns: [
+      /\bswimsuits?\b/,
+      /\bbikinis?\b/,
+      /\bswim\s*trunks?\b/,
+      /\btrunks\b/,
+      /\bboard\s*shorts?\b/,
+    ],
   },
   {
     subcategory: "shorts",
@@ -96,10 +102,15 @@ export function gearMatchesParentLine(
   parentCategory: PackingCategory
 ): boolean {
   if (gear.category !== parentCategory) return false;
-  if (parentCategory !== "clothing") return true;
+  if (parentCategory !== "clothing") {
+    // Non-clothing: only suggest closet items that clearly match the parent line.
+    const parent = parentItemName.toLowerCase();
+    const name = gear.item_name.toLowerCase();
+    return parent.includes(name) || name.includes(parent) || parent.split(/\s+/).some((w) => w.length > 3 && name.includes(w));
+  }
 
   const parentSub = inferSubcategory(parentItemName, parentCategory);
-  if (!parentSub) return true;
+  if (!parentSub) return false;
 
   const gearSub = resolveGearSubcategory(gear);
   return gearSub === parentSub;

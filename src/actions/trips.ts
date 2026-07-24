@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { isDemoMode } from "@/lib/supabase/client";
 import {
   createDemoTrip,
@@ -326,7 +327,11 @@ export async function createTrip(data: TripOnboardingData): Promise<TripWithDeta
 
   if (generated.packing_items.length) {
     await supabase.from("packing_items").insert(
-      generated.packing_items.map((item) => ({ ...item, trip_id: trip.id }))
+      generated.packing_items.map((item) => ({
+        ...item,
+        id: item.id,
+        trip_id: trip.id,
+      }))
     );
   }
 
@@ -544,8 +549,9 @@ export async function joinTripByShareToken(token: string): Promise<{ tripId: str
 
 export async function signOut() {
   if (isDemoMode()) {
-    return;
+    redirect("/");
   }
   const supabase = await createClient();
   await supabase.auth.signOut();
+  redirect("/");
 }

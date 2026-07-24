@@ -169,7 +169,13 @@ export async function POST(request: NextRequest) {
       writes.push(
         supabase
           .from("packing_items")
-          .insert(generated.packing_items.map((item) => ({ ...item, trip_id: trip.id })))
+          .insert(
+            generated.packing_items.map((item) => ({
+              ...item,
+              id: item.id,
+              trip_id: trip.id,
+            }))
+          )
       );
     }
     if (generated.outfits.length) {

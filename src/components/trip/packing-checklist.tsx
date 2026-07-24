@@ -189,98 +189,100 @@ export function PackingChecklist({
                     <div
                       key={item.id}
                       className={cn(
-                        "group rounded-xl border bg-background p-3.5 transition-all",
+                        "group rounded-xl border bg-background px-3 py-3 transition-all",
                         "hover:border-primary/20 hover:bg-muted/30 hover:shadow-travel-sm",
                         item.packed && "border-primary/10 bg-primary/[0.02]"
                       )}
                     >
-                      <div className="flex items-start gap-3">
-                      <button
-                        type="button"
-                        disabled={readOnly}
-                        onClick={() => handleToggle(item.id, !item.packed)}
-                        className={cn(
-                          "mt-0.5 flex h-6 w-6 shrink-0 cursor-pointer items-center justify-center rounded-full border-2 transition-all",
-                          item.packed
-                            ? "border-primary bg-primary text-primary-foreground hover:bg-primary/90"
-                            : "border-muted-foreground/25 hover:border-primary hover:bg-primary/5"
-                        )}
-                        aria-label={item.packed ? "Mark unpacked" : "Mark packed"}
-                      >
-                        {item.packed && <Check className="h-3.5 w-3.5 stroke-[3]" />}
-                      </button>
-
-                      <div className="min-w-0 flex-1">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <span
-                            className={cn(
-                              "font-medium",
-                              item.packed && "text-muted-foreground line-through"
-                            )}
-                          >
-                            {item.quantity > 1 && (
-                              <span className="text-muted-foreground">{item.quantity}× </span>
-                            )}
-                            {item.item_name}
-                          </span>
-                          {item.shared && (
-                            <span className="rounded-full bg-ocean-teal/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-ocean-teal">
-                              Shared
-                            </span>
-                          )}
-                        </div>
-                        <p className="mt-0.5 text-xs text-muted-foreground">
-                          {item.shared
-                            ? "Shared with everyone"
-                            : traveler
-                              ? `Assigned: ${traveler.name}`
-                              : "Unassigned"}
-                        </p>
-                        {!readOnly && (
-                          <input
-                            placeholder="Add a note..."
-                            defaultValue={item.notes ?? ""}
-                            onBlur={(e) => {
-                              if (e.target.value !== (item.notes ?? "")) {
-                                startTransition(async () => {
-                                  await updateItemNotes(tripId, item.id, e.target.value);
-                                  router.refresh();
-                                });
-                              }
-                            }}
-                            className="mt-1.5 w-full cursor-text rounded-md border-0 bg-transparent px-1.5 py-1 text-xs text-muted-foreground transition-colors placeholder:text-muted-foreground/50 hover:bg-muted/50 focus:bg-muted/50 focus:outline-none focus:ring-0"
-                          />
-                        )}
-                      </div>
-
-                      {traveler && !item.shared && (
-                        <TravelerAvatar
-                          name={traveler.name}
-                          type={traveler.traveler_type}
-                          index={travelerIndex[traveler.id] ?? 0}
-                          size="sm"
-                        />
-                      )}
-
-                      {!readOnly && (
+                      <div className="flex items-center gap-3">
                         <button
                           type="button"
-                          onClick={() => {
-                            if (
-                              window.confirm(
-                                `Remove "${item.item_name}" from your packing list?`
-                              )
-                            ) {
-                              handleRemove(item.id);
+                          disabled={readOnly}
+                          onClick={() => handleToggle(item.id, !item.packed)}
+                          className={cn(
+                            "flex h-6 w-6 shrink-0 cursor-pointer items-center justify-center rounded-full border-2 transition-all",
+                            item.packed
+                              ? "border-primary bg-primary text-primary-foreground hover:bg-primary/90"
+                              : "border-muted-foreground/25 hover:border-primary hover:bg-primary/5"
+                          )}
+                          aria-label={item.packed ? "Mark unpacked" : "Mark packed"}
+                        >
+                          {item.packed && <Check className="h-3.5 w-3.5 stroke-[3]" />}
+                        </button>
+
+                        <div className="min-w-0 flex-1">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span
+                              className={cn(
+                                "font-medium leading-snug",
+                                item.packed && "text-muted-foreground line-through"
+                              )}
+                            >
+                              {item.quantity > 1 && (
+                                <span className="text-muted-foreground">{item.quantity}× </span>
+                              )}
+                              {item.item_name}
+                            </span>
+                            {item.shared && (
+                              <span className="rounded-full bg-ocean-teal/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-ocean-teal">
+                                Shared
+                              </span>
+                            )}
+                          </div>
+                          <p className="mt-0.5 text-xs text-muted-foreground">
+                            {item.shared
+                              ? "Shared with everyone"
+                              : traveler
+                                ? `Assigned: ${traveler.name}`
+                                : "Unassigned"}
+                          </p>
+                        </div>
+
+                        <div className="flex shrink-0 items-center gap-1">
+                          {traveler && !item.shared && (
+                            <TravelerAvatar
+                              name={traveler.name}
+                              type={traveler.traveler_type}
+                              index={travelerIndex[traveler.id] ?? 0}
+                              size="sm"
+                            />
+                          )}
+                          {!readOnly && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (
+                                  window.confirm(
+                                    `Remove "${item.item_name}" from your packing list?`
+                                  )
+                                ) {
+                                  handleRemove(item.id);
+                                }
+                              }}
+                              className="inline-flex size-8 cursor-pointer items-center justify-center rounded-lg text-muted-foreground/70 transition-colors hover:bg-destructive/10 hover:text-destructive"
+                              aria-label={`Remove ${item.item_name}`}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          )}
+                        </div>
+                      </div>
+
+                      {!readOnly && (
+                        <input
+                          placeholder="+ Add note"
+                          defaultValue={item.notes ?? ""}
+                          onBlur={(e) => {
+                            if (e.target.value !== (item.notes ?? "")) {
+                              startTransition(async () => {
+                                await updateItemNotes(tripId, item.id, e.target.value);
+                                router.refresh();
+                              });
                             }
                           }}
-                          className="shrink-0 cursor-pointer rounded-lg p-2 text-muted-foreground/60 transition-colors hover:bg-destructive/10 hover:text-destructive sm:opacity-60 sm:group-hover:opacity-100"
-                          aria-label={`Remove ${item.item_name}`}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
+                          className="mt-2 w-full cursor-text rounded-lg border-0 bg-transparent px-0 py-1 text-xs text-muted-foreground transition-colors placeholder:text-muted-foreground/50 hover:text-foreground focus:outline-none focus:ring-0"
+                        />
                       )}
-                      </div>
 
                       <PackingItemSublist
                         tripId={tripId}

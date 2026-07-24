@@ -104,7 +104,7 @@ export function TripDetailClient({
           coverImageUrl={trip.cover_image_url}
           variant="hero"
         >
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
             <div className="min-w-0">
               <div className="mb-2 flex flex-wrap gap-1.5">
                 {activities.map((a) => (
@@ -120,13 +120,13 @@ export function TripDetailClient({
                 {memberRole === "viewer" ? " · View only" : ""}
               </p>
             </div>
-            <div className="flex shrink-0 items-center gap-2">
+            <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:justify-end">
               {daysUntil >= 0 && (
                 <CountdownWidget
                   days={daysUntil}
                   destination={trip.destination.split(",")[0]}
                   compact
-                  className="border-white/20 bg-black/30 text-white"
+                  className="mr-auto border-white/20 bg-black/30 text-white sm:mr-0"
                 />
               )}
               <Button
@@ -136,7 +136,8 @@ export function TripDetailClient({
                 onClick={() =>
                   window.open(`/trips/${trip.id}/print`, "_blank", "noopener,noreferrer")
                 }
-                className="cursor-pointer border-white/20 bg-black/30 text-white hover:bg-black/40 hover:text-white"
+                className="h-9 w-9 cursor-pointer border-white/20 bg-black/30 p-0 text-white hover:bg-black/40 hover:text-white sm:h-8 sm:w-auto sm:px-3"
+                aria-label="Print packing list"
               >
                 <Printer className="h-4 w-4 sm:mr-1.5" />
                 <span className="hidden sm:inline">Print</span>

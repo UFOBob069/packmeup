@@ -1,13 +1,31 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { Luggage, LayoutGrid, Plus, Layers, Backpack, Users } from "lucide-react";
+import { usePathname, useRouter } from "next/navigation";
+import { useTransition } from "react";
+import {
+  Luggage,
+  LayoutGrid,
+  Plus,
+  Layers,
+  Backpack,
+  Users,
+  LogOut,
+  LayoutDashboard,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import { APP_NAME } from "@/lib/constants";
 import { ThemeToggle } from "./theme-toggle";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { TravelerAvatar } from "@/components/design/traveler-avatar";
+import { signOut } from "@/actions/trips";
 import type { Profile } from "@/lib/types";
 
 const navItems = [
@@ -25,9 +43,18 @@ interface HeaderProps {
 
 export function Header({ variant = "app", user = null }: HeaderProps) {
   const pathname = usePathname();
+  const router = useRouter();
+  const [isSigningOut, startSignOut] = useTransition();
   const isLanding = variant === "landing" || pathname === "/";
   const firstName = user?.name?.split(" ")[0];
   const isLoggedIn = !!user;
+
+  const handleSignOut = () => {
+    startSignOut(async () => {
+      await signOut();
+      router.refresh();
+    });
+  };
 
   return (
     <>
@@ -84,13 +111,32 @@ export function Header({ variant = "app", user = null }: HeaderProps) {
           <div className="flex items-center gap-2">
             <ThemeToggle />
             {isLoggedIn ? (
-              <Button asChild variant="outline" size="sm" className="rounded-full gap-2 pl-1.5 pr-4">
-                <Link href="/dashboard">
-                  <TravelerAvatar name={user.name ?? "You"} type="adult" index={0} size="sm" />
-                  <span className="hidden sm:inline">{firstName ?? "Dashboard"}</span>
-                  <span className="sm:hidden">Lists</span>
-                </Link>
-              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger
+                  render={
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="rounded-full gap-2 pl-1.5 pr-3"
+                      aria-label="Account menu"
+                    >
+                      <TravelerAvatar name={user.name ?? "You"} type="adult" index={0} size="sm" />
+                      <span className="hidden sm:inline">{firstName ?? "Account"}</span>
+                    </Button>
+                  }
+                />
+                <DropdownMenuContent align="end" className="min-w-44">
+                  <DropdownMenuItem onClick={() => router.push("/dashboard")}>
+                    <LayoutDashboard className="h-4 w-4" />
+                    Packing Lists
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={handleSignOut} disabled={isSigningOut}>
+                    <LogOut className="h-4 w-4" />
+                    {isSigningOut ? "Signing out…" : "Sign out"}
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             ) : isLanding ? (
               <>
                 <Button asChild variant="ghost" size="sm" className="hidden rounded-full sm:inline-flex">

@@ -370,7 +370,7 @@ export async function createDemoTrip(
   );
 
   generated.packing_items.forEach((item) => {
-    const id = uuid();
+    const id = item.id ?? uuid();
     store.packing_items.set(id, {
       ...item,
       id,

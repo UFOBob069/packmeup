@@ -49,7 +49,7 @@ export function CategoryInlineAdd({
       <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
         Add {categoryLabel.toLowerCase()}
       </p>
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+      <div className="flex min-h-11 items-center gap-2">
         <Input
           value={name}
           onChange={(e) => setName(e.target.value)}
@@ -61,7 +61,7 @@ export function CategoryInlineAdd({
               handleAdd();
             }
           }}
-          className="flex-1 border-muted-foreground/20 bg-background"
+          className="h-9 min-w-0 flex-1 border-muted-foreground/20 bg-background"
         />
         <Button
           type="button"
@@ -69,14 +69,14 @@ export function CategoryInlineAdd({
           variant="outline"
           onClick={handleAdd}
           disabled={isPending || !name.trim()}
-          className="shrink-0 rounded-full"
+          className="h-9 shrink-0 cursor-pointer rounded-full border-primary/30 px-3 text-primary hover:bg-primary/5"
         >
           <Plus className="mr-1 h-3.5 w-3.5" />
-          Add line
+          Add
         </Button>
       </div>
       <p className="mt-2 text-[11px] text-muted-foreground">
-        Adds a generic line to your list — then pick specific items from My Gear under it.
+        Adds a line to your list — then pick specifics from your closet under it.
       </p>
     </div>
   );
