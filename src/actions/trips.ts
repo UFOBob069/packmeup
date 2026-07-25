@@ -154,7 +154,8 @@ export async function getUserTrips(): Promise<Trip[]> {
 
 export async function getTripDetails(tripId: string): Promise<TripWithDetails | null> {
   if (isDemoMode()) {
-    return getDemoTripWithDetails(tripId);
+    const user = await getCurrentUser();
+    return getDemoTripWithDetails(tripId, user?.id);
   }
 
   const supabase = await createClient();
@@ -331,13 +332,14 @@ export async function createTrip(data: TripOnboardingData): Promise<TripWithDeta
         ...item,
         id: item.id,
         trip_id: trip.id,
+        user_id: user.id,
       }))
     );
   }
 
   if (generated.outfits.length) {
     await supabase.from("outfits").insert(
-      generated.outfits.map((o) => ({ ...o, trip_id: trip.id }))
+      generated.outfits.map((o) => ({ ...o, trip_id: trip.id, user_id: user.id }))
     );
   }
 

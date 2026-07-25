@@ -155,7 +155,7 @@ export async function POST(
   if (!auth) return json({ error: "Unauthorized" }, { status: 401 });
 
   const { id: tripId } = await context.params;
-  const { supabase } = auth;
+  const { supabase, user } = auth;
   const [tripResult, activitiesResult, travelersResult, itemsResult] = await Promise.all([
     supabase
       .from("trips")
@@ -227,6 +227,7 @@ export async function POST(
         activity_name: item.activityName ?? null,
         notes: `Added automatically: ${item.reason}`,
         sort_order: 1000 + index,
+        user_id: user.id,
       }))
     );
     if (insertError) return json({ error: insertError.message }, { status: 500 });

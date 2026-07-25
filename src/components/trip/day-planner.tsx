@@ -726,7 +726,7 @@ function DayCard({
             {!outfits.length && !items.length && !day.notes && tips.length === 0 && (
               <p className="text-sm text-muted-foreground">
                 Nothing planned for this day yet
-                {canEdit ? " — tap Edit day to add events and what to wear." : "."}
+                {canEdit ? " — tap Edit day to add shared notes, and your own events and what to wear." : "."}
               </p>
             )}
           </>

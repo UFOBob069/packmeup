@@ -251,8 +251,11 @@ export async function createOutfit(
     items?: string[];
   }
 ) {
+  const user = await getCurrentUser();
+  if (!user) throw new Error("Not authenticated");
+
   if (isDemoMode()) {
-    createDemoOutfit(tripId, input);
+    createDemoOutfit(tripId, { ...input, user_id: user.id });
     revalidatePath(`/trips/${tripId}`);
     return;
   }
@@ -260,6 +263,7 @@ export async function createOutfit(
   const supabase = await createClient();
   const { error } = await supabase.from("outfits").insert({
     trip_id: tripId,
+    user_id: user.id,
     trip_date: input.trip_date,
     time_of_day: input.time_of_day ?? "all_day",
     title: input.title?.trim() || "New event",
@@ -375,11 +379,14 @@ export async function addPackingItem(
   const name = itemName.trim();
   if (!name) throw new Error("Item name is required");
 
+  const user = await getCurrentUser();
+  if (!user) throw new Error("Not authenticated");
+
   const isChild = !!options?.parent_item_id;
   const shared = options?.shared ?? travelerId === null;
 
   if (isDemoMode()) {
-    addDemoPackingItem(tripId, name, travelerId, options);
+    addDemoPackingItem(tripId, name, travelerId, { ...options, user_id: user.id });
     revalidatePath(`/trips/${tripId}`);
     return;
   }
@@ -399,6 +406,7 @@ export async function addPackingItem(
     traveler_id: travelerId,
     parent_item_id: options?.parent_item_id ?? null,
     gear_item_id: options?.gear_item_id ?? null,
+    user_id: user.id,
     activity_name: options?.activity_name ?? null,
     packed: false,
     sort_order: count ?? 0,

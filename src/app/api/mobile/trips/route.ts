@@ -174,6 +174,7 @@ export async function POST(request: NextRequest) {
               ...item,
               id: item.id,
               trip_id: trip.id,
+              user_id: user.id,
             }))
           )
       );
@@ -182,7 +183,13 @@ export async function POST(request: NextRequest) {
       writes.push(
         supabase
           .from("outfits")
-          .insert(generated.outfits.map((outfit) => ({ ...outfit, trip_id: trip.id })))
+          .insert(
+            generated.outfits.map((outfit) => ({
+              ...outfit,
+              trip_id: trip.id,
+              user_id: user.id,
+            }))
+          )
       );
     }
     if (generated.calendar_days.length) {

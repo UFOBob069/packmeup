@@ -17,9 +17,12 @@ import { eachDayOfInterval, format, parseISO } from "date-fns";
 
 export interface GeneratedTripContent {
   packing_items: Array<
-    Omit<PackingItem, "id" | "trip_id" | "created_at" | "updated_at"> & { id?: string }
+    Omit<PackingItem, "id" | "trip_id" | "created_at" | "updated_at" | "user_id"> & {
+      id?: string;
+      user_id?: string | null;
+    }
   >;
-  outfits: Omit<Outfit, "id" | "trip_id" | "created_at">[];
+  outfits: Omit<Outfit, "id" | "trip_id" | "created_at" | "user_id">[];
   calendar_days: Omit<CalendarDay, "id" | "trip_id" | "created_at">[];
 }
 

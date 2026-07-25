@@ -592,10 +592,10 @@ export function TripOnboardingChat({
               size="sm"
               onClick={goBack}
               className="h-8 shrink-0 cursor-pointer rounded-full px-3 text-xs"
-              aria-label="Undo last step"
+              aria-label="Change previous step"
             >
               <ChevronLeft className="mr-1 h-3.5 w-3.5" />
-              Undo
+              Change
             </Button>
           ) : (
             <span className="h-8 w-16 shrink-0" aria-hidden />

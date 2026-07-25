@@ -6,7 +6,9 @@ import {
   type ClothingSubcategory,
 } from "@/lib/gear/subcategory";
 
-type PackingDraft = Omit<PackingItem, "id" | "trip_id" | "created_at" | "updated_at">;
+type PackingDraft = Omit<PackingItem, "id" | "trip_id" | "created_at" | "updated_at" | "user_id"> & {
+  user_id?: string | null;
+};
 export type PackingDraftWithId = PackingDraft & { id: string };
 
 function newId(): string {

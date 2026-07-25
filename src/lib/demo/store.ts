@@ -193,15 +193,15 @@ function seedDemoData(store: DemoStore) {
   });
 
   const sampleItems: Omit<PackingItem, "created_at" | "updated_at">[] = [
-    { id: "pi-1", trip_id: tripId, traveler_id: "t-david", parent_item_id: null, gear_item_id: null, category: "clothing", item_name: "Golf polos", quantity: 2, packed: true, shared: false, activity_name: "Golf", notes: null, sort_order: 0 },
-    { id: "pi-1a", trip_id: tripId, traveler_id: "t-david", parent_item_id: "pi-1", gear_item_id: "gear-1", category: "clothing", item_name: "Blue Nike Polo", quantity: 1, packed: true, shared: false, activity_name: "Golf", notes: null, sort_order: 0 },
-    { id: "pi-2", trip_id: tripId, traveler_id: "t-david", parent_item_id: null, gear_item_id: null, category: "shoes", item_name: "Golf Shoes", quantity: 1, packed: false, shared: false, activity_name: "Golf", notes: null, sort_order: 1 },
-    { id: "pi-3", trip_id: tripId, traveler_id: "t-jen", parent_item_id: null, gear_item_id: null, category: "clothing", item_name: "Swimsuit", quantity: 1, packed: true, shared: false, activity_name: "Pool", notes: null, sort_order: 2 },
-    { id: "pi-4", trip_id: tripId, traveler_id: null, parent_item_id: null, gear_item_id: null, category: "toiletries", item_name: "Sunscreen SPF 50", quantity: 1, packed: false, shared: true, activity_name: null, notes: null, sort_order: 3 },
-    { id: "pi-5", trip_id: tripId, traveler_id: "t-andre", parent_item_id: null, gear_item_id: null, category: "pet_supplies", item_name: "Dog Leash", quantity: 1, packed: true, shared: false, activity_name: null, notes: null, sort_order: 4 },
-    { id: "pi-6", trip_id: tripId, traveler_id: "t-andre", parent_item_id: null, gear_item_id: null, category: "pet_supplies", item_name: "Dog Food", quantity: 5, packed: false, shared: false, activity_name: null, notes: null, sort_order: 5 },
-    { id: "pi-7", trip_id: tripId, traveler_id: "t-david", parent_item_id: null, gear_item_id: null, category: "clothing", item_name: "Chinos", quantity: 2, packed: false, shared: false, activity_name: null, notes: null, sort_order: 6 },
-    { id: "pi-8", trip_id: tripId, traveler_id: null, parent_item_id: null, gear_item_id: null, category: "electronics", item_name: "Portable Phone Charger", quantity: 1, packed: true, shared: true, activity_name: null, notes: null, sort_order: 7 },
+    { id: "pi-1", trip_id: tripId, traveler_id: "t-david", parent_item_id: null, gear_item_id: null, user_id: DEMO_USER.id, category: "clothing", item_name: "Golf polos", quantity: 2, packed: true, shared: false, activity_name: "Golf", notes: null, sort_order: 0 },
+    { id: "pi-1a", trip_id: tripId, traveler_id: "t-david", parent_item_id: "pi-1", gear_item_id: "gear-1", user_id: DEMO_USER.id, category: "clothing", item_name: "Blue Nike Polo", quantity: 1, packed: true, shared: false, activity_name: "Golf", notes: null, sort_order: 0 },
+    { id: "pi-2", trip_id: tripId, traveler_id: "t-david", parent_item_id: null, gear_item_id: null, user_id: DEMO_USER.id, category: "shoes", item_name: "Golf Shoes", quantity: 1, packed: false, shared: false, activity_name: "Golf", notes: null, sort_order: 1 },
+    { id: "pi-3", trip_id: tripId, traveler_id: "t-jen", parent_item_id: null, gear_item_id: null, user_id: DEMO_USER.id, category: "clothing", item_name: "Swimsuit", quantity: 1, packed: true, shared: false, activity_name: "Pool", notes: null, sort_order: 2 },
+    { id: "pi-4", trip_id: tripId, traveler_id: null, parent_item_id: null, gear_item_id: null, user_id: DEMO_USER.id, category: "toiletries", item_name: "Sunscreen SPF 50", quantity: 1, packed: false, shared: true, activity_name: null, notes: null, sort_order: 3 },
+    { id: "pi-5", trip_id: tripId, traveler_id: "t-andre", parent_item_id: null, gear_item_id: null, user_id: DEMO_USER.id, category: "pet_supplies", item_name: "Dog Leash", quantity: 1, packed: true, shared: false, activity_name: null, notes: null, sort_order: 4 },
+    { id: "pi-6", trip_id: tripId, traveler_id: "t-andre", parent_item_id: null, gear_item_id: null, user_id: DEMO_USER.id, category: "pet_supplies", item_name: "Dog Food", quantity: 5, packed: false, shared: false, activity_name: null, notes: null, sort_order: 5 },
+    { id: "pi-7", trip_id: tripId, traveler_id: "t-david", parent_item_id: null, gear_item_id: null, user_id: DEMO_USER.id, category: "clothing", item_name: "Chinos", quantity: 2, packed: false, shared: false, activity_name: null, notes: null, sort_order: 6 },
+    { id: "pi-8", trip_id: tripId, traveler_id: null, parent_item_id: null, gear_item_id: null, user_id: DEMO_USER.id, category: "electronics", item_name: "Portable Phone Charger", quantity: 1, packed: true, shared: true, activity_name: null, notes: null, sort_order: 7 },
   ];
 
   sampleItems.forEach((item) => {
@@ -260,7 +260,10 @@ export function getDemoTrips(userId: string): Trip[] {
   );
 }
 
-export function getDemoTripWithDetails(tripId: string): TripWithDetails | null {
+export function getDemoTripWithDetails(
+  tripId: string,
+  viewerUserId: string = DEMO_USER.id
+): TripWithDetails | null {
   const store = getStore();
   const trip = store.trips.get(tripId);
   if (!trip) return null;
@@ -272,9 +275,16 @@ export function getDemoTripWithDetails(tripId: string): TripWithDetails | null {
       .sort((a, b) => a.sort_order - b.sort_order),
     activities: Array.from(store.activities.values()).filter((a) => a.trip_id === tripId),
     packing_items: Array.from(store.packing_items.values())
-      .filter((p) => p.trip_id === tripId)
+      .filter(
+        (p) =>
+          p.trip_id === tripId &&
+          (p.shared || p.user_id === viewerUserId || p.user_id == null)
+      )
       .sort((a, b) => a.sort_order - b.sort_order),
-    outfits: Array.from(store.outfits.values()).filter((o) => o.trip_id === tripId),
+    outfits: Array.from(store.outfits.values()).filter(
+      (o) =>
+        o.trip_id === tripId && (o.user_id === viewerUserId || o.user_id == null)
+    ),
     calendar_days: Array.from(store.calendar_days.values()).filter((c) => c.trip_id === tripId),
     workspace_items: Array.from(store.workspace_items.values())
       .filter((item) => item.trip_id === tripId)
@@ -374,6 +384,7 @@ export async function createDemoTrip(
     store.packing_items.set(id, {
       ...item,
       id,
+      user_id: item.user_id ?? userId,
       trip_id: tripId,
       created_at: now,
       updated_at: now,
@@ -382,7 +393,13 @@ export async function createDemoTrip(
 
   generated.outfits.forEach((outfit) => {
     const id = uuid();
-    store.outfits.set(id, { ...outfit, id, trip_id: tripId, created_at: now });
+    store.outfits.set(id, {
+      ...outfit,
+      id,
+      user_id: userId,
+      trip_id: tripId,
+      created_at: now,
+    });
   });
 
   generated.calendar_days.forEach((day) => {
@@ -394,7 +411,7 @@ export async function createDemoTrip(
     addDemoWorkspaceItem(tripId, "arrival", "Trip and arrival notes", trip.special_notes);
   }
 
-  return getDemoTripWithDetails(tripId)!;
+  return getDemoTripWithDetails(tripId, userId)!;
 }
 
 export function toggleDemoItemPacked(itemId: string, packed: boolean): PackingItem | null {
@@ -491,6 +508,7 @@ export function createDemoOutfit(
     description?: string;
     activity_name?: string | null;
     items?: (string | import("@/lib/types").OutfitItem)[];
+    user_id?: string | null;
   }
 ): Outfit {
   const store = getStore();
@@ -502,6 +520,7 @@ export function createDemoOutfit(
   const outfit: Outfit = {
     id,
     trip_id: tripId,
+    user_id: input.user_id ?? DEMO_USER.id,
     trip_date: input.trip_date,
     time_of_day: input.time_of_day ?? "all_day",
     title: input.title?.trim() || "New event",
@@ -550,6 +569,7 @@ export function addDemoPackingItem(
     gear_item_id?: string | null;
     shared?: boolean;
     activity_name?: string | null;
+    user_id?: string | null;
   }
 ): PackingItem {
   const store = getStore();
@@ -568,6 +588,7 @@ export function addDemoPackingItem(
     traveler_id: travelerId,
     parent_item_id: options?.parent_item_id ?? null,
     gear_item_id: options?.gear_item_id ?? null,
+    user_id: options?.user_id ?? DEMO_USER.id,
     packed: false,
     shared: options?.shared ?? travelerId === null,
     activity_name: options?.activity_name ?? null,
@@ -658,6 +679,7 @@ export function applyDemoItemUpdates(
         traveler_id: update.shared ? null : traveler?.id ?? null,
         parent_item_id: null,
         gear_item_id: null,
+        user_id: DEMO_USER.id,
         category: update.category ?? "miscellaneous",
         item_name: update.item_name,
         quantity: update.quantity ?? 1,

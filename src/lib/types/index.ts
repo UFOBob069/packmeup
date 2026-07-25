@@ -120,6 +120,8 @@ export interface PackingItem {
   traveler_id: string | null;
   parent_item_id: string | null;
   gear_item_id: string | null;
+  /** Auth user who owns this personal checklist line. Shared items are visible to all members. */
+  user_id: string | null;
   category: PackingCategory;
   item_name: string;
   quantity: number;
@@ -144,6 +146,8 @@ export interface OutfitItem {
 export interface Outfit {
   id: string;
   trip_id: string;
+  /** Auth user who owns this day plan / what-to-wear. Day notes stay trip-shared. */
+  user_id: string | null;
   trip_date: string;
   time_of_day: "morning" | "afternoon" | "evening" | "all_day";
   title: string;
