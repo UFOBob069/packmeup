@@ -86,6 +86,8 @@ export function PackingChecklist({
     {} as Record<string, PackingItem[]>
   );
 
+  const hasActiveFilter = Boolean(filterTraveler || filterActivity);
+
   const displayCategories = useMemo(() => {
     const withItems = CATEGORY_ORDER.filter((c) => grouped[c]?.length).concat(
       Object.keys(grouped).filter(
@@ -93,10 +95,11 @@ export function PackingChecklist({
       ) as PackingCategory[]
     );
 
-    if (!readOnly) return CATEGORY_ORDER;
-
-    return withItems;
-  }, [grouped, readOnly]);
+    // When filtering (e.g. Shared), only show categories that have matching items.
+    // On the full list, keep empty categories so editors can still add into them.
+    if (hasActiveFilter || readOnly) return withItems;
+    return CATEGORY_ORDER;
+  }, [grouped, readOnly, hasActiveFilter]);
 
   const categoryKey = displayCategories.join(",");
 
