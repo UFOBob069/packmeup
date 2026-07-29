@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { Copy, Mail, MessageSquareShare, Share2, XIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -31,6 +31,7 @@ interface InviteDialogProps {
   endDate: string;
   members: TripMember[];
   canInvite?: boolean;
+  openSignal?: number;
 }
 
 interface ShareInvitePayload {
@@ -102,6 +103,7 @@ export function InviteDialog({
   endDate,
   members,
   canInvite = false,
+  openSignal = 0,
 }: InviteDialogProps) {
   const [open, setOpen] = useState(false);
   const [email, setEmail] = useState("");
@@ -124,6 +126,11 @@ export function InviteDialog({
       });
     });
   };
+
+  useEffect(() => {
+    if (openSignal > 0) openDialog();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- open when parent bumps the signal
+  }, [openSignal]);
 
   const handleInvite = () => {
     if (!email.trim()) return;

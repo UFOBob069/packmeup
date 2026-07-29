@@ -27,7 +27,7 @@ import {
   inviteShareMessage,
   inviteShareTitle,
 } from "@/lib/invite-share";
-import type { Outfit, OutfitItem, PackingCategory } from "@/lib/types";
+import type { ChatMessage, Outfit, OutfitItem, PackingCategory } from "@/lib/types";
 import { serializeOutfitItems } from "@/lib/outfit-items";
 import {
   defaultHumanTraveler,
@@ -513,12 +513,12 @@ export async function sendChatMessage(tripId: string, message: string) {
   };
 
   if (isDemoMode()) {
-    addDemoChatMessage(tripId, user?.id ?? null, "user", message);
+    addDemoChatMessage(tripId, user?.id ?? null, "user", message, "ai");
 
     const result = await refineWithChat(message, tripContext, priorHistory);
 
     applyDemoItemUpdates(tripId, result.item_updates);
-    addDemoChatMessage(tripId, null, "assistant", result.message);
+    addDemoChatMessage(tripId, null, "assistant", result.message, "ai");
     revalidatePath(`/trips/${tripId}`);
     return { message: result.message, suggestions: result.suggestions };
   }
@@ -530,6 +530,7 @@ export async function sendChatMessage(tripId: string, message: string) {
     user_id: user?.id,
     role: "user",
     content: message,
+    channel: "ai",
   });
 
   const result = await refineWithChat(message, tripContext, priorHistory);
@@ -554,6 +555,7 @@ export async function sendChatMessage(tripId: string, message: string) {
     trip_id: tripId,
     role: "assistant",
     content: result.message,
+    channel: "ai",
   });
 
   revalidatePath(`/trips/${tripId}`);
@@ -562,7 +564,7 @@ export async function sendChatMessage(tripId: string, message: string) {
 
 export async function getChatHistory(tripId: string) {
   if (isDemoMode()) {
-    return getDemoChatMessages(tripId);
+    return getDemoChatMessages(tripId, "ai");
   }
 
   const supabase = await createClient();
@@ -570,8 +572,55 @@ export async function getChatHistory(tripId: string) {
     .from("chat_messages")
     .select("*")
     .eq("trip_id", tripId)
+    .eq("channel", "ai")
     .order("created_at");
   return data ?? [];
+}
+
+export async function getGroupChatHistory(tripId: string) {
+  if (isDemoMode()) {
+    return getDemoChatMessages(tripId, "group");
+  }
+
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("chat_messages")
+    .select("*, profile:profiles(*)")
+    .eq("trip_id", tripId)
+    .eq("channel", "group")
+    .order("created_at");
+  return (data ?? []) as ChatMessage[];
+}
+
+export async function sendGroupChatMessage(tripId: string, content: string) {
+  const user = await getCurrentUser();
+  if (!user) throw new Error("Not authenticated");
+
+  const trimmed = content.trim();
+  if (!trimmed) throw new Error("Message is required");
+
+  if (isDemoMode()) {
+    const msg = addDemoChatMessage(tripId, user.id, "user", trimmed, "group");
+    revalidatePath(`/trips/${tripId}`);
+    return msg;
+  }
+
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("chat_messages")
+    .insert({
+      trip_id: tripId,
+      user_id: user.id,
+      role: "user",
+      content: trimmed,
+      channel: "group",
+    })
+    .select("*, profile:profiles(*)")
+    .single();
+
+  if (error) throw new Error(error.message);
+  revalidatePath(`/trips/${tripId}`);
+  return data as ChatMessage;
 }
 
 export async function inviteByEmail(tripId: string, email: string, role: "editor" | "viewer") {

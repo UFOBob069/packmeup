@@ -11,14 +11,17 @@ import {
   ListChecks,
   CalendarDays,
   MessageCircle,
+  MessagesSquare,
   Printer,
   ShoppingCart,
+  Sparkles,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PackingChecklist } from "./packing-checklist";
 import { DayPlanner } from "./day-planner";
 import { AiChat } from "./ai-chat";
+import { TripGroupChat } from "./trip-group-chat";
 import { InviteDialog } from "./invite-dialog";
 import { TripSettingsMenu } from "./trip-settings-menu";
 import { RealtimePacking } from "./realtime-packing";
@@ -38,6 +41,8 @@ import { generatePackingTimeline } from "@/lib/design-system";
 interface TripDetailClientProps {
   trip: TripWithDetails;
   chatMessages: ChatMessage[];
+  groupChatMessages: ChatMessage[];
+  currentUserId: string;
   gearItems: GearItem[];
   canEdit?: boolean;
   canManage?: boolean;
@@ -47,16 +52,19 @@ interface TripDetailClientProps {
 const tabItems = [
   { value: "pack", label: "Checklist", icon: ListChecks, iconClass: "text-golf-green" },
   { value: "days", label: "By Day", icon: CalendarDays, iconClass: "text-weather-orange" },
+  { value: "chat", label: "Trip Chat", icon: MessagesSquare, iconClass: "text-sky-600 dark:text-sky-400" },
   { value: "activities", label: "Activities", icon: Compass, iconClass: "text-ocean-teal" },
   { value: "groceries", label: "Groceries", icon: ShoppingCart, iconClass: "text-violet-500 dark:text-violet-400" },
   { value: "check-in", label: "Check-in", icon: Home, iconClass: "text-rose-500 dark:text-rose-400" },
   { value: "weather", label: "Weather", icon: CloudSun, iconClass: "text-sky-500 dark:text-sky-400" },
-  { value: "concierge", label: "Packing Help", icon: MessageCircle, iconClass: "text-primary" },
+  { value: "concierge", label: "Packing Help", icon: Sparkles, iconClass: "text-primary" },
 ];
 
 export function TripDetailClient({
   trip,
   chatMessages,
+  groupChatMessages,
+  currentUserId,
   gearItems,
   canEdit = true,
   canManage = true,
@@ -66,6 +74,7 @@ export function TripDetailClient({
   const [activeTab, setActiveTab] = useState("pack");
   const [travelerFilter, setTravelerFilter] = useState("all");
   const [focusedDay, setFocusedDay] = useState<string | null>(null);
+  const [inviteOpenSignal, setInviteOpenSignal] = useState(0);
   const progress = calculateProgress(trip.packing_items, trip.travelers);
   const daysUntil = differenceInDays(parseISO(trip.start_date), new Date());
   const activities = [...new Set(trip.activities.map((a) => a.activity_name))];
@@ -74,6 +83,7 @@ export function TripDetailClient({
   const visibleTabs = canEdit
     ? tabItems
     : tabItems.filter((tab) => tab.value !== "concierge");
+  const groupMessageCount = groupChatMessages.length;
 
   const checklistFilter =
     travelerFilter === "all"
@@ -142,6 +152,22 @@ export function TripDetailClient({
                 <Printer className="h-4 w-4 sm:mr-1.5" />
                 <span className="hidden sm:inline">Print</span>
               </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setActiveTab("chat")}
+                className="h-9 cursor-pointer border-white/20 bg-black/30 px-3 text-white hover:bg-black/40 hover:text-white sm:h-8"
+                aria-label="Open trip chat"
+              >
+                <MessagesSquare className="h-4 w-4 sm:mr-1.5" />
+                <span className="hidden sm:inline">Chat</span>
+                {groupMessageCount > 0 ? (
+                  <span className="ml-1.5 rounded-full bg-white/20 px-1.5 py-0.5 text-[10px] font-semibold tabular-nums">
+                    {groupMessageCount}
+                  </span>
+                ) : null}
+              </Button>
               <InviteDialog
                 tripId={trip.id}
                 destination={trip.destination}
@@ -150,6 +176,7 @@ export function TripDetailClient({
                 endDate={trip.end_date}
                 members={trip.members}
                 canInvite={canManage}
+                openSignal={inviteOpenSignal}
               />
               {canManage && (
                 <TripSettingsMenu tripId={trip.id} destination={trip.destination} />
@@ -169,6 +196,11 @@ export function TripDetailClient({
             >
               <Icon className={`mr-2 h-4 w-4 ${iconClass}`} />
               {label}
+              {value === "chat" && groupMessageCount > 0 ? (
+                <span className="ml-1.5 rounded-full bg-ocean-teal/15 px-1.5 py-0.5 text-[10px] font-semibold tabular-nums text-ocean-teal">
+                  {groupMessageCount}
+                </span>
+              ) : null}
             </TabsTrigger>
           ))}
         </TabsList>
@@ -220,6 +252,36 @@ export function TripDetailClient({
             onFocusedDate={() => setFocusedDay(null)}
             editable={canEdit}
           />
+        </TabsContent>
+
+        <TabsContent value="chat">
+          <div className="mx-auto max-w-3xl">
+            <div className="h-[min(640px,75vh)]">
+              <TripGroupChat
+                tripId={trip.id}
+                destination={trip.destination}
+                members={trip.members}
+                currentUserId={currentUserId}
+                initialMessages={groupChatMessages}
+                canInvite={canManage}
+                onInvite={() => setInviteOpenSignal((n) => n + 1)}
+              />
+            </div>
+            <p className="mt-3 text-center text-xs text-muted-foreground">
+              Need packing advice instead?{" "}
+              {canEdit ? (
+                <button
+                  type="button"
+                  onClick={() => setActiveTab("concierge")}
+                  className="cursor-pointer font-medium text-primary hover:underline"
+                >
+                  Ask Packing Help
+                </button>
+              ) : (
+                <span>Ask an editor to open Packing Help.</span>
+              )}
+            </p>
+          </div>
         </TabsContent>
 
         <TabsContent value="activities">

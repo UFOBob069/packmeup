@@ -613,9 +613,12 @@ export function getDemoTemplates(userId: string): Template[] {
   return Array.from(getStore().templates.values()).filter((t) => t.user_id === userId);
 }
 
-export function getDemoChatMessages(tripId: string): ChatMessage[] {
+export function getDemoChatMessages(
+  tripId: string,
+  channel: "ai" | "group" = "ai"
+): ChatMessage[] {
   return Array.from(getStore().chat_messages.values())
-    .filter((m) => m.trip_id === tripId)
+    .filter((m) => m.trip_id === tripId && (m.channel ?? "ai") === channel)
     .sort((a, b) => a.created_at.localeCompare(b.created_at));
 }
 
@@ -623,16 +626,20 @@ export function addDemoChatMessage(
   tripId: string,
   userId: string | null,
   role: ChatMessage["role"],
-  content: string
+  content: string,
+  channel: "ai" | "group" = "ai"
 ): ChatMessage {
   const store = getStore();
+  const profile = userId ? store.profiles.get(userId) ?? null : null;
   const msg: ChatMessage = {
     id: uuid(),
     trip_id: tripId,
     user_id: userId,
     role,
     content,
+    channel,
     created_at: new Date().toISOString(),
+    profile,
   };
   store.chat_messages.set(msg.id, msg);
   return msg;

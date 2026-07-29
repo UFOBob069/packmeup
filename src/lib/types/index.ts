@@ -196,7 +196,9 @@ export interface ChatMessage {
   user_id: string | null;
   role: "user" | "assistant" | "system";
   content: string;
+  channel?: "ai" | "group";
   created_at: string;
+  profile?: Profile | null;
 }
 
 export interface GearItem {

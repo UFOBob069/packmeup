@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { AppShell } from "@/components/layout/shells";
 import { TripDetailClient } from "@/components/trip/trip-detail-client";
-import { getChatHistory } from "@/actions/packing";
+import { getChatHistory, getGroupChatHistory } from "@/actions/packing";
 import { getUserGearItems } from "@/actions/gear";
 import { getCurrentUser, getTripDetails, ensureTripWeather } from "@/actions/trips";
 import type { MemberRole } from "@/lib/types";
@@ -24,6 +24,7 @@ export default async function TripPage({ params }: TripPageProps) {
   const { id } = await params;
   const [trip, user] = await Promise.all([getTripDetails(id), getCurrentUser()]);
   if (!trip) notFound();
+  if (!user) notFound();
 
   const now = new Date().toISOString().split("T")[0];
   if (trip.end_date >= now) {
@@ -31,9 +32,12 @@ export default async function TripPage({ params }: TripPageProps) {
     if (weather) trip.weather_data = weather;
   }
 
-  const chatMessages = await getChatHistory(id);
-  const gearItems = await getUserGearItems();
-  const role = resolveMemberRole(trip, user?.id);
+  const [chatMessages, groupChatMessages, gearItems] = await Promise.all([
+    getChatHistory(id),
+    getGroupChatHistory(id),
+    getUserGearItems(),
+  ]);
+  const role = resolveMemberRole(trip, user.id);
   const canEdit = role === "owner" || role === "editor";
   const canManage = role === "owner";
 
@@ -42,6 +46,8 @@ export default async function TripPage({ params }: TripPageProps) {
       <TripDetailClient
         trip={trip}
         chatMessages={chatMessages}
+        groupChatMessages={groupChatMessages}
+        currentUserId={user.id}
         gearItems={gearItems}
         canEdit={canEdit}
         canManage={canManage}
