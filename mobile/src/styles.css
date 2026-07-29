@@ -1014,7 +1014,7 @@ h2 {
   z-index: 10;
   top: calc(58px + env(safe-area-inset-top));
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 4px;
   margin: 0 0 19px;
   padding: 5px;
@@ -1028,13 +1028,14 @@ h2 {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 5px;
+  gap: 4px;
   min-height: 42px;
+  padding: 0 4px;
   border: 0;
   border-radius: 13px;
   color: var(--muted);
   background: transparent;
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 700;
 }
 
@@ -1177,6 +1178,23 @@ h2 {
   font-weight: 600;
 }
 
+.activity-pills.editable span {
+  padding-right: 4px;
+}
+
+.activity-pills.editable button {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border: 0;
+  border-radius: 50%;
+  color: var(--muted);
+  background: transparent;
+  font-size: 14px;
+  line-height: 1;
+}
+
 .workspace-quick-add {
   display: flex;
   gap: 7px;
@@ -1280,6 +1298,200 @@ h2 {
 .timeline-day time {
   color: var(--primary);
   font-size: 11px;
+  font-weight: 700;
+}
+
+.day-plan-hint {
+  margin: 0 0 10px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.day-plan-list {
+  display: grid;
+  gap: 10px;
+}
+
+.day-plan-card {
+  width: 100%;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  background: #fff;
+  text-align: left;
+  box-shadow: 0 8px 24px rgba(20, 48, 42, 0.05);
+}
+
+.day-plan-card.collapsed {
+  cursor: pointer;
+}
+
+.day-plan-card-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.day-plan-card-top strong {
+  display: block;
+  font-size: 16px;
+}
+
+.day-plan-card-top small {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.day-plan-card > p {
+  margin: 10px 0 4px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.day-plan-card > span {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.day-plan-collapse {
+  display: flex;
+  flex: 1;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  text-align: left;
+}
+
+.day-plan-collapse .rotated {
+  transform: rotate(180deg);
+}
+
+.day-edit-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 7px 10px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: #f7f9f8;
+  color: #1f3d37;
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.day-edit-button.primary {
+  border-color: transparent;
+  background: var(--primary);
+  color: #fff;
+}
+
+.day-plan-body {
+  display: grid;
+  gap: 14px;
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid #e8eeeb;
+}
+
+.day-plan-body h2 {
+  margin: 0;
+  font-size: 18px;
+}
+
+.day-plan-body h3 {
+  margin: 0 0 8px;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+}
+
+.day-weather,
+.day-empty {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.day-section {
+  display: grid;
+  gap: 8px;
+}
+
+.day-event {
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: #f5f7f5;
+}
+
+.day-event.editable {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.day-event strong {
+  display: block;
+  font-size: 13px;
+}
+
+.day-event p {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.day-plan-body.edit label {
+  display: grid;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.day-plan-body.edit input,
+.day-plan-body.edit textarea {
+  width: 100%;
+  padding: 11px 12px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: #fff;
+  color: inherit;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  text-transform: none;
+  letter-spacing: normal;
+}
+
+.day-add-event {
+  display: grid;
+  gap: 8px;
+}
+
+.day-add-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 42px;
+  border: 0;
+  border-radius: 12px;
+  background: var(--primary);
+  color: #fff;
+  font-size: 13px;
   font-weight: 700;
 }
 
@@ -1414,10 +1626,12 @@ textarea:focus {
 }
 
 .checklist {
-  overflow: hidden;
-  border: 1px solid var(--border);
-  border-radius: 17px;
-  background: var(--card);
+  display: grid;
+  gap: 10px;
+  overflow: visible;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
 }
 
 .checklist-row {
@@ -1426,10 +1640,9 @@ textarea:focus {
   align-items: center;
   gap: 11px;
   width: 100%;
-  min-height: 54px;
-  padding: 9px 13px;
+  min-height: 0;
+  padding: 0;
   border: 0;
-  border-bottom: 1px solid #edf1ee;
   background: transparent;
   text-align: left;
 }
@@ -1439,12 +1652,13 @@ textarea:focus {
 }
 
 .checklist-row.subitem {
-  padding-left: 38px;
+  padding-left: 0;
 }
 
 .checklist-row small {
   color: var(--muted);
   font-size: 10px;
+  font-weight: 600;
 }
 
 .checkbox {
@@ -1600,4 +1814,303 @@ textarea:focus {
   .screen {
     padding-top: 38px;
   }
+}
+
+.secondary-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 42px;
+  padding: 8px 16px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--primary);
+  background: var(--card);
+  font-size: 13px;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.secondary-button.danger {
+  color: var(--danger);
+  border-color: #efcaca;
+  background: #fff7f7;
+}
+
+.home-actions {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 22px;
+}
+
+.home-actions .new-trip-button {
+  margin-bottom: 0;
+}
+
+.join-trip-button {
+  width: 100%;
+}
+
+.trip-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0 0 12px;
+}
+
+.status-banner {
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  color: var(--primary);
+  background: var(--primary-light);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.filter-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0 0 8px;
+}
+
+.filter-pills button {
+  min-height: 34px;
+  padding: 0 12px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--muted);
+  background: var(--card);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.filter-pills button.active {
+  color: var(--primary);
+  border-color: #98c5bf;
+  background: var(--primary-light);
+}
+
+.day-plan-hint {
+  margin: 0 0 14px;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.shared-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  flex: 0 0 auto;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.shared-toggle input {
+  width: 15px;
+  min-height: 15px;
+  accent-color: var(--primary);
+}
+
+.checklist-card {
+  display: grid;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--card);
+}
+
+.note-input {
+  min-height: 36px !important;
+  font-size: 12px;
+}
+
+.checklist-subrow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-left: 28px;
+  padding: 4px 0;
+}
+
+.checklist-subrow > button:first-child {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  font-size: 13px;
+}
+
+.remove-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  width: fit-content;
+  padding: 0;
+  border: 0;
+  color: var(--danger);
+  background: transparent;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.inline-add {
+  display: flex;
+  gap: 7px;
+  margin-top: 12px;
+}
+
+.inline-add input {
+  min-width: 0;
+  flex: 1;
+}
+
+.inline-add button {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  flex: 0 0 auto;
+  border: 0;
+  border-radius: 12px;
+  color: white;
+  background: var(--primary);
+}
+
+.chat-panel {
+  display: flex;
+  flex-direction: column;
+  min-height: min(70vh, 640px);
+  margin-bottom: 24px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  background: var(--card);
+}
+
+.chat-panel-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.chat-panel-header strong {
+  display: block;
+  font-size: 14px;
+}
+
+.chat-panel-header small {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.chat-panel-body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 240px;
+  max-height: 52vh;
+  overflow: auto;
+  padding: 14px 16px;
+}
+
+.chat-empty {
+  display: grid;
+  place-items: center;
+  gap: 10px;
+  margin: auto 0;
+  padding: 24px 12px;
+  color: var(--muted);
+  text-align: center;
+  font-size: 13px;
+}
+
+.prompt-chips,
+.suggestion-chips {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px;
+}
+
+.prompt-chips button,
+.suggestion-chips button {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 32px;
+  padding: 0 11px;
+  border: 1px solid #98c5bf;
+  border-radius: 999px;
+  color: var(--primary);
+  background: var(--primary-light);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.chat-bubble {
+  max-width: 88%;
+  padding: 9px 12px;
+  border-radius: 16px;
+  background: #f2f5f3;
+}
+
+.chat-bubble.mine {
+  align-self: flex-end;
+  color: white;
+  background: var(--primary);
+}
+
+.chat-bubble small {
+  display: block;
+  margin-bottom: 3px;
+  opacity: 0.7;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.chat-bubble p {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.4;
+  white-space: pre-wrap;
+}
+
+.chat-composer {
+  display: flex;
+  gap: 8px;
+  padding: 12px;
+  border-top: 1px solid var(--border);
+}
+
+.chat-composer input {
+  flex: 1;
+  min-width: 0;
+}
+
+.join-panel {
+  margin-top: 8px;
+}
+
+.field-label {
+  display: grid;
+  gap: 7px;
+  margin: 14px 0;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
 }

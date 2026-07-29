@@ -479,8 +479,11 @@ export async function getTripPreviewByShareToken(token: string) {
   }
 }
 
-export async function joinTripByShareToken(token: string): Promise<{ tripId: string }> {
-  const user = await getCurrentUser();
+export async function joinTripByShareToken(
+  token: string,
+  actingUser?: { id: string; email?: string | null; name?: string | null }
+): Promise<{ tripId: string }> {
+  const user = actingUser ?? (await getCurrentUser());
   if (!user) throw new Error("Not authenticated");
 
   if (isDemoMode()) {
@@ -490,6 +493,17 @@ export async function joinTripByShareToken(token: string): Promise<{ tripId: str
   }
 
   const admin = createAdminClient();
+
+  // Mobile joiners may not have a profiles row yet.
+  await admin.from("profiles").upsert(
+    {
+      id: user.id,
+      email: user.email ?? "",
+      name: user.name ?? user.email?.split("@")[0] ?? "Traveler",
+    },
+    { onConflict: "id" }
+  );
+
   const { data: trip } = await admin
     .from("trips")
     .select("id, owner_id")

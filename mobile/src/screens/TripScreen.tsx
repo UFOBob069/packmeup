@@ -8,15 +8,22 @@ import {
   Home,
   ListChecks,
   MapPin,
+  MessageCircle,
+  MessagesSquare,
   PawPrint,
   Plus,
-  Shirt,
+  Share2,
   ShoppingCart,
   Sparkles,
+  Trash2,
   Users,
 } from "lucide-react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
+import { DayPlanSection } from "../components/DayPlanSection";
+import { PackingHelpPanel } from "../components/PackingHelpPanel";
+import { TripChatPanel } from "../components/TripChatPanel";
 import { useAuth } from "../lib/auth";
+import { buildShareLink, buildShareMessage, shareOrCopyText } from "../lib/share";
 import { apiUrl, supabase } from "../lib/supabase";
 import {
   CATEGORIES,
@@ -26,13 +33,15 @@ import {
   type Outfit,
   type PackingCategory,
   type PackingItem,
+  type TripMember,
   type TripWorkspaceItem,
   type Traveler,
   type Trip,
   type WeatherData,
 } from "../types";
 
-type WorkspaceTab = "packing" | "plan" | "outfits";
+type WorkspaceTab = "packing" | "plan" | "chat" | "help";
+type PackingFilter = "mine" | "shared" | "all";
 
 function formatDate(value: string, options?: Intl.DateTimeFormatOptions) {
   return new Date(`${value}T12:00:00`).toLocaleDateString(undefined, {
@@ -44,6 +53,7 @@ function formatDate(value: string, options?: Intl.DateTimeFormatOptions) {
 
 export function TripScreen() {
   const { id = "" } = useParams();
+  const navigate = useNavigate();
   const { session } = useAuth();
   const [trip, setTrip] = useState<Trip | null>(null);
   const [travelers, setTravelers] = useState<Traveler[]>([]);
@@ -52,14 +62,20 @@ export function TripScreen() {
   const [calendarDays, setCalendarDays] = useState<CalendarDay[]>([]);
   const [activities, setActivities] = useState<Activity[]>([]);
   const [workspaceItems, setWorkspaceItems] = useState<TripWorkspaceItem[]>([]);
+  const [members, setMembers] = useState<TripMember[]>([]);
   const [activeTab, setActiveTab] = useState<WorkspaceTab>("packing");
+  const [packingFilter, setPackingFilter] = useState<PackingFilter>("all");
   const [aiUpdate, setAiUpdate] = useState<string[] | null>(null);
   const [newItem, setNewItem] = useState("");
+  const [addShared, setAddShared] = useState(false);
   const [groceryDraft, setGroceryDraft] = useState("");
   const [arrivalDraft, setArrivalDraft] = useState("");
+  const [reminderDraft, setReminderDraft] = useState("");
+  const [activityDraft, setActivityDraft] = useState("");
   const [newCategory, setNewCategory] = useState<PackingCategory>("miscellaneous");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [statusMessage, setStatusMessage] = useState<string | null>(null);
 
   const loadTrip = useCallback(async () => {
     const [
@@ -70,6 +86,7 @@ export function TripScreen() {
       calendarResult,
       activitiesResult,
       workspaceResult,
+      membersResult,
     ] = await Promise.all([
       supabase.from("trips").select("*").eq("id", id).single(),
       supabase.from("travelers").select("*").eq("trip_id", id).order("sort_order"),
@@ -82,6 +99,7 @@ export function TripScreen() {
         .select("*")
         .eq("trip_id", id)
         .order("sort_order"),
+      supabase.from("trip_members").select("*, profile:profiles(*)").eq("trip_id", id),
     ]);
     setTrip((tripResult.data as Trip | null) ?? null);
     setTravelers((travelersResult.data ?? []) as Traveler[]);
@@ -90,6 +108,7 @@ export function TripScreen() {
     setCalendarDays((calendarResult.data ?? []) as CalendarDay[]);
     setActivities((activitiesResult.data ?? []) as Activity[]);
     setWorkspaceItems((workspaceResult.data ?? []) as TripWorkspaceItem[]);
+    setMembers((membersResult.data ?? []) as TripMember[]);
     setError(
       tripResult.error?.message ??
         itemsResult.error?.message ??
@@ -156,6 +175,28 @@ export function TripScreen() {
     () => Object.fromEntries(travelers.map((traveler) => [traveler.id, traveler.name])),
     [travelers]
   );
+  const isOwner = Boolean(trip && session?.user?.id && trip.owner_id === session.user.id);
+  const filteredItems = useMemo(() => {
+    const topLevel = items.filter((item) => !item.parent_item_id);
+    if (packingFilter === "shared") return topLevel.filter((item) => item.shared);
+    if (packingFilter === "mine") {
+      return topLevel.filter(
+        (item) => !item.shared && (item.user_id === session?.user?.id || !item.user_id)
+      );
+    }
+    return topLevel;
+  }, [items, packingFilter, session?.user?.id]);
+  const childrenByParent = useMemo(() => {
+    return items.reduce(
+      (acc, item) => {
+        if (!item.parent_item_id) return acc;
+        if (!acc[item.parent_item_id]) acc[item.parent_item_id] = [];
+        acc[item.parent_item_id].push(item);
+        return acc;
+      },
+      {} as Record<string, PackingItem[]>
+    );
+  }, [items]);
 
   const togglePacked = async (item: PackingItem) => {
     const next = !item.packed;
@@ -180,7 +221,8 @@ export function TripScreen() {
 
   const addItem = async () => {
     const name = newItem.trim();
-    if (!name) return;
+    if (!name || !session?.user?.id) return;
+    const shared = addShared;
     const { data, error: insertError } = await supabase
       .from("packing_items")
       .insert({
@@ -189,7 +231,9 @@ export function TripScreen() {
         category: newCategory,
         quantity: 1,
         packed: false,
-        shared: true,
+        shared,
+        user_id: session.user.id,
+        traveler_id: null,
         sort_order: items.length,
       })
       .select()
@@ -200,6 +244,92 @@ export function TripScreen() {
     }
     setItems((current) => [...current, data as PackingItem]);
     setNewItem("");
+  };
+
+  const removeItem = async (item: PackingItem) => {
+    if (!window.confirm(`Remove "${item.item_name}"?`)) return;
+    const { error: deleteError } = await supabase.from("packing_items").delete().eq("id", item.id);
+    if (deleteError) {
+      setError(deleteError.message);
+      return;
+    }
+    setItems((current) =>
+      current.filter((candidate) => candidate.id !== item.id && candidate.parent_item_id !== item.id)
+    );
+  };
+
+  const saveItemNotes = async (item: PackingItem, notes: string) => {
+    const trimmed = notes.trim() || null;
+    if ((item.notes ?? null) === trimmed) return;
+    const { error: updateError } = await supabase
+      .from("packing_items")
+      .update({ notes: trimmed })
+      .eq("id", item.id);
+    if (updateError) {
+      setError(updateError.message);
+      return;
+    }
+    setItems((current) =>
+      current.map((candidate) =>
+        candidate.id === item.id ? { ...candidate, notes: trimmed } : candidate
+      )
+    );
+  };
+
+  const shareTrip = async () => {
+    if (!trip?.share_token || !session?.user) return;
+    const inviterName =
+      session.user.user_metadata?.full_name ||
+      session.user.user_metadata?.name ||
+      session.user.email?.split("@")[0] ||
+      "A traveler";
+    const shareLink = buildShareLink(trip.share_token);
+    const message = buildShareMessage({
+      inviterName: String(inviterName),
+      destination: trip.destination,
+      startDate: trip.start_date,
+      endDate: trip.end_date,
+      shareLink,
+    });
+    const result = await shareOrCopyText("Join this trip", message, shareLink);
+    if (result === "copied") setStatusMessage("Invite message copied");
+    if (result === "shared") setStatusMessage("Invite shared");
+  };
+
+  const deleteTrip = async () => {
+    if (!trip || !isOwner) return;
+    if (!window.confirm(`Delete packing list for ${trip.destination}?`)) return;
+    const { error: deleteError } = await supabase.from("trips").delete().eq("id", trip.id);
+    if (deleteError) {
+      setError(deleteError.message);
+      return;
+    }
+    navigate("/", { replace: true });
+  };
+
+  const addActivity = async () => {
+    const name = activityDraft.trim();
+    if (!name) return;
+    const { data, error: insertError } = await supabase
+      .from("activities")
+      .insert({ trip_id: id, activity_name: name })
+      .select()
+      .single();
+    if (insertError) {
+      setError(insertError.message);
+      return;
+    }
+    setActivities((current) => [...current, data as Activity]);
+    setActivityDraft("");
+  };
+
+  const removeActivity = async (activity: Activity) => {
+    const { error: deleteError } = await supabase.from("activities").delete().eq("id", activity.id);
+    if (deleteError) {
+      setError(deleteError.message);
+      return;
+    }
+    setActivities((current) => current.filter((candidate) => candidate.id !== activity.id));
   };
 
   const addWorkspaceItem = async (
@@ -254,7 +384,7 @@ export function TripScreen() {
   };
 
   if (loading) return <main className="screen empty-state">Loading packing list…</main>;
-  if (!trip || error)
+  if (!trip)
     return (
       <main className="screen">
         <Link to="/" className="back-link">
@@ -269,6 +399,21 @@ export function TripScreen() {
       <Link to="/" className="back-link">
         <ArrowLeft size={18} /> Trips
       </Link>
+
+      <div className="trip-toolbar">
+        <button type="button" className="secondary-button" onClick={() => void shareTrip()}>
+          <Share2 size={15} />
+          Share
+        </button>
+        {isOwner ? (
+          <button type="button" className="secondary-button danger" onClick={() => void deleteTrip()}>
+            <Trash2 size={15} />
+            Delete
+          </button>
+        ) : null}
+      </div>
+      {statusMessage ? <p className="status-banner">{statusMessage}</p> : null}
+      {error ? <div className="error-card">{error}</div> : null}
 
       <section className="trip-workspace-hero">
         {trip.cover_image_url ? (
@@ -300,12 +445,12 @@ export function TripScreen() {
           <small>Packed</small>
         </div>
         <div>
-          <strong>{outfits.length}</strong>
-          <small>Outfits</small>
+          <strong>{calendarDays.length || "—"}</strong>
+          <small>Days</small>
         </div>
         <div>
-          <strong>{calendarDays.length}</strong>
-          <small>Days</small>
+          <strong>{outfits.length}</strong>
+          <small>Plans</small>
         </div>
         <div>
           <strong>{sharedCount}</strong>
@@ -324,13 +469,19 @@ export function TripScreen() {
           className={activeTab === "plan" ? "active" : ""}
           onClick={() => setActiveTab("plan")}
         >
-          <CalendarDays size={17} /> Plan
+          <CalendarDays size={17} /> By Day
         </button>
         <button
-          className={activeTab === "outfits" ? "active" : ""}
-          onClick={() => setActiveTab("outfits")}
+          className={activeTab === "chat" ? "active" : ""}
+          onClick={() => setActiveTab("chat")}
         >
-          <Shirt size={17} /> Outfits
+          <MessagesSquare size={17} /> Chat
+        </button>
+        <button
+          className={activeTab === "help" ? "active" : ""}
+          onClick={() => setActiveTab("help")}
+        >
+          <Sparkles size={17} /> Help
         </button>
       </nav>
 
@@ -358,6 +509,28 @@ export function TripScreen() {
             <div className="progress-bar" style={{ width: `${progress}%` }} />
           </div>
 
+          <div className="filter-pills" role="tablist" aria-label="Packing filter">
+            {(
+              [
+                ["all", "All"],
+                ["mine", "Personal"],
+                ["shared", "Shared"],
+              ] as const
+            ).map(([value, label]) => (
+              <button
+                key={value}
+                type="button"
+                className={packingFilter === value ? "active" : ""}
+                onClick={() => setPackingFilter(value)}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          <p className="day-plan-hint">
+            Personal clothes stay private. Shared items are visible to everyone on the trip.
+          </p>
+
           <section className="quick-add">
             <input
               value={newItem}
@@ -376,35 +549,84 @@ export function TripScreen() {
                 </option>
               ))}
             </select>
+            <label className="shared-toggle">
+              <input
+                type="checkbox"
+                checked={addShared}
+                onChange={(event) => setAddShared(event.target.checked)}
+              />
+              Shared
+            </label>
             <button className="icon-button primary-icon" onClick={() => void addItem()}>
               <Plus size={19} />
             </button>
           </section>
 
           {CATEGORIES.map((category) => {
-            const categoryItems = items.filter((item) => item.category === category);
+            const categoryItems = filteredItems.filter((item) => item.category === category);
             if (!categoryItems.length) return null;
             return (
               <section className="checklist-section" key={category}>
                 <h2>{CATEGORY_LABELS[category]}</h2>
                 <div className="checklist">
                   {categoryItems.map((item) => (
-                    <button
+                    <div
                       key={item.id}
-                      className={`checklist-row ${item.parent_item_id ? "subitem" : ""}`}
-                      onClick={() => void togglePacked(item)}
+                      className={`checklist-card ${item.parent_item_id ? "subitem" : ""}`}
                     >
-                      <span className={`checkbox ${item.packed ? "checked" : ""}`}>
-                        {item.packed && <Check size={15} />}
-                      </span>
-                      <span className={item.packed ? "packed-label" : ""}>
-                        {item.item_name}
-                        {item.quantity > 1 ? ` ×${item.quantity}` : ""}
-                      </span>
-                      <small>
-                        {item.traveler_id ? travelersById[item.traveler_id] : "Shared"}
-                      </small>
-                    </button>
+                      <button
+                        type="button"
+                        className="checklist-row"
+                        onClick={() => void togglePacked(item)}
+                      >
+                        <span className={`checkbox ${item.packed ? "checked" : ""}`}>
+                          {item.packed && <Check size={15} />}
+                        </span>
+                        <span className={item.packed ? "packed-label" : ""}>
+                          {item.item_name}
+                          {item.quantity > 1 ? ` ×${item.quantity}` : ""}
+                        </span>
+                        <small>
+                          {item.shared
+                            ? "Shared"
+                            : item.traveler_id
+                              ? travelersById[item.traveler_id]
+                              : "Personal"}
+                        </small>
+                      </button>
+                      <input
+                        className="note-input"
+                        defaultValue={item.notes ?? ""}
+                        placeholder="Add a note…"
+                        onBlur={(event) => void saveItemNotes(item, event.target.value)}
+                      />
+                      {(childrenByParent[item.id] ?? []).map((child) => (
+                        <div key={child.id} className="checklist-subrow">
+                          <button type="button" onClick={() => void togglePacked(child)}>
+                            <span className={`checkbox ${child.packed ? "checked" : ""}`}>
+                              {child.packed && <Check size={12} />}
+                            </span>
+                            {child.item_name}
+                          </button>
+                          <button
+                            type="button"
+                            className="icon-button"
+                            aria-label={`Remove ${child.item_name}`}
+                            onClick={() => void removeItem(child)}
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      ))}
+                      <button
+                        type="button"
+                        className="remove-item"
+                        onClick={() => void removeItem(item)}
+                      >
+                        <Trash2 size={14} />
+                        Remove
+                      </button>
+                    </div>
                   ))}
                 </div>
               </section>
@@ -436,23 +658,6 @@ export function TripScreen() {
               </div>
             </section>
           ) : null}
-
-          {activities.length > 0 && (
-            <section className="workspace-panel">
-              <div className="workspace-panel-heading">
-                <MapPin size={20} />
-                <div>
-                  <h2>Activities</h2>
-                  <p>What this trip is built around</p>
-                </div>
-              </div>
-              <div className="activity-pills">
-                {activities.map((activity) => (
-                  <span key={activity.id}>{activity.activity_name}</span>
-                ))}
-              </div>
-            </section>
-          )}
 
           <section className="workspace-panel">
             <div className="workspace-panel-heading">
@@ -539,15 +744,69 @@ export function TripScreen() {
             )}
           </section>
 
-          {reminderItems.length > 0 && (
-            <section className="workspace-panel">
-              <div className="workspace-panel-heading">
-                <Sparkles size={20} />
-                <div>
-                  <h2>Before-you-go reminders</h2>
-                  <p>Shopping and departure tasks</p>
-                </div>
+          <section className="workspace-panel">
+            <div className="workspace-panel-heading">
+              <MessageCircle size={20} />
+              <div>
+                <h2>Activities</h2>
+                <p>Shared trip activities</p>
               </div>
+            </div>
+            <div className="inline-add">
+              <input
+                value={activityDraft}
+                onChange={(event) => setActivityDraft(event.target.value)}
+                placeholder="Golf, beach dinner…"
+                onKeyDown={(event) => event.key === "Enter" && void addActivity()}
+              />
+              <button onClick={() => void addActivity()} aria-label="Add activity">
+                <Plus size={17} />
+              </button>
+            </div>
+            <div className="activity-pills editable">
+              {activities.map((activity) => (
+                <span key={activity.id}>
+                  {activity.activity_name}
+                  <button
+                    type="button"
+                    aria-label={`Remove ${activity.activity_name}`}
+                    onClick={() => void removeActivity(activity)}
+                  >
+                    ×
+                  </button>
+                </span>
+              ))}
+            </div>
+          </section>
+
+          <section className="workspace-panel">
+            <div className="workspace-panel-heading">
+              <Sparkles size={20} />
+              <div>
+                <h2>Before-you-go reminders</h2>
+                <p>Shopping and departure tasks</p>
+              </div>
+            </div>
+            <div className="inline-add">
+              <input
+                value={reminderDraft}
+                onChange={(event) => setReminderDraft(event.target.value)}
+                placeholder="Buy sunscreen…"
+                onKeyDown={(event) =>
+                  event.key === "Enter" &&
+                  void addWorkspaceItem("reminder", reminderDraft, () => setReminderDraft(""))
+                }
+              />
+              <button
+                onClick={() =>
+                  void addWorkspaceItem("reminder", reminderDraft, () => setReminderDraft(""))
+                }
+                aria-label="Add reminder"
+              >
+                <Plus size={17} />
+              </button>
+            </div>
+            {reminderItems.length > 0 && (
               <div className="workspace-checks">
                 {reminderItems.map((item) => (
                   <button key={item.id} onClick={() => void toggleWorkspaceItem(item)}>
@@ -558,26 +817,21 @@ export function TripScreen() {
                   </button>
                 ))}
               </div>
-            </section>
-          )}
+            )}
+          </section>
 
-          {calendarDays.map((day) => (
-            <section className="workspace-panel timeline-day" key={day.id}>
-              <time>{formatDate(day.trip_date, { weekday: "short" })}</time>
-              <div>
-                <h2>{day.title}</h2>
-                {day.weather_summary && <p>{day.weather_summary}</p>}
-                {day.activities?.length > 0 && (
-                  <div className="activity-pills">
-                    {day.activities.map((activity) => (
-                      <span key={activity}>{activity}</span>
-                    ))}
-                  </div>
-                )}
-                {day.notes && <p className="day-note">{day.notes}</p>}
-              </div>
-            </section>
-          ))}
+          {session?.user?.id ? (
+            <DayPlanSection
+              tripId={id}
+              userId={session.user.id}
+              startDate={trip.start_date}
+              endDate={trip.end_date}
+              calendarDays={calendarDays}
+              outfits={outfits}
+              onChanged={loadTrip}
+              onError={setError}
+            />
+          ) : null}
 
           <section className="workspace-panel">
             <div className="workspace-panel-heading">
@@ -614,36 +868,39 @@ export function TripScreen() {
         </div>
       )}
 
-      {activeTab === "outfits" && (
-        <div className="workspace-panel-list">
-          {outfits.length === 0 ? (
-            <div className="empty-state">
-              <Shirt size={32} />
-              <h2>No outfits yet</h2>
-              <p>Your AI outfit suggestions will appear here.</p>
-            </div>
-          ) : (
-            outfits.map((outfit) => (
-              <section className="workspace-panel outfit-card" key={outfit.id}>
-                <div className="outfit-date">
-                  <Shirt size={18} />
-                  <span>{formatDate(outfit.trip_date, { weekday: "short" })}</span>
-                  <small>{outfit.time_of_day.replace("_", " ")}</small>
-                </div>
-                <h2>{outfit.title}</h2>
-                <p>{outfit.description}</p>
-                {outfit.items?.length > 0 && (
-                  <div className="activity-pills">
-                    {outfit.items.map((item, index) => (
-                      <span key={`${item.name}-${index}`}>{item.name}</span>
-                    ))}
-                  </div>
-                )}
-              </section>
-            ))
-          )}
-        </div>
-      )}
+      {activeTab === "chat" && session?.user?.id ? (
+        <TripChatPanel
+          tripId={id}
+          destination={trip.destination}
+          currentUserId={session.user.id}
+          members={
+            members.length
+              ? members
+              : [
+                  {
+                    id: `owner-${trip.owner_id}`,
+                    trip_id: id,
+                    user_id: trip.owner_id,
+                    role: "owner",
+                    profile: {
+                      id: trip.owner_id,
+                      email: session.user.email ?? "",
+                      name:
+                        (session.user.user_metadata?.full_name as string | undefined) ??
+                        session.user.email ??
+                        "You",
+                      avatar_url: null,
+                    },
+                  },
+                ]
+          }
+          onInvite={() => void shareTrip()}
+        />
+      ) : null}
+
+      {activeTab === "help" ? (
+        <PackingHelpPanel tripId={id} onItemsChanged={loadTrip} />
+      ) : null}
     </main>
   );
 }

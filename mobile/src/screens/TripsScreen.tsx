@@ -3,6 +3,7 @@ import {
   CalendarDays,
   ChevronRight,
   CloudSun,
+  Link2,
   Luggage,
   MapPin,
   PawPrint,
@@ -228,10 +229,16 @@ export function TripsScreen() {
             </Link>
           )}
 
-          <Link to="/new" className="primary-button new-trip-button">
-            <Plus size={18} />
-            Generate a new trip plan
-          </Link>
+          <div className="home-actions">
+            <Link to="/new" className="primary-button new-trip-button">
+              <Plus size={18} />
+              Generate a new trip plan
+            </Link>
+            <Link to="/join" className="secondary-button join-trip-button">
+              <Link2 size={16} />
+              Join a trip
+            </Link>
+          </div>
 
           {otherTrips.length > 0 && (
             <section className="past-trips">
@@ -263,10 +270,16 @@ export function TripsScreen() {
       )}
 
       {!loading && trips.length === 0 && (
-        <Link to="/new" className="primary-button new-trip-button">
-          <Plus size={18} />
-          Generate my trip plan
-        </Link>
+        <div className="home-actions">
+          <Link to="/new" className="primary-button new-trip-button">
+            <Plus size={18} />
+            Generate my trip plan
+          </Link>
+          <Link to="/join" className="secondary-button join-trip-button">
+            <Link2 size={16} />
+            Join a trip
+          </Link>
+        </div>
       )}
     </main>
   );

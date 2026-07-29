@@ -10,6 +10,13 @@ export type PackingCategory =
   | "pet_supplies"
   | "miscellaneous";
 
+export interface Profile {
+  id: string;
+  email: string;
+  name: string | null;
+  avatar_url: string | null;
+}
+
 export interface Trip {
   id: string;
   owner_id: string;
@@ -20,6 +27,7 @@ export interface Trip {
   travel_type: string;
   weather_data: unknown;
   special_notes: string | null;
+  share_token?: string | null;
 }
 
 export interface Traveler {
@@ -35,11 +43,13 @@ export interface PackingItem {
   trip_id: string;
   traveler_id: string | null;
   parent_item_id: string | null;
+  user_id?: string | null;
   category: PackingCategory;
   item_name: string;
   quantity: number;
   packed: boolean;
   shared: boolean;
+  notes?: string | null;
   sort_order: number;
 }
 
@@ -50,6 +60,7 @@ export interface OutfitItem {
 export interface Outfit {
   id: string;
   trip_id: string;
+  user_id?: string | null;
   trip_date: string;
   time_of_day: "morning" | "afternoon" | "evening" | "all_day";
   title: string;
@@ -82,6 +93,25 @@ export interface TripWorkspaceItem {
   details: string | null;
   completed: boolean;
   sort_order: number;
+}
+
+export interface TripMember {
+  id: string;
+  trip_id: string;
+  user_id: string;
+  role: "owner" | "editor" | "viewer";
+  profile?: Profile | null;
+}
+
+export interface ChatMessage {
+  id: string;
+  trip_id: string;
+  user_id: string | null;
+  role: "user" | "assistant" | "system";
+  content: string;
+  channel?: "ai" | "group";
+  created_at: string;
+  profile?: Profile | null;
 }
 
 export interface WeatherDay {

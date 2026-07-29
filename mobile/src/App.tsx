@@ -2,6 +2,7 @@ import { Backpack, Luggage, LogOut, Users } from "lucide-react";
 import { HashRouter, NavLink, Route, Routes, useLocation } from "react-router-dom";
 import { useAuth } from "./lib/auth";
 import { LibraryScreen } from "./screens/LibraryScreen";
+import { JoinTripScreen } from "./screens/JoinTripScreen";
 import { LoginScreen } from "./screens/LoginScreen";
 import { NewTripScreen } from "./screens/NewTripScreen";
 import { TripScreen } from "./screens/TripScreen";
@@ -40,6 +41,7 @@ function SignedInApp() {
       <Routes>
         <Route path="/" element={<TripsScreen />} />
         <Route path="/new" element={<NewTripScreen />} />
+        <Route path="/join" element={<JoinTripScreen />} />
         <Route path="/trips/:id" element={<TripScreen />} />
         <Route path="/gear" element={<LibraryScreen kind="gear" />} />
         <Route path="/group" element={<LibraryScreen kind="group" />} />
