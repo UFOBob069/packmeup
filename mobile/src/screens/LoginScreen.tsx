@@ -10,6 +10,7 @@ import {
   Sparkles,
   Users,
 } from "lucide-react";
+import { Link } from "react-router-dom";
 import { useAuth } from "../lib/auth";
 
 const previewTiles = [
@@ -110,6 +111,10 @@ export function LoginScreen() {
           {loading ? "Opening Google…" : "Continue with Google"}
         </button>
         {error && <p className="error-message">{error}</p>}
+        <p className="login-legal">
+          By continuing, you agree to our{" "}
+          <Link to="/privacy">Privacy Policy</Link> and <Link to="/terms">Terms</Link>.
+        </p>
       </div>
     </main>
   );

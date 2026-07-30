@@ -85,9 +85,57 @@ Verify AI on the server: open `https://www.packforvacation.com/api/mobile/status
 
 ## Store notes
 
-Before App Store / Play submission:
+### Ready for Google Play (after this release)
 
-1. Replace default Capacitor icons/splash with PackForVacation branding
-2. Confirm Google OAuth works on a physical device
-3. Deploy the Next.js API (`/api/mobile/trips`) to production
-4. Add privacy policy + support URLs for both stores
+- Branded icons + splash
+- Privacy Policy (`/privacy`) + Terms (`/terms`) + Support (`/support`)
+- Account deletion in-app (**Account**) and on the web (`/account/delete`) — required by Play
+- Production API host: `https://www.packforvacation.com`
+
+### Create a Play upload keystore (once)
+
+```bash
+cd mobile/android
+keytool -genkey -v -keystore packforvacation-upload.jks -keyalg RSA -keysize 2048 -validity 10000 -alias packforvacation
+cp keystore.properties.example keystore.properties
+# edit keystore.properties with your passwords
+```
+
+Never commit `.jks` or `keystore.properties`.
+
+### Build a signed AAB locally
+
+```bash
+cd mobile
+npm run native:sync
+cd android
+./gradlew bundleRelease
+# output: app/build/outputs/bundle/release/app-release.aab
+```
+
+### Build a signed AAB in GitHub Actions
+
+Add repository secrets:
+
+- `VITE_SUPABASE_URL`
+- `VITE_SUPABASE_ANON_KEY`
+- `ANDROID_KEYSTORE_BASE64` — `base64 -w0 packforvacation-upload.jks` (Git Bash / Linux)
+- `ANDROID_KEYSTORE_PASSWORD`
+- `ANDROID_KEY_ALIAS`
+- `ANDROID_KEY_PASSWORD`
+
+Then run **Actions → Build Android AAB**.
+
+### Play Console checklist
+
+1. Upload the AAB and enroll in Play App Signing
+2. Set privacy policy URL: `https://www.packforvacation.com/privacy`
+3. Set account deletion URL: `https://www.packforvacation.com/account/delete`
+4. Complete Data safety (Google sign-in, trip content, AI processing via server)
+5. Content rating + screenshots
+
+### Still waiting on Apple Developer
+
+- Sign in with Apple (required when offering Google login)
+- Xcode team + Archive for App Store
+- App Store Connect privacy labels + screenshots

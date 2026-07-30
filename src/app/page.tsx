@@ -453,8 +453,19 @@ export default function HomePage() {
       </section>
 
       <footer className="border-t py-10">
-        <div className="mx-auto max-w-6xl px-4 text-center text-sm text-muted-foreground sm:px-6">
-          © {new Date().getFullYear()} {APP_NAME}. The best trips start before you leave home.
+        <div className="mx-auto flex max-w-6xl flex-col items-center justify-center gap-3 px-4 text-center text-sm text-muted-foreground sm:flex-row sm:gap-6 sm:px-6">
+          <span>
+            © {new Date().getFullYear()} {APP_NAME}. The best trips start before you leave home.
+          </span>
+          <Link href="/privacy" className="hover:text-foreground">
+            Privacy
+          </Link>
+          <Link href="/terms" className="hover:text-foreground">
+            Terms
+          </Link>
+          <Link href="/support" className="hover:text-foreground">
+            Support
+          </Link>
         </div>
       </footer>
     </MarketingShell>

@@ -77,6 +77,14 @@ export function LoginClient({ nextPath = "/dashboard", invite = null }: LoginCli
         )}
         <p className="text-sm text-muted-foreground">
           © {new Date().getFullYear()} {APP_NAME}
+          {" · "}
+          <Link href="/privacy" className="underline-offset-4 hover:underline">
+            Privacy
+          </Link>
+          {" · "}
+          <Link href="/terms" className="underline-offset-4 hover:underline">
+            Terms
+          </Link>
         </p>
       </div>
 

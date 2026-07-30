@@ -92,6 +92,19 @@ h2 {
   font-weight: 700;
 }
 
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.text-link {
+  color: var(--primary);
+  font-size: 12px;
+  font-weight: 700;
+  text-decoration: none;
+}
+
 .mini-mark,
 .brand-mark {
   display: block;
@@ -832,6 +845,96 @@ h2 {
   margin-top: 14px;
   color: var(--danger);
   font-size: 13px;
+}
+
+.login-legal {
+  margin: 14px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.45;
+  text-align: center;
+}
+
+.login-legal a {
+  color: var(--primary);
+  font-weight: 700;
+}
+
+.privacy-screen h1 {
+  margin: 6px 0 10px;
+  font-size: clamp(28px, 7vw, 36px);
+}
+
+.privacy-intro {
+  margin: 0 0 18px;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.privacy-sections {
+  display: grid;
+  gap: 16px;
+}
+
+.privacy-section {
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--card);
+}
+
+.privacy-section h2 {
+  margin: 0 0 8px;
+  font-size: 15px;
+}
+
+.privacy-section p,
+.privacy-section li {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.privacy-section p {
+  margin: 0;
+}
+
+.privacy-section ul {
+  margin: 10px 0 0;
+  padding-left: 18px;
+}
+
+.privacy-section li + li {
+  margin-top: 6px;
+}
+
+.danger-panel {
+  border-color: #efcaca;
+  background: #fff7f7;
+}
+
+.danger-button {
+  margin-top: 12px;
+  background: #b94242 !important;
+  box-shadow: 0 8px 22px rgba(185, 66, 66, 0.18);
+}
+
+.danger-button:disabled {
+  opacity: 0.5;
+}
+
+.account-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin: 18px 0 28px;
+}
+
+.account-links a {
+  color: var(--primary);
+  font-size: 13px;
+  font-weight: 700;
 }
 
 .unsplash-credit {
