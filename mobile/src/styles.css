@@ -94,10 +94,11 @@ h2 {
 
 .mini-mark,
 .brand-mark {
-  display: grid;
-  place-items: center;
+  display: block;
+  object-fit: cover;
   color: white;
-  background: var(--primary);
+  background: transparent;
+  overflow: hidden;
 }
 
 .mini-mark {

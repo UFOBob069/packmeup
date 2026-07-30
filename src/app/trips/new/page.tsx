@@ -1,5 +1,5 @@
-import { Luggage } from "lucide-react";
 import { AppShell } from "@/components/layout/shells";
+import { BrandMark } from "@/components/brand/brand-mark";
 import { TripOnboardingChat } from "@/components/trip/trip-onboarding-chat";
 import { getUserGroupMembers } from "@/actions/group";
 import { getDemoTemplates } from "@/lib/demo/store";
@@ -30,8 +30,8 @@ export default async function NewTripPage({ searchParams }: NewTripPageProps) {
     <AppShell>
       <div className="mx-auto max-w-2xl">
         <div className="mb-8 text-center">
-          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10">
-            <Luggage className="h-7 w-7 text-primary" />
+          <div className="mx-auto mb-4 w-fit">
+            <BrandMark size={56} />
           </div>
           <h1 className="text-display text-3xl font-semibold tracking-tight">
             Build your packing list

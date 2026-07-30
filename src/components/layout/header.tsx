@@ -4,7 +4,6 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useTransition } from "react";
 import {
-  Luggage,
   LayoutGrid,
   Plus,
   Layers,
@@ -15,6 +14,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { APP_NAME } from "@/lib/constants";
+import { BrandMark } from "@/components/brand/brand-mark";
 import { ThemeToggle } from "./theme-toggle";
 import { Button } from "@/components/ui/button";
 import {
@@ -61,9 +61,11 @@ export function Header({ variant = "app", user = null }: HeaderProps) {
       <header className="sticky top-0 z-50 border-b border-border/60 bg-background/85 backdrop-blur-xl">
         <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 sm:px-6">
           <Link href={isLoggedIn ? "/dashboard" : "/"} className="group flex items-center gap-2.5">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-travel-sm transition-transform group-hover:scale-105">
-              <Luggage className="h-4.5 w-4.5" />
-            </div>
+            <BrandMark
+              size={36}
+              priority
+              className="transition-transform group-hover:scale-105"
+            />
             <span className="text-display hidden text-lg font-semibold tracking-tight sm:inline">
               {APP_NAME}
             </span>

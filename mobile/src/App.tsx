@@ -1,4 +1,4 @@
-import { Backpack, Luggage, LogOut, Users } from "lucide-react";
+import { Backpack, LogOut, Luggage, Users } from "lucide-react";
 import { HashRouter, NavLink, Route, Routes, useLocation } from "react-router-dom";
 import { useAuth } from "./lib/auth";
 import { LibraryScreen } from "./screens/LibraryScreen";
@@ -11,9 +11,7 @@ import { TripsScreen } from "./screens/TripsScreen";
 function LoadingScreen() {
   return (
     <main className="login-screen loading-screen">
-      <div className="brand-mark pulse">
-        <Luggage size={30} />
-      </div>
+      <img className="brand-mark pulse" src="/brand/logo.png" alt="" width={60} height={60} />
       <p>Loading PackForVacation.com…</p>
     </main>
   );
@@ -28,9 +26,7 @@ function SignedInApp() {
     <div className="app-shell">
       <header className="app-header">
         <div className="compact-brand">
-          <span className="mini-mark">
-            <Luggage size={17} />
-          </span>
+          <img className="mini-mark" src="/brand/logo.png" alt="" width={32} height={32} />
           <span>PackForVacation.com</span>
         </div>
         <button className="icon-button" onClick={() => void signOut()} aria-label="Sign out">

@@ -4,8 +4,9 @@ import { useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { format, parseISO } from "date-fns";
-import { Luggage, ArrowRight } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { BrandMark } from "@/components/brand/brand-mark";
 import { signInWithGoogle } from "@/actions/trips";
 import { APP_NAME } from "@/lib/constants";
 import { isDemoMode } from "@/lib/supabase/client";
@@ -46,9 +47,7 @@ export function LoginClient({ nextPath = "/dashboard", invite = null }: LoginCli
     <div className="flex min-h-screen">
       <div className="relative hidden w-1/2 overflow-hidden lg:flex lg:flex-col lg:justify-between gradient-hero p-12">
         <Link href="/" className="flex items-center gap-3">
-          <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-travel-sm">
-            <Luggage className="h-5 w-5" />
-          </div>
+          <BrandMark size={44} priority />
           <span className="text-display text-xl font-semibold">{APP_NAME}</span>
         </Link>
         {invite ? (
@@ -85,9 +84,7 @@ export function LoginClient({ nextPath = "/dashboard", invite = null }: LoginCli
         <div className="w-full max-w-md">
           <div className="mb-8 lg:hidden">
             <Link href="/" className="flex items-center gap-2">
-              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary text-primary-foreground">
-                <Luggage className="h-4 w-4" />
-              </div>
+              <BrandMark size={36} priority />
               <span className="text-display font-semibold">{APP_NAME}</span>
             </Link>
           </div>

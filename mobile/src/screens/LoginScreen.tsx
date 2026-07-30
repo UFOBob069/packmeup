@@ -103,9 +103,7 @@ export function LoginScreen() {
       </div>
 
       <div className="login-content product-login-content">
-        <div className="brand-mark">
-          <Luggage size={27} />
-        </div>
+        <img className="brand-mark" src="/brand/logo.png" alt="" width={60} height={60} />
         <h2>Start preparing your trip</h2>
         <p className="login-copy">Your personalized workspace is ready in about a minute.</p>
         <button className="primary-button google-button" onClick={signIn} disabled={loading}>

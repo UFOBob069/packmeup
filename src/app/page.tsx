@@ -16,6 +16,7 @@ import {
   Heart,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { BrandMark } from "@/components/brand/brand-mark";
 import { MarketingShell } from "@/components/layout/shells";
 import { TripWorkspaceMockup } from "@/components/design/trip-workspace-mockup";
 import { TravelerAvatarGroup } from "@/components/design/traveler-avatar";
@@ -237,8 +238,8 @@ export default function HomePage() {
 
               {/* After */}
               <div className="relative w-full overflow-hidden rounded-3xl border bg-sky-blue/15 p-7 text-center shadow-travel sm:flex-1 dark:bg-sky-blue/10">
-                <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-lg">
-                  <Luggage className="h-6 w-6" />
+                <div className="mx-auto mb-3 w-fit">
+                  <BrandMark size={48} />
                 </div>
                 <p className="text-display text-lg font-semibold">{BRAND}</p>
                 <p className="mt-1 text-sm text-muted-foreground">Everything in one place.</p>
@@ -398,9 +399,7 @@ export default function HomePage() {
                 </div>
                 <div className="h-px flex-1 border-t border-dashed" />
                 <div className="flex flex-col items-center gap-2 text-center">
-                  <span className="flex h-14 w-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg">
-                    <Luggage className="h-6 w-6" />
-                  </span>
+                  <BrandMark size={56} />
                   <div>
                     <p className="text-xs font-semibold">{BRAND}</p>
                     <p className="max-w-36 text-[10px] text-muted-foreground">
@@ -427,9 +426,7 @@ export default function HomePage() {
           <div className="relative overflow-hidden rounded-3xl bg-primary px-8 py-10 text-primary-foreground sm:px-12">
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(255,255,255,0.15),transparent_50%)]" />
             <div className="relative flex flex-col items-center gap-8 text-center lg:flex-row lg:text-left">
-              <span className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-white/15 backdrop-blur">
-                <Luggage className="h-8 w-8" />
-              </span>
+              <BrandMark size={64} className="shrink-0 ring-2 ring-white/25" />
               <div className="flex-1">
                 <h2 className="text-display text-2xl font-semibold sm:text-3xl">
                   Booking is just the beginning.
