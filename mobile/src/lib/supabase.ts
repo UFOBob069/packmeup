@@ -3,9 +3,24 @@ import { createClient } from "@supabase/supabase-js";
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string | undefined;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined;
 
-export const apiUrl = (
-  (import.meta.env.VITE_API_URL as string | undefined) ?? "https://packforvacation.com"
-).replace(/\/$/, "");
+/**
+ * Canonical API host. Apex packforvacation.com 308-redirects to www;
+ * browsers/WebViews strip Authorization on that redirect, which breaks AI calls.
+ */
+function resolveApiUrl(raw: string | undefined) {
+  const trimmed = (raw ?? "https://www.packforvacation.com").replace(/\/$/, "");
+  try {
+    const url = new URL(trimmed);
+    if (url.hostname === "packforvacation.com") {
+      url.hostname = "www.packforvacation.com";
+    }
+    return url.origin;
+  } catch {
+    return "https://www.packforvacation.com";
+  }
+}
+
+export const apiUrl = resolveApiUrl(import.meta.env.VITE_API_URL as string | undefined);
 
 export const supabase = createClient(
   supabaseUrl || "https://placeholder.supabase.co",

@@ -89,42 +89,55 @@ export function NewTripScreen() {
 
     setLoading(true);
     setError(null);
-    const response = await fetch(`${apiUrl}/api/mobile/trips`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${session.access_token}`,
-      },
-      body: JSON.stringify({
-        destination: destination.trim(),
-        start_date: startDate,
-        end_date: endDate,
-        travelers: travelers.map((traveler) => ({
-          name: traveler.name,
-          traveler_type: traveler.traveler_type,
-          pet_species: traveler.traveler_type === "pet" ? traveler.pet_species : undefined,
-          pet_size: traveler.traveler_type === "pet" ? traveler.pet_size : undefined,
-        })),
-        travel_type: "checked_bag",
-        laundry_access: "limited",
-        style_preference: "casual",
-        style_preferences: ["casual"],
-        packing_mode: "standard",
-        activities: activities
-          .split(",")
-          .map((activity) => activity.trim())
-          .filter(Boolean),
-        special_notes: notes.trim(),
-      }),
-    });
+    try {
+      const response = await fetch(`${apiUrl}/api/mobile/trips`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({
+          destination: destination.trim(),
+          start_date: startDate,
+          end_date: endDate,
+          travelers: travelers.map((traveler) => ({
+            name: traveler.name,
+            traveler_type: traveler.traveler_type,
+            pet_species: traveler.traveler_type === "pet" ? traveler.pet_species : undefined,
+            pet_size: traveler.traveler_type === "pet" ? traveler.pet_size : undefined,
+          })),
+          travel_type: "checked_bag",
+          laundry_access: "limited",
+          style_preference: "casual",
+          style_preferences: ["casual"],
+          packing_mode: "standard",
+          activities: activities
+            .split(",")
+            .map((activity) => activity.trim())
+            .filter(Boolean),
+          special_notes: notes.trim(),
+        }),
+      });
 
-    const result = (await response.json()) as { tripId?: string; error?: string };
-    if (!response.ok || !result.tripId) {
-      setError(result.error ?? "Could not create the trip.");
+      const result = (await response.json().catch(() => ({}))) as {
+        tripId?: string;
+        error?: string;
+        openaiConfigured?: boolean;
+      };
+      if (!response.ok || !result.tripId) {
+        setError(result.error ?? `Could not create the trip (${response.status}).`);
+        setLoading(false);
+        return;
+      }
+      navigate(`/trips/${result.tripId}`, { replace: true });
+    } catch (cause) {
+      setError(
+        cause instanceof Error
+          ? cause.message
+          : "Network error talking to PackForVacation. Check your connection and try again."
+      );
       setLoading(false);
-      return;
     }
-    navigate(`/trips/${result.tripId}`, { replace: true });
   };
 
   return (

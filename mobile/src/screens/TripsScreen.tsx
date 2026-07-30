@@ -56,6 +56,18 @@ function getWeatherLabel(weather: unknown) {
   return typeof current === "number" ? `${Math.round(current)}°` : null;
 }
 
+/** Upcoming first (soonest start), then past trips (most recent first). */
+function sortTripsForHome(trips: Trip[]) {
+  const today = new Date().toISOString().split("T")[0];
+  const upcoming = trips
+    .filter((trip) => trip.end_date >= today)
+    .sort((a, b) => a.start_date.localeCompare(b.start_date));
+  const past = trips
+    .filter((trip) => trip.end_date < today)
+    .sort((a, b) => b.start_date.localeCompare(a.start_date));
+  return [...upcoming, ...past];
+}
+
 export function TripsScreen() {
   const { session } = useAuth();
   const [trips, setTrips] = useState<Trip[]>([]);
@@ -69,7 +81,7 @@ export function TripsScreen() {
       .from("trips")
       .select("*")
       .order("start_date", { ascending: true });
-    const nextTrips = (data ?? []) as Trip[];
+    const nextTrips = sortTripsForHome((data ?? []) as Trip[]);
     setTrips(nextTrips);
 
     if (queryError || nextTrips.length === 0) {
@@ -122,6 +134,8 @@ export function TripsScreen() {
 
   const featuredTrip = trips[0];
   const otherTrips = trips.slice(1);
+  const today = new Date().toISOString().split("T")[0];
+  const featuredIsUpcoming = Boolean(featuredTrip && featuredTrip.end_date >= today);
   const featuredStats = featuredTrip ? stats[featuredTrip.id] : undefined;
   const progress =
     featuredStats?.packing && featuredStats.packing > 0
@@ -170,7 +184,9 @@ export function TripsScreen() {
                 )}
                 <div className="featured-cover-overlay">
                   <div>
-                    <span className="featured-kicker">Your next trip</span>
+                    <span className="featured-kicker">
+                      {featuredIsUpcoming ? "Your next trip" : "Past trip"}
+                    </span>
                     <h2>{featuredTrip.destination}</h2>
                     <p>
                       <CalendarDays size={13} />

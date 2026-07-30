@@ -34,6 +34,23 @@ Open [http://localhost:3000](http://localhost:3000) → **View Demo** or **Conti
 
 Sample data includes a Scottsdale golf trip with David, Jen, and Andre (dog).
 
+## Where secrets live
+
+Do **not** put OpenAI (or other server) keys in the mobile app or APK.
+
+| Secret | Where | Used for |
+| --- | --- | --- |
+| `OPENAI_API_KEY` | **Vercel** → Project → Settings → Environment Variables (Production) | AI packing lists + Packing Help |
+| `SUPABASE_SERVICE_ROLE_KEY` | Vercel (Production) | Server joins, admin writes |
+| `NEXT_PUBLIC_SUPABASE_*` | Vercel (Production) | Web app auth |
+| `MAPBOX_ACCESS_TOKEN` / `UNSPLASH_ACCESS_KEY` | Vercel (Production) | Web destination search / covers |
+| `VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY` | **GitHub** → Settings → Secrets → Actions | Mobile APK build |
+| `VITE_API_URL` | Baked into APK as `https://www.packforvacation.com` | Mobile → Next.js AI API |
+
+After adding or changing `OPENAI_API_KEY` on Vercel, **redeploy** the site. Mobile already calls that API; it does not need the OpenAI key itself.
+
+Check readiness: `GET https://www.packforvacation.com/api/mobile/status` → `{ "openaiConfigured": true }`.
+
 ## Production Setup
 
 1. Copy environment variables:

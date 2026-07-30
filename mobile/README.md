@@ -23,7 +23,7 @@ cp .env.example .env
 ```
 VITE_SUPABASE_URL=https://your-project.supabase.co
 VITE_SUPABASE_ANON_KEY=your-anon-key
-VITE_API_URL=https://packforvacation.com
+VITE_API_URL=https://www.packforvacation.com
 ```
 
 3. In Supabase Auth → URL configuration, add redirect URL:
@@ -58,15 +58,18 @@ npm run native:ios
 2. Add these repository secrets using the values from `mobile/.env`:
    - `VITE_SUPABASE_URL`
    - `VITE_SUPABASE_ANON_KEY`
-3. Go to **Actions → Build Android APK → Run workflow**.
-4. When the build finishes, open it and download the
+3. Ensure the **deployed website** has `OPENAI_API_KEY` set in Vercel (Production) and redeployed. The APK calls `https://www.packforvacation.com/api/mobile/*` for AI — it never ships the OpenAI key.
+4. Go to **Actions → Build Android APK → Run workflow**.
+5. When the build finishes, open it and download the
    **PackForVacation-Android** artifact.
-5. Unzip the artifact and send `app-debug.apk` to your phone through Drive,
+6. Unzip the artifact and send `app-debug.apk` to your phone through Drive,
    email, or another file-sharing service.
-6. Open the APK on Android and allow **Install unknown apps** when prompted.
+7. Open the APK on Android and allow **Install unknown apps** when prompted.
 
 No Play Console, developer account, USB connection, Java, or Android Studio is
 required for this debug APK.
+
+Verify AI on the server: open `https://www.packforvacation.com/api/mobile/status` — `openaiConfigured` should be `true`.
 
 ### Requirements
 

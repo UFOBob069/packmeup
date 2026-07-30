@@ -50,7 +50,7 @@ jobs:
             echo "::error::Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY as repository secrets."
             exit 1
           fi
-          printf 'VITE_SUPABASE_URL=%s\nVITE_SUPABASE_ANON_KEY=%s\nVITE_API_URL=https://packforvacation.com\n' \
+          printf 'VITE_SUPABASE_URL=%s\nVITE_SUPABASE_ANON_KEY=%s\nVITE_API_URL=https://www.packforvacation.com\n' \
             "$VITE_SUPABASE_URL" "$VITE_SUPABASE_ANON_KEY" > .env
 
       - name: Build and sync Capacitor

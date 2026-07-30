@@ -66,7 +66,7 @@ export function JoinTripScreen() {
           <input
             value={input}
             onChange={(event) => setInput(event.target.value)}
-            placeholder="https://packforvacation.com/trips/join/…"
+            placeholder="https://www.packforvacation.com/trips/join/…"
             autoCapitalize="none"
             autoCorrect="off"
           />

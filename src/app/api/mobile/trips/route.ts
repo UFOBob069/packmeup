@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
 import { generateTripContent } from "@/lib/ai/packing-generator";
+import { isOpenAIConfigured } from "@/lib/ai/openai";
 import { authenticateMobileRequest } from "@/lib/supabase/mobile-server";
 import { buildTripSpecialNotes } from "@/lib/trip-notes";
 import { fetchDestinationCoverUrl } from "@/lib/unsplash/destination-cover";
@@ -237,7 +238,10 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    return json({ tripId: trip.id }, { status: 201 });
+    return json(
+      { tripId: trip.id, openaiConfigured: isOpenAIConfigured() },
+      { status: 201 }
+    );
   } catch (cause) {
     if (tripId) {
       await supabase.from("trips").delete().eq("id", tripId);

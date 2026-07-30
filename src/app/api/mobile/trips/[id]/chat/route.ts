@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { authenticateMobileRequest } from "@/lib/supabase/mobile-server";
+import { isOpenAIConfigured } from "@/lib/ai/openai";
 import { refineWithChat } from "@/lib/ai/chat-refinement";
 import { analyzePackingGaps, formatGapsForAi } from "@/lib/packing/gap-analysis";
 import type {
@@ -46,6 +47,16 @@ export async function POST(
     return json({ error: "Invalid request body" }, { status: 400 });
   }
   if (!message) return json({ error: "Message is required" }, { status: 400 });
+
+  if (!isOpenAIConfigured()) {
+    return json(
+      {
+        error:
+          "AI is not configured on the server. Add OPENAI_API_KEY in Vercel → Project → Settings → Environment Variables (Production), then redeploy.",
+      },
+      { status: 503 }
+    );
+  }
 
   const { data: tripRow } = await supabase.from("trips").select("*").eq("id", tripId).maybeSingle();
   if (!tripRow) return json({ error: "Trip not found" }, { status: 404 });
